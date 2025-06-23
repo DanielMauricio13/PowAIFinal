@@ -13,7 +13,20 @@ struct UserSettings: View {
     @State var wantsDelete:Bool = false
     var body: some View {
         if wantsDelete{
-            Text("Delete Account").fontDesign(.rounded).font(.largeTitle).foregroundStyle(Color.red)
+            VStack{
+                Text("Delete Account").fontDesign(.rounded).font(.largeTitle).foregroundStyle(Color.red)
+                Spacer()
+                Text("This action cannot be undone. Are you sure you want to delete your account?")
+                Spacer()
+                Button{
+                   
+                }label: {
+                    Text("Delete").font(.title3).foregroundStyle(Color.white).background(RoundedRectangle(cornerRadius: 90).foregroundStyle(Color.red).frame(width: 150, height: 50) ).padding(.bottom)
+                }
+                Spacer()
+                
+                
+            }
         }else{
             VStack{
                 Text("User Settings").font(.largeTitle).foregroundStyle(Color.white).bold().fontDesign(.rounded)
