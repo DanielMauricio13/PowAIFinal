@@ -11,10 +11,9 @@ import MessageUI
 
 struct MailView: UIViewControllerRepresentable {
     var to: String
-    var cc: String
-    var from: String?
     var subject: String
     var body: String
+    var preferredFrom: String?
     @Environment(\.presentationMode) var presentation
 
     class Coordinator: NSObject, MFMailComposeViewControllerDelegate {
@@ -32,8 +31,7 @@ struct MailView: UIViewControllerRepresentable {
     func makeUIViewController(context: Context) -> MFMailComposeViewController {
         let vc = MFMailComposeViewController()
         vc.setToRecipients([to])
-        vc.setCcRecipients([cc])
-        if let from = from {
+        if let from = preferredFrom {
             if #available(iOS 11.0, *) {
                 vc.setPreferredSendingEmailAddress(from)
             }
@@ -76,11 +74,10 @@ struct recoverAccount: View {
             }
         }
         .sheet(isPresented: $showMail) {
-            MailView(to: email,
-                     cc: supportEmail,
-                     from: supportEmail,
+            MailView(to: supportEmail,
                      subject: "Account Recovery",
-                     body: "Please recover my account registered with: \(email)")
+                     body: "Recovery request from: \(email)",
+                     preferredFrom: email)
         }
         .alert("Mail services are not available", isPresented: $showAlert) {
             Button("OK", role: .cancel) { }
