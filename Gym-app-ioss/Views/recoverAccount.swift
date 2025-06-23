@@ -43,7 +43,7 @@ struct recoverAccount: View {
     @State private var email = ""
     @State private var showMail = false
     @State private var showAlert = false
-    private let supportEmail = "support@example.com"
+    private let supportEmail = "dmvp01@hotmail.com"
 
     var body: some View {
         ZStack {
