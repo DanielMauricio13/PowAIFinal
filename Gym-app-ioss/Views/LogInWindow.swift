@@ -47,7 +47,7 @@ struct LogInWindow: View {
                         TextField("Email", text: $username).padding().frame(width: 300, height: 50).background(Color.black.opacity(0.05)).cornerRadius(10).border(.red, width: CGFloat(wrongUsername)).foregroundColor(.white).font(.headline)
                         SecureField("Password", text: $password).foregroundStyle(Color.white).padding().frame(width: 300, height: 50).background(Color.black.opacity(0.05)).cornerRadius(10).border(.red, width: CGFloat(wrongPassword)).accentColor(.white).foregroundColor(.white).font(.headline)
                         if wrongUsername == 1 {
-                            NavigationLink(destination: createUserWindow()) {
+                            NavigationLink(destination: recoverAccount()) {
                                 Text("Wrong email or password! Recover?").underline().foregroundColor(.red)
                             }.padding(.top)
                         }
