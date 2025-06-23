@@ -46,7 +46,7 @@ struct ExcerciseWindow: View {
                             Calories(mainUser: mainUser)
                         }
                         else if (whichWin == 3){
-                            UserSettings(persistenceManager: $persistenceManager, LogOut: $LogOut)
+                            UserSettings(persistenceManager: $persistenceManager, LogOut: $LogOut, mainUser: self.mainUser!)
                         }
                         Spacer()
                         
