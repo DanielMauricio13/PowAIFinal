@@ -29,6 +29,7 @@ struct NutritionView: View {
     @State private var showScanner = false
     @State private var showBarcodeError = false
     @State private var barcodeErrorMessage = ""
+    var email: String
     
     
     var body: some View {
@@ -231,7 +232,7 @@ struct NutritionView: View {
                 }
                 ScrollView{
                   ForEach(viewModel.items) { item in
-                      ExpandableBoxView(item: item, persistenceManager: self.persistenceManager)
+                      ExpandableBoxView(item: item, persistenceManager: self.persistenceManager, email: email)
                         .onTapGesture {
                             viewModel.toggleExpand(for: item)
                         }
@@ -317,6 +318,15 @@ struct NutritionView: View {
     struct ExpandableBoxView: View {
         var item: ExcListItem
         let persistenceManager: PersistenceManager
+        let email: String
+        @State private var isSaved: Bool
+
+        init(item: ExcListItem, persistenceManager: PersistenceManager, email: String) {
+            self.item = item
+            self.persistenceManager = persistenceManager
+            self.email = email
+            _isSaved = State(initialValue: persistenceManager.loadFavorites().contains(where: { $0.Name == item.title }))
+        }
         var body: some View {
             VStack(alignment: .leading) {
                 
@@ -351,14 +361,20 @@ struct NutritionView: View {
                         }
                         Spacer()
                         Button(action: {
-//                            persistenceManager.clearItem(byName: item.title)
-//                            item.isSaved.toggle()
-                            
+                            if let food = persistenceManager.getItem(byName: item.title) {
+                                if isSaved {
+                                    persistenceManager.removeFavorite(byName: food.Name)
+                                    isSaved = false
+                                } else {
+                                    persistenceManager.addFavorite(food: food)
+                                    Task { await persistenceManager.sendFavorites(email: email) }
+                                    isSaved = true
+                                }
+                            }
                         }) {
-                        
-                            Image(systemName: item.isSaved ? "star.fill" : "star").foregroundStyle(Color.yellow)
+                            Image(systemName: isSaved ? "star.fill" : "star").foregroundStyle(Color.yellow)
                             Text("Make Favorite").foregroundColor(.accentColor).bold().fontDesign(.rounded).background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial).frame(width: 120, height: 40))
-                            
+
                         }
                         
                     

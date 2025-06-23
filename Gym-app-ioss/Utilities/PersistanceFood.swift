@@ -11,6 +11,7 @@ class PersistenceManager {
     private let userDefaults = UserDefaults.standard
     private let itemsKey = "items"
     private let dateKey = "saveDate"
+    private let favoritesKey = "favoriteFoods"
 
     func saveItems(items: [Food]) {
         let encoder = JSONEncoder()
@@ -61,12 +62,66 @@ class PersistenceManager {
                         
                     }
                 }
-            }
-        
         }
 
-     func clearItems() {
+    }
+
+    func clearItems() {
         userDefaults.removeObject(forKey: itemsKey)
         userDefaults.removeObject(forKey: dateKey)
+    }
+
+    // MARK: - Favorites Handling
+
+    func saveFavorites(items: [Food]) {
+        let encoder = JSONEncoder()
+        if let encodedItems = try? encoder.encode(items) {
+            userDefaults.set(encodedItems, forKey: favoritesKey)
+        }
+    }
+
+    func loadFavorites() -> [Food] {
+        if let savedItems = userDefaults.data(forKey: favoritesKey) {
+            let decoder = JSONDecoder()
+            if let loadedItems = try? decoder.decode([Food].self, from: savedItems) {
+                return loadedItems
+            }
+        }
+        return []
+    }
+
+    func addFavorite(food: Food) {
+        var favorites = loadFavorites()
+        if !favorites.contains(where: { $0.Name == food.Name }) {
+            favorites.append(food)
+            saveFavorites(items: favorites)
+        }
+    }
+
+    func removeFavorite(byName name: String) {
+        var favorites = loadFavorites()
+        if let index = favorites.firstIndex(where: { $0.Name == name }) {
+            favorites.remove(at: index)
+            saveFavorites(items: favorites)
+        }
+    }
+
+    func getItem(byName name: String) -> Food? {
+        return loadItems().first(where: { $0.Name == name })
+    }
+
+    func sendFavorites(email: String) async {
+        let favorites = loadFavorites()
+        guard let url = URL(string: "\(Constants.baseURL)\(EndPoints.foods)") else {
+            return
+        }
+        for food in favorites {
+            let payload = savedFood(id: nil, Name: food.Name, Calories: food.Calories, Sugars: food.Sugars, Carbohydrates: food.Carbohydrates, Protein: food.Protein, email: email)
+            do {
+                try await HttpClient.shared.sendData(to: url, object: payload, httpMethod: HttpMethods.POST.rawValue)
+            } catch {
+                print("Failed to send favorite: \(error)")
+            }
+        }
     }
 }

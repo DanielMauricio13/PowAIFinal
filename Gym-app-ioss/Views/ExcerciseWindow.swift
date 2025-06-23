@@ -40,7 +40,7 @@ struct ExcerciseWindow: View {
                             FisrtWindow(mainUser: self.mainUser,userFullWork: self.userFullWork, viewModel: ListViewModel(items: []), viewModel2: ListViewModel(items: []), exToday: $exToday  )
                         }
                         else if(whichWin == 1){
-                            NutritionView( viewModel: ListViewModel(items: []), viewModel2: ListViewModel(items: []), persistenceManager: $persistenceManager)
+                            NutritionView( viewModel: ListViewModel(items: []), viewModel2: ListViewModel(items: []), persistenceManager: $persistenceManager, email: mainUser?.email ?? "")
                         }
                         else if(whichWin == 2){
                             Calories(mainUser: mainUser)
