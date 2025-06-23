@@ -14,8 +14,8 @@
             filePath = "Gym-app-ioss/Views/UserSettings.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "36"
-            endingLineNumber = "36"
+            startingLineNumber = "52"
+            endingLineNumber = "52"
             landmarkName = "UserSettings"
             landmarkType = "14">
          </BreakpointContent>
@@ -65,7 +65,7 @@
             startingLineNumber = "330"
             endingLineNumber = "330"
             landmarkName = "extractNutrition(from:)"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -81,7 +81,7 @@
             startingLineNumber = "331"
             endingLineNumber = "331"
             landmarkName = "extractNutrition(from:)"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -97,7 +97,7 @@
             startingLineNumber = "363"
             endingLineNumber = "363"
             landmarkName = "extractWorkoutPlan(from:)"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -113,7 +113,7 @@
             startingLineNumber = "242"
             endingLineNumber = "242"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -161,7 +161,7 @@
             startingLineNumber = "298"
             endingLineNumber = "298"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -177,7 +177,7 @@
             startingLineNumber = "300"
             endingLineNumber = "300"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -353,7 +353,7 @@
             startingLineNumber = "293"
             endingLineNumber = "293"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -369,7 +369,7 @@
             startingLineNumber = "267"
             endingLineNumber = "267"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -385,7 +385,7 @@
             startingLineNumber = "269"
             endingLineNumber = "269"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -401,7 +401,7 @@
             startingLineNumber = "266"
             endingLineNumber = "266"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -417,7 +417,7 @@
             startingLineNumber = "286"
             endingLineNumber = "286"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -433,7 +433,7 @@
             startingLineNumber = "294"
             endingLineNumber = "294"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy
@@ -449,7 +449,7 @@
             startingLineNumber = "287"
             endingLineNumber = "287"
             landmarkName = "geminii()"
-            landmarkType = "9">
+            landmarkType = "7">
          </BreakpointContent>
       </BreakpointProxy>
       <BreakpointProxy

@@ -10,17 +10,33 @@ import SwiftUI
 struct UserSettings: View {
     @Binding  var persistenceManager: PersistenceManager
     @Binding var LogOut: Bool
+    @State var wantsDelete:Bool = false
     var body: some View {
-        VStack{
-            Text("User Settings").font(.largeTitle).foregroundStyle(Color.white)
-            Spacer()
-            Button{
-                logout()
-                LogOut = true
-            }label: {
-                Text("Log out").font(.title3).foregroundStyle(Color.white).background(RoundedRectangle(cornerRadius: 90).foregroundStyle(Color.red).frame(width: 150, height: 50) ).padding(.bottom)
+        if wantsDelete{
+            Text("Delete Account").fontDesign(.rounded).font(.largeTitle).foregroundStyle(Color.red)
+        }else{
+            VStack{
+                Text("User Settings").font(.largeTitle).foregroundStyle(Color.white).bold().fontDesign(.rounded)
+                Spacer()
+                Button{
+                    logout()
+                    LogOut = true
+                }label: {
+                    Text("Delete account").font(.title3).foregroundStyle(Color.white).background(RoundedRectangle(cornerRadius: 90).foregroundStyle(Color.red).frame(width: 150, height: 50) ).padding(.bottom)
+                }
+                Spacer()
+                Button{
+                    logout()
+                    LogOut = true
+                }label: {
+                    Text("Log out").font(.title3).foregroundStyle(Color.white).background(RoundedRectangle(cornerRadius: 90).foregroundStyle(Color.red).frame(width: 150, height: 50) ).padding(.bottom)
+                }
+              
+              
+                
+                Spacer()
+                
             }
-            
         }
     }
     func logout()->Void {

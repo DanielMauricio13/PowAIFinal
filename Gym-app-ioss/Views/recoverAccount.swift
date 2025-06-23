@@ -54,7 +54,7 @@ struct recoverAccount: View {
     @State private var showMail = false
     @State private var showAlert = false
 
-    private let supportEmail = "support@example.com"
+    private let supportEmail = "danielmauriciovpinilla@hotmail.com"
 
 
     var body: some View {
