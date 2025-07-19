@@ -127,7 +127,7 @@ struct StaringWorkWindow: View {
                                     
                                     let content = UNMutableNotificationContent()
                                     content.title = "60 Seconds and going!"
-                                    content.body = "60 Seconds of  recovery time hvae passed. Go into the next set!"
+                                    content.body = "60 Seconds of  recovery time have passed. Go into the next set!"
                                     content.sound = .default
 
                                     let trigger = UNTimeIntervalNotificationTrigger(timeInterval: TimeInterval(60), repeats: false)
