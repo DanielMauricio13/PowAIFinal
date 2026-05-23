@@ -33,12 +33,20 @@ struct StaringWorkWindow: View {
     @State var isTrackingTime: Bool = false
     @State var startTime: Date? = nil
     @State var excSer: Int? = 3
+    
+    private let gymBackground = LinearGradient(
+        colors: [Color.black, Color(red: 0.12, green: 0.02, blue: 0.18), Color(red: 0.35, green: 0.04, blue: 0.12)],
+        startPoint: .topLeading,
+        endPoint: .bottomTrailing
+    )
 
         
     
     var body: some View {
-        if timeRemaining == 0 || index >= todaysWork?.exercises.count ?? 1 {                //if strting exercise time has ended or workout is over
-            VStack {
+        ZStack {
+            gymBackground.ignoresSafeArea()
+            if timeRemaining == 0 || index >= todaysWork?.exercises.count ?? 1 {                //if strting exercise time has ended or workout is over
+                VStack {
                 if index >= todaysWork?.exercises.count ?? 1 {                              //if workout is over
                     Spacer()
                     Text("All Done!").font(.title3).italic().bold().foregroundStyle(Color.orange).font(.title2)
@@ -47,11 +55,25 @@ struct StaringWorkWindow: View {
                     Button {
                         exToday = ""
                     } label: {
-                        Text("Go Back").foregroundStyle(Color.white).font(.title2).bold().background(Rectangle().clipShape(.buttonBorder).frame(width: 100, height: 40)).padding(.top)
+                        Text("Go Back")
+                            .foregroundStyle(Color.white)
+                            .font(.title3)
+                            .bold()
+                            .padding(.horizontal, 22)
+                            .padding(.vertical, 10)
+                            .background(Capsule().fill(Color.red.opacity(0.9)))
+                            .overlay(Capsule().stroke(Color.white.opacity(0.35), lineWidth: 1.5))
+                            .shadow(color: .red.opacity(0.35), radius: 12, x: 0, y: 6)
+                            .padding(.top)
                     }
                 }                       //workout is over
                 else {
-                    Text("\(todaysWork?.exercises[index].name ?? "PullUps")").font(.largeTitle).italic().bold().foregroundStyle(Color.white)
+                    Text("\(todaysWork?.exercises[index].name ?? "PullUps")")
+                        .font(.largeTitle)
+                        .italic()
+                        .bold()
+                        .foregroundStyle(Color.white)
+                        .shadow(color: .black.opacity(0.6), radius: 8, x: 0, y: 3)
 
                     ImageView(imageURL: "https://powai-ea13190d89b9.herokuapp.com/images/imageName?name=\(todaysWork?.exercises[index].name ?? "bad").jpg")
                         .frame(width: 400, height: 300)
@@ -91,7 +113,16 @@ struct StaringWorkWindow: View {
                                     finishedRecover = false
                                 }
                             } label: {
-                                Text("Finish Set").foregroundStyle(Color.white).font(.title2).bold().background(Rectangle().clipShape(.buttonBorder).frame(width: 100, height: 40)).padding(.top)
+                                Text("Finish Set")
+                                    .foregroundStyle(Color.white)
+                                    .font(.title3)
+                                    .bold()
+                                    .padding(.horizontal, 18)
+                                    .padding(.vertical, 10)
+                                    .background(Capsule().fill(Color.green.opacity(0.85)))
+                                    .overlay(Capsule().stroke(Color.white.opacity(0.3), lineWidth: 1))
+                                    .shadow(color: .green.opacity(0.35), radius: 12, x: 0, y: 6)
+                                    .padding(.top)
                             }.onAppear{
                                 finishedSet = false
                                 finishedRecover = false
@@ -171,19 +202,33 @@ struct StaringWorkWindow: View {
                                     
                                 }
                             }label: {
-                                Text(isTrackingTime ? "Stop" : "Start").font(.title).bold().fontDesign(.rounded).foregroundStyle(Color.red).background(RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial).frame(width: 120, height: 60)).padding(.top)
+                                Text(isTrackingTime ? "Stop" : "Start")
+                                    .font(.title2)
+                                    .bold()
+                                    .fontDesign(.rounded)
+                                    .foregroundStyle(.white)
+                                    .padding(.horizontal, 28)
+                                    .padding(.vertical, 14)
+                                    .background(Capsule().fill(isTrackingTime ? Color.red : Color.orange))
+                                    .overlay(Capsule().stroke(Color.white.opacity(0.35), lineWidth: 1.2))
+                                    .shadow(color: (isTrackingTime ? Color.red : Color.orange).opacity(0.4), radius: 14, x: 0, y: 8)
+                                    .padding(.top)
                             }
                                 
                        
                     }
                 }
                 Spacer()
-            }
-        } 
-        else {
-            VStack {
+                }
+            } 
+            else {
+                VStack {
                 Spacer()
-                Text("Get Ready!\nNext Exercise is \(todaysWork?.exercises[index].name ?? "pushdowns")").font(.title).foregroundStyle(Color.white).padding(.bottom)
+                Text("Get Ready!\nNext Exercise is \(todaysWork?.exercises[index].name ?? "pushdowns")")
+                    .font(.title2)
+                    .multilineTextAlignment(.center)
+                    .foregroundStyle(Color.white)
+                    .padding(.bottom)
                 ZStack {
                     CircularProgressView(progress: Double(totalTime - timeRemaining) / Double(totalTime))
                         .frame(width: 200, height: 200)
@@ -195,13 +240,19 @@ struct StaringWorkWindow: View {
                 }
                 .padding()
                 Spacer()
-            }.onAppear {
-                self.timeRemaining = totalTime
-                self.timerIsRunning = true
-            }
-            .onReceive(timer) { _ in
-                if self.timerIsRunning && self.timeRemaining > 0 {
-                    self.timeRemaining -= 1
+                }
+                .padding()
+                .background(RoundedRectangle(cornerRadius: 28).fill(.ultraThinMaterial).opacity(0.95))
+                .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color.white.opacity(0.2), lineWidth: 1))
+                .padding(.horizontal)
+                .onAppear {
+                    self.timeRemaining = totalTime
+                    self.timerIsRunning = true
+                }
+                .onReceive(timer) { _ in
+                    if self.timerIsRunning && self.timeRemaining > 0 {
+                        self.timeRemaining -= 1
+                    }
                 }
             }
         }
