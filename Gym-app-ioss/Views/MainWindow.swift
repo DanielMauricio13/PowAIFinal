@@ -22,11 +22,17 @@ struct MainWindow: View {
     var body: some View {
         NavigationView {
             ZStack {
-                Color.white.ignoresSafeArea()
+                LinearGradient(colors: [Color.black, Color(red: 0.24, green: 0.03, blue: 0.06)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
                 
                 if isLoading {
                     // Show loading indicator or message while waiting for data
-                    Text("Loading...").foregroundColor(.white)
+                    VStack(spacing: 12) {
+                        ProgressView()
+                            .tint(.orange)
+                        Text("Loading your workout...")
+                            .foregroundColor(.white)
+                            .font(.headline)
+                    }
                 } else {
 //                    VStack{
 //                        Text("Which day are you working?")
@@ -270,5 +276,4 @@ struct MainWindow: View {
       //  persistenceManager.clearItems()
     }
 }
-
 

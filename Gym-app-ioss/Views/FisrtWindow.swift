@@ -19,55 +19,56 @@ struct FisrtWindow: View {
     @Binding  var exToday: String
     
     var body: some View {
-        VStack{
-            Text("Happy \(currentDayOfWeek())!")
-                .font(.largeTitle)
-                .fontWeight(.bold)
-                .padding()
-                .foregroundColor(.white)
-                .italic()
-                .shadow(color: .white, radius: 10)
-            
-            Text("Choose today's workout!")
-                .font(.title)
-                .fontWeight(.bold)
-                .padding()
-                .fontDesign(.rounded)
-                .foregroundColor(.white)
-                .italic()
-            
-            
-            ScrollView {
-                VStack {
-                    Spacer()
-                    ForEach(viewModel.items) { item in
-                        ExpandableBoxView(item: item, exToday: $exToday)
-                            .onTapGesture {
-                                viewModel.toggleExpand(for: item)
-                            }
-                            .animation(.easeInOut, value: item.isExpanded)
+        ZStack {
+            LinearGradient(colors: [Color.black, Color(red: 0.25, green: 0.02, blue: 0.06)], startPoint: .topLeading, endPoint: .bottomTrailing)
+                .ignoresSafeArea()
+
+            VStack{
+                Text("Happy \(currentDayOfWeek())!")
+                    .font(.largeTitle)
+                    .fontWeight(.bold)
+                    .padding(.top)
+                    .foregroundStyle(LinearGradient(colors: [.white, .orange], startPoint: .leading, endPoint: .trailing))
+                    .italic()
+                    .shadow(color: .red.opacity(0.6), radius: 12)
+
+                Text("Choose today's workout!")
+                    .font(.title2)
+                    .fontWeight(.bold)
+                    .padding(.bottom, 8)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.white.opacity(0.95))
+
+                ScrollView {
+                    VStack {
+                        Spacer()
+                        ForEach(viewModel.items) { item in
+                            ExpandableBoxView(item: item, exToday: $exToday)
+                                .onTapGesture {
+                                    viewModel.toggleExpand(for: item)
+                                }
+                                .animation(.easeInOut, value: item.isExpanded)
+                        }
+                        Text("Short In Time? Do a HIIT!")
+                            .font(.title3)
+                            .fontWeight(.heavy)
+                            .padding()
+                            .foregroundStyle(LinearGradient(colors: [.orange,.red], startPoint: .leading, endPoint: .trailing))
+                            .italic()
+                            .shadow(color: .red, radius: 20,y: 1)
+                            .underline()
+                        ForEach(viewModel2.items) { item in
+                            ExpandableBoxView(item: item, exToday: $exToday)
+                                .onTapGesture {
+                                    viewModel2.toggleExpand(for: item)
+                                }
+                                .animation(.easeInOut, value: item.isExpanded)
+                        }
+
                     }
-                    Text("Short In Time? Do a HIIT!")
-                        .font(.title)
-                        .fontWeight(.bold)
-                        .padding()
-                        .foregroundStyle(LinearGradient(colors: [.white,.red], startPoint: .leading, endPoint: .trailing))
-                        .italic()
-                        .shadow(color: .red, radius: 30,y: 1)
-                        .underline()
-                    ForEach(viewModel2.items) { item in
-                        ExpandableBoxView(item: item, exToday: $exToday)
-                            .onTapGesture {
-                                viewModel2.toggleExpand(for: item)
-                            }
-                            .animation(.easeInOut, value: item.isExpanded)
-                    }
-                    
+                    .padding()
                 }
-                .padding()
             }
-            
-            
         }.onAppear{
             var cal = 0
             for i in 0..<(userFullWork?.userExcersises.workout_plan.count  ?? 1){
@@ -146,9 +147,13 @@ struct FisrtWindow: View {
                 }
             }
             .padding()
-            .background(Color.gray.opacity(0.1))
+            .background(Color.white.opacity(0.08))
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(Color.white.opacity(0.15), lineWidth: 1)
+            )
             .cornerRadius(8)
-            .shadow(radius: 1)
+            .shadow(color: .black.opacity(0.3), radius: 6)
             .padding(.vertical, 5)
         }
     }
@@ -172,5 +177,4 @@ struct ExpandableBox: View {
     }
   }
 }
-
 
