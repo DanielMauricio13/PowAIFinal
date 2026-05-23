@@ -191,7 +191,11 @@ struct MainWindow: View {
 
     func fetchExerciseData(completion: @escaping (Result<fullTraining, Error>) -> Void) {
             // Replace this URL with your Vapor server endpoint
-        let url = URL(string: "\(Constants.baseURL)\(EndPoints.training)userExcersises?email=\(email)")!
+        guard let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
+              let url = URL(string: "\(Constants.baseURL)\(EndPoints.training)userExcersises?email=\(encodedEmail)") else {
+            completion(.failure(URLError(.badURL)))
+            return
+        }
             
             // Create an HTTP GET request
             var request = URLRequest(url: url)

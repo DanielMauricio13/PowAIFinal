@@ -45,8 +45,14 @@ struct ExcerciseWindow: View {
                         else if(whichWin == 2){
                             Calories(mainUser: mainUser)
                         }
-                        else if (whichWin == 3){
-                            UserSettings(persistenceManager: $persistenceManager, LogOut: $LogOut, mainUser: self.mainUser!)
+                        else if whichWin == 3 {
+                            if let mainUser {
+                                UserSettings(persistenceManager: $persistenceManager, LogOut: $LogOut, mainUser: mainUser)
+                            } else {
+                                Text("User data unavailable. Please sign in again.")
+                                    .foregroundStyle(.white)
+                                    .padding()
+                            }
                         }
                         Spacer()
                         

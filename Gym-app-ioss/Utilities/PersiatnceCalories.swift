@@ -131,7 +131,8 @@ class HealthManager: ObservableObject {
         components.minute = 0
         components.second = 0
 
-        guard let nextMidnight = calendar.date(byAdding: .day, value: 1, to: calendar.date(from: components)!) else {
+        guard let todayMidnight = calendar.date(from: components),
+              let nextMidnight = calendar.date(byAdding: .day, value: 1, to: todayMidnight) else {
             return
         }
 

@@ -105,12 +105,9 @@ struct WorkOutWindow: View {
             }
         }
         .onAppear{
-            if exToday != "failed"{
-                for i in 0..<(userFullWork?.userExcersises.workout_plan.count ?? 1) {
-                    if userFullWork?.userExcersises.workout_plan[i].muscle_group == exToday {
-                        todaysWork = (userFullWork?.userExcersises.workout_plan[i] ?? workout_plans(day: 0, muscle_group: "sas", exercises: []))
-                    }
-                }
+            if exToday != "failed",
+               let plans = userFullWork?.userExcersises.workout_plan {
+                todaysWork = plans.first(where: { $0.muscle_group == exToday })
             }
             recalculateSummary()
           
@@ -133,10 +130,10 @@ struct WorkOutWindow: View {
     func recalculateSummary() {
         cals = 0
         temp = "\n\n"
-        for i in 0..<(todaysWork?.exercises.count ?? 1){
-            cals += todaysWork?.exercises[i].calories_burned ?? 0
-            temp += " - \(todaysWork?.exercises[i].name ?? ""): \(todaysWork?.exercises[i].reps ?? "" ) reps, x \(todaysWork?.exercises[i].sets ?? 1) sets. Approx \(todaysWork?.exercises[i].calories_burned ?? 1) calories burned\n\n"
-            
+        guard let exercises = todaysWork?.exercises else { return }
+        for exercise in exercises {
+            cals += exercise.calories_burned
+            temp += " - \(exercise.name): \(exercise.reps) reps, x \(exercise.sets) sets. Approx \(exercise.calories_burned) calories burned\n\n"
         }
     }
     
