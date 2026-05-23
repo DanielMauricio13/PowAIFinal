@@ -9,7 +9,7 @@ import Foundation
 
 enum Constants{
 //    static let baseURL = "https://gym-app-api-38b971084be9.herokuapp.com/"
-    static let baseURL = "https://app-couples-gym-5f9da74d1aec.herokuapp.com/"
+    static let baseURL = "https://powai-ea13190d89b9.herokuapp.com/"
 }
 enum EndPoints {
     static let users = "users/"

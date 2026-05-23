@@ -4,8 +4,8 @@
 //
 //  Created by Daniel Pinilla on 5/30/24.
 //
-
 import SwiftUI
+import GoogleGenerativeAI
 
 struct WorkOutWindow: View {
     var mainUser: User?
@@ -15,6 +15,10 @@ struct WorkOutWindow: View {
     @State var begginButton = false
     @State var cals = 0
     @State var temp = "\n\n"
+    @State private var showAlternatePrompt = false
+    @State private var isRequestingAlternate = false
+    @State private var showAlternateError = false
+    @State private var alternateErrorMessage = ""
 
     let columns: [GridItem] = [
            GridItem(.fixed(160), spacing: 16),
@@ -30,10 +34,21 @@ struct WorkOutWindow: View {
                 
                 VStack{
                     
-                        
-                        
-                        
-                    Text("Today is \(todaysWork?.muscle_group ?? "Failed to pull")").font(.system(size: 35, weight: .bold,design: .rounded))
+                    HStack(alignment: .center) {
+                        Text("Today is \(todaysWork?.muscle_group ?? "Failed to pull")")
+                            .font(.system(size: 35, weight: .bold,design: .rounded))
+                        Spacer()
+                        Button {
+                            showAlternatePrompt = true
+                        } label: {
+                            Image(systemName: "plus.circle.fill")
+                                .resizable()
+                                .frame(width: 32, height: 32)
+                                .foregroundStyle(Color.accentColor)
+                                .padding(.trailing, 8)
+                        }
+                        .disabled(isRequestingAlternate || todaysWork?.exercises.isEmpty != false)
+                    }
                         
                     
                     
@@ -88,7 +103,8 @@ struct WorkOutWindow: View {
                     Spacer(minLength: 20)
                 }
             }
-        }.onAppear{
+        }
+        .onAppear{
             if exToday != "failed"{
                 for i in 0..<(userFullWork?.userExcersises.workout_plan.count ?? 1) {
                     if userFullWork?.userExcersises.workout_plan[i].muscle_group == exToday {
@@ -96,12 +112,81 @@ struct WorkOutWindow: View {
                     }
                 }
             }
-            for i in 0..<(todaysWork?.exercises.count ?? 1){
-                cals += todaysWork?.exercises[i].calories_burned ?? 0
-                temp += " - \(todaysWork?.exercises[i].name ?? ""): \(todaysWork?.exercises[i].reps ?? "" ) reps, x \(todaysWork?.exercises[i].sets ?? 1) sets. Approx \(todaysWork?.exercises[i].calories_burned ?? 1) calories burned\n\n"
-                
-            }
+            recalculateSummary()
           
+        }
+        .alert("Change today’s workout?", isPresented: $showAlternatePrompt) {
+            Button("Cancel", role: .cancel) { }
+            Button("Yes, create new") {
+                Task { await requestAlternateWorkout() }
+            }
+        } message: {
+            Text("Ask Gemini for a different routine for \(todaysWork?.muscle_group ?? "this muscle group").")
+        }
+        .alert("Couldn’t update workout", isPresented: $showAlternateError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(alternateErrorMessage)
+        }
+    }
+    
+    func recalculateSummary() {
+        cals = 0
+        temp = "\n\n"
+        for i in 0..<(todaysWork?.exercises.count ?? 1){
+            cals += todaysWork?.exercises[i].calories_burned ?? 0
+            temp += " - \(todaysWork?.exercises[i].name ?? ""): \(todaysWork?.exercises[i].reps ?? "" ) reps, x \(todaysWork?.exercises[i].sets ?? 1) sets. Approx \(todaysWork?.exercises[i].calories_burned ?? 1) calories burned\n\n"
+            
+        }
+    }
+    
+    func requestAlternateWorkout() async {
+        guard let todaysWork else {
+            alternateErrorMessage = "Missing today's workout details."
+            showAlternateError = true
+            return
+        }
+        guard !todaysWork.exercises.isEmpty else {
+            alternateErrorMessage = "There are no exercises to base a new routine on."
+            showAlternateError = true
+            return
+        }
+
+        isRequestingAlternate = true
+        defer { isRequestingAlternate = false }
+
+        do {
+            let urlString = Constants.baseURL + "/ai/alternateWorkout"
+            guard let url = URL(string: urlString) else { return }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            // Build existing exercises list for backend
+            let existingExercises = todaysWork.exercises.map { ex -> [String: Any] in
+                ["name": ex.name, "reps": ex.reps,
+                 "sets": ex.sets, "calories_burned": ex.calories_burned]
+            }
+
+            let body: [String: Any] = [
+                "day":               todaysWork.day,
+                "muscleGroup":       todaysWork.muscle_group,
+                "numHours":          mainUser?.numHours ?? "1-2",
+                "existingExercises": existingExercises
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let (data, _) = try await URLSession.shared.data(for: request)
+            let decoded = try JSONDecoder().decode(workout_plans.self, from: data)
+
+            await MainActor.run {
+                self.todaysWork = decoded
+                recalculateSummary()
+            }
+        } catch {
+            alternateErrorMessage = "Error: \(error.localizedDescription)"
+            showAlternateError = true
         }
     }
 }
@@ -112,4 +197,3 @@ struct WorkOutWindow_Previews: PreviewProvider {
         WorkOutWindow(exToday: .constant("Preview Workout"))
     }
 }
-

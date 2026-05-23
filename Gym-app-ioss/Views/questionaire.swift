@@ -13,7 +13,7 @@ struct questionaire: View {
             Question(text: "What is your objective?", options: ["Increase mass", "Stay fit", "Lose weight"], imageName: "cat"),
             Question(text: "Genetic gender?", options: ["Male", "Female"], imageName: "cat"),
             Question(text: "How many days do you want to workout per week?" , options: ["1", "2", "3", "4", "5" ], imageName: "cat"),
-        Question(text: "how many hours per day do you want to workout?", options: ["less than 1 hour", "1 hour to 2 hours", "more than 2 hours"], imageName: "cat"),
+        Question(text: "how many hours per day do you want to workout?", options: ["less than 1 hour", "1 - 1:30", "1:30 hour to 2 hours", "more than 2 hours"], imageName: "cat"),
         Question(text: "Where will you workout at?" , options: ["Home", "Gym" ], imageName: "cat"),
         Question(text: "What is your wourkout experience", options: ["Beginner", "Intermediate", "Expert"], imageName: "cat")
         ]

@@ -53,7 +53,7 @@ struct StaringWorkWindow: View {
                 else {
                     Text("\(todaysWork?.exercises[index].name ?? "PullUps")").font(.largeTitle).italic().bold().foregroundStyle(Color.white)
 
-                    ImageView(imageURL: "https://app-couples-gym-5f9da74d1aec.herokuapp.com/images/imageName?name=\(todaysWork?.exercises[index].name ?? "bad").jpeg")
+                    ImageView(imageURL: "https://powai-ea13190d89b9.herokuapp.com/images/imageName?name=\(todaysWork?.exercises[index].name ?? "bad").jpg")
                         .frame(width: 400, height: 300)
                     if finishedSet == false ||  finishedRecover == true  {
                         HStack {
