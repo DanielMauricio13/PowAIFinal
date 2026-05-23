@@ -69,7 +69,7 @@ struct StaringWorkWindow: View {
                             if set + 1 > excSer ?? 9{
                                 Button {
                                     set += 1
-                                    excSer! += 1
+                                    excSer = (excSer ?? set) + 1
                                     finishedSet = true
                                     finishedRecover = false
                                 } label: {
