@@ -135,7 +135,9 @@ struct MainWindow: View {
             }
             
             do {
-                let user = try JSONDecoder().decode(User.self, from: jsonData)
+                let decoder = JSONDecoder()
+                decoder.dateDecodingStrategy = .iso8601
+                let user = try decoder.decode(User.self, from: jsonData)
                 DispatchQueue.main.async {
                     completion(.success(user))
                 }
