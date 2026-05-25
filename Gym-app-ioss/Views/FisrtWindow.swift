@@ -198,9 +198,9 @@ struct FisrtWindow: View {
             let body: [String: Any] = [
                 "age":           user.age,
                 "gender":        user.gender,
-                "weight":        Double(user.weight),
+                "weight":        user.weight,
                 "weightUnit":    "kg",
-                "height":        Double(user.height),
+                "height":        user.height,
                 "heightUnit":    "cm",
                 "bodyStructure": user.bodyStructure,
                 "goal":          user.goal,
@@ -239,7 +239,7 @@ struct FisrtWindow: View {
 
             let hiit = fullTraining(
                 id:              nil,             // ← ADD this
-                email:           user.email ,
+                email:           user.email ?? "test" ,
                 userExcersises:  excersise
             )
 

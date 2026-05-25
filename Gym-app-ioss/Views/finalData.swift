@@ -232,7 +232,7 @@ struct finalData: View {
             "height":        height != 0 ? height : 0,
             "heightUnit":    selectedOption2,
             "heightFt":      heightFt,
-            "heightInc":     heightIn,
+            "heightIn":     heightIn,
             "membership_status": "trial",
             "goal":          goal,
             "bodyStructure": bodyStructure,

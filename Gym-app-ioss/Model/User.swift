@@ -41,17 +41,16 @@ struct User: Identifiable, Codable {
 
     enum CodingKeys: String, CodingKey {
         case id, firstName, lastName, age, gender, weight, goal, bodyStructure, height
-        case DailyCalories, DailyProtein, email, password, heightFt, numHours, numDays
-        case sugars, carbs, burnCalories, water
-        case membershipStatus = "membership_status"
-        case membershipPlan = "membership_plan"
-        case membershipStartedAt = "membership_started_at"
-        case membershipExpiresAt = "membership_expires_at"
-        case membershipPlatform = "membership_platform"
-        case appleProductID = "apple_product_id"
-        case appleOriginalTransactionID = "apple_original_transaction_id"
-        case appleLatestTransactionID = "apple_latest_transaction_id"
-        case heightInc
+        case DailyCalories, DailyProtein, email, password, heightFt, heightInc
+        case numHours, numDays, sugars, carbs, burnCalories, water
+        case membershipStatus
+        case membershipPlan
+        case membershipStartedAt
+        case membershipExpiresAt
+        case membershipPlatform
+        case appleProductID
+        case appleOriginalTransactionID
+        case appleLatestTransactionID
     }
 }
 
