@@ -61,6 +61,7 @@
 		43F816F62FC3927100CDFAA5 /* recoverAccount 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */; };
 		43F816F82FC3CDD400CDFAA5 /* WeightEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */; };
 		43F816FA2FC41F8800CDFAA5 /* UpdateProfileMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F92FC41F8800CDFAA5 /* UpdateProfileMenuView.swift */; };
+		43F816FC2FC4277300CDFAA5 /* DailyNutritionEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816FB2FC4277300CDFAA5 /* DailyNutritionEntry.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -136,6 +137,7 @@
 		43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "recoverAccount 2.swift"; sourceTree = "<group>"; };
 		43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightEntry.swift; sourceTree = "<group>"; };
 		43F816F92FC41F8800CDFAA5 /* UpdateProfileMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateProfileMenuView.swift; sourceTree = "<group>"; };
+		43F816FB2FC4277300CDFAA5 /* DailyNutritionEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNutritionEntry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -263,6 +265,7 @@
 		43CDA0282A8D869B000BCA3B /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				43F816FB2FC4277300CDFAA5 /* DailyNutritionEntry.swift */,
 				43F816F92FC41F8800CDFAA5 /* UpdateProfileMenuView.swift */,
 				43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */,
 				43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */,
@@ -446,6 +449,7 @@
 				43C27BF62BEC3DAE00A73F0F /* ExcerciseWindow.swift in Sources */,
 				43CDA0372AA56D74000BCA3B /* LogedInUser.swift in Sources */,
 				43C27BFA2BEC5EC600A73F0F /* Food.swift in Sources */,
+				43F816FC2FC4277300CDFAA5 /* DailyNutritionEntry.swift in Sources */,
 				43CDA01B2A8C654E000BCA3B /* questionaire.swift in Sources */,
 				43C27BFC2BF246FE00A73F0F /* UserSettings.swift in Sources */,
 				43F816F82FC3CDD400CDFAA5 /* WeightEntry.swift in Sources */,
