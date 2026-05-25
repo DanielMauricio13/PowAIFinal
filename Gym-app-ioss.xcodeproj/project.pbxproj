@@ -57,6 +57,8 @@
 		43EEA1E02E099A65003B4AB4 /* recoverAccount.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43EEA1DF2E099A65003B4AB4 /* recoverAccount.swift */; };
 		43F0C0022EAB000100000001 /* BarcodeService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F0C0012EAB000100000001 /* BarcodeService.swift */; };
 		43F0C0042EAB000100000001 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F0C0032EAB000100000001 /* BarcodeScannerView.swift */; };
+		43F816EC2FC1A20500CDFAA5 /* WorkoutDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816EB2FC1A20400CDFAA5 /* WorkoutDTO.swift */; };
+		43F816F62FC3927100CDFAA5 /* recoverAccount 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -128,6 +130,8 @@
 		43EEA1DF2E099A65003B4AB4 /* recoverAccount.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = recoverAccount.swift; sourceTree = "<group>"; };
 		43F0C0012EAB000100000001 /* BarcodeService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeService.swift; sourceTree = "<group>"; };
 		43F0C0032EAB000100000001 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
+		43F816EB2FC1A20400CDFAA5 /* WorkoutDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutDTO.swift; sourceTree = "<group>"; };
+		43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "recoverAccount 2.swift"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -228,6 +232,7 @@
 		43CDA01E2A8D8438000BCA3B /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				43F816EB2FC1A20400CDFAA5 /* WorkoutDTO.swift */,
 				43CDA01F2A8D8444000BCA3B /* User.swift */,
 				43CDA0362AA56D74000BCA3B /* LogedInUser.swift */,
 				43C27BF92BEC5EC600A73F0F /* Food.swift */,
@@ -254,6 +259,7 @@
 		43CDA0282A8D869B000BCA3B /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */,
 				43CDA00A2A8C479C000BCA3B /* LogInWindow.swift */,
 				43CDA0182A8C49E4000BCA3B /* createUserWindow.swift */,
 				43CDA01A2A8C654E000BCA3B /* questionaire.swift */,
@@ -427,6 +433,7 @@
 				4349A68B2C00CB0400684853 /* PersistanceFood.swift in Sources */,
 				43EEA1E02E099A65003B4AB4 /* recoverAccount.swift in Sources */,
 				43CDA00B2A8C479C000BCA3B /* LogInWindow.swift in Sources */,
+				43F816F62FC3927100CDFAA5 /* recoverAccount 2.swift in Sources */,
 				43C393A92C20B5D000060774 /* PowAI_Widget.swift in Sources */,
 				43CDA01D2A8C6858000BCA3B /* finalData.swift in Sources */,
 				43C27BF62BEC3DAE00A73F0F /* ExcerciseWindow.swift in Sources */,
@@ -442,6 +449,7 @@
 				43C27C052BF2D5AC00A73F0F /* Gemini.swift in Sources */,
 				43E43D0A2E0381E7000256A0 /* Terms of Use.swift in Sources */,
 				43CDA0202A8D8444000BCA3B /* User.swift in Sources */,
+				43F816EC2FC1A20500CDFAA5 /* WorkoutDTO.swift in Sources */,
 				43CDA0232A8D8547000BCA3B /* Constants.swift in Sources */,
 				4376F4092C02685C00937885 /* PersiatnceCalories.swift in Sources */,
 				43F0C0022EAB000100000001 /* BarcodeService.swift in Sources */,

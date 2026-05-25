@@ -2,14 +2,11 @@
 //  ExcerciseWindow.swift
 //  Gym-app-ioss
 //
-//  Created by Daniel Pinilla on 5/8/24.
-//
 
 import SwiftUI
-
 import RiveRuntime
+
 struct ExcerciseWindow: View {
-    
     var mainUser: User?
     @State var whichWin: Int = 0
     @State var caloriesToday: Int = 0
@@ -18,110 +15,139 @@ struct ExcerciseWindow: View {
     @State var LogOut: Bool = false
     @State var exToday: String = ""
     @State var counts: Int?
+
+    // ── HIIT — generated on demand, not from DB ───────────────────────────────
+    @State var hiitWork: fullTraining? = nil
+
     var body: some View {
         if LogOut {
             LogInWindow()
-        }
-        
-       
-        else{
+        } else {
             NavigationView {
-                ZStack{
-                    Circle().frame(width: 300).foregroundStyle(Color.blue.opacity(0.3)).blur(radius: 10).offset(x: -100, y: 150).animation(.bouncy, value: 2)
-                    Circle().frame(width: 300).foregroundStyle(Color.green.opacity(0.3)).blur(radius: 10).offset(x: 150, y: -250).animation(.bouncy, value: 10)
-                    Circle().frame(width: 300).foregroundStyle(LinearGradient(colors: [Color.purple, .mint], startPoint: .top, endPoint: .bottom)).blur(radius: 10).offset(x: 150, y: -270).animation(.bouncy, value: 10)
-                    RiveViewModel(fileName: "shapes").view().ignoresSafeArea().blur(radius: 30).ignoresSafeArea()
+                ZStack {
+                    // Background blobs
+                    Circle()
+                        .frame(width: 300)
+                        .foregroundStyle(Color.blue.opacity(0.3))
+                        .blur(radius: 10)
+                        .offset(x: -100, y: 150)
+                    Circle()
+                        .frame(width: 300)
+                        .foregroundStyle(Color.green.opacity(0.3))
+                        .blur(radius: 10)
+                        .offset(x: 150, y: -250)
+                    Circle()
+                        .frame(width: 300)
+                        .foregroundStyle(LinearGradient(
+                            colors: [Color.purple, .mint],
+                            startPoint: .top, endPoint: .bottom
+                        ))
+                        .blur(radius: 10)
+                        .offset(x: 150, y: -270)
+                    RiveViewModel(fileName: "shapes").view()
+                        .ignoresSafeArea()
+                        .blur(radius: 30)
+
                     VStack {
-                        
-                        if (exToday != "" && whichWin == 0){
-                            WorkOutWindow(mainUser: self.mainUser, userFullWork: self.userFullWork, exToday: $exToday)
-                        }
-                        else if( whichWin == 0 ){
-                            FisrtWindow(mainUser: self.mainUser,userFullWork: self.userFullWork, viewModel: ListViewModel(items: []), viewModel2: ListViewModel(items: []), exToday: $exToday  )
-                        }
-                        else if(whichWin == 1){
-                            NutritionView( viewModel: ListViewModel(items: []), viewModel2: ListViewModel(items: []), persistenceManager: $persistenceManager, email: mainUser?.email ?? "")
-                        }
-                        else if(whichWin == 2){
+                        // ── Content area ──────────────────────────────────────
+                        if exToday != "" && whichWin == 0 {
+                            // Decide whether to use HIIT or regular workout
+                            WorkOutWindow(
+                                mainUser: mainUser,
+                                userFullWork: activeWorkout,
+                                exToday: $exToday
+                            )
+                        } else if whichWin == 0 {
+                            FisrtWindow(
+                                mainUser: mainUser,
+                                userFullWork: userFullWork,
+                                viewModel: ListViewModel(items: []),
+                                viewModel2: ListViewModel(items: []),
+                                exToday: $exToday,
+                                hiitWork: $hiitWork           // ← pass binding
+                            )
+                        } else if whichWin == 1 {
+                            NutritionView(
+                                viewModel: ListViewModel(items: []),
+                                viewModel2: ListViewModel(items: []),
+                                persistenceManager: $persistenceManager,
+                                email: mainUser?.email ?? ""
+                            )
+                        } else if whichWin == 2 {
                             Calories(mainUser: mainUser)
-                        }
-                        else if whichWin == 3 {
+                        } else if whichWin == 3 {
                             if let mainUser {
-                                UserSettings(persistenceManager: $persistenceManager, LogOut: $LogOut, mainUser: mainUser)
+                                UserSettings(
+                                    persistenceManager: $persistenceManager,
+                                    LogOut: $LogOut,
+                                    mainUser: mainUser
+                                )
                             } else {
                                 Text("User data unavailable. Please sign in again.")
                                     .foregroundStyle(.white)
                                     .padding()
                             }
                         }
+
                         Spacer()
-                        
-                        // Sticky navigation bar
+
+                        // ── Tab bar ───────────────────────────────────────────
                         HStack {
                             Spacer()
-                            Button(action: {whichWin = 0}) {
-                                Image(systemName: "house")
-                                    .padding()
-                                    .foregroundColor(whichWin == 0 ? Color.cyan :Color.white)
-                                    .background(Color.black)
-                                    .cornerRadius(10)
-                            }
-                            
+                            tabButton(icon: "house",  tab: 0, activeColor: .cyan)
                             Spacer()
-                            Button(action: {whichWin = 1}) {
-                                Image(systemName: "leaf")
-                                    .padding()
-                                    .foregroundColor(whichWin == 1 ? Color .green :Color.white)
-                                    .background(Color.black)
-                                    .cornerRadius(10)
-                            }
-                            
+                            tabButton(icon: "leaf",   tab: 1, activeColor: .green)
                             Spacer()
-                            Button(action: {whichWin = 2}) {
-                                Image(systemName: "flame")
-                                    .padding()
-                                    .foregroundColor(whichWin == 2 ? Color .red :Color.white)
-                                    .background(Color.black)
-                                    .cornerRadius(10)
-                            }
-                            
+                            tabButton(icon: "flame",  tab: 2, activeColor: .orange)
                             Spacer()
-                            
-                            
-                            
-                            Button(action: {
-                                whichWin = 3
-                            }) {
-                                Image(systemName: "gear")
-                                    .padding()
-                                    .foregroundColor(whichWin == 3 ? Color .orange :Color.white)
-                                    .background(Color.black)
-                                    .cornerRadius(10)
-                            }
-                            
-                            
-                            
+                            tabButton(icon: "gear",   tab: 3, activeColor: .red)
                             Spacer()
-                            
                         }
                         .padding()
-                        .frame(height: 70) // Adjust the height of the navigation bar as needed
+                        .frame(height: 70)
                         .background(RoundedRectangle(cornerRadius: 30).fill(.ultraThinMaterial))
-                        .edgesIgnoringSafeArea(.bottom) // Extend the navigation bar to the bottom
+                        .edgesIgnoringSafeArea(.bottom)
                     }
                 }
-                .background( LinearGradient(colors: [Color.cyan.opacity(0.7),Color.black.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing).ignoresSafeArea()) // Background color for the main content
-                
-                .navigationBarHidden(true) // Hide the default navigation bar
-            }.onAppear{
+                .background(
+                    LinearGradient(
+                        colors: [Color.cyan.opacity(0.7), Color.black.opacity(0.7)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                    .ignoresSafeArea()
+                )
+                .navigationBarHidden(true)
+            }
+            .onAppear {
                 counts = userFullWork?.userExcersises.workout_plan.count
             }
         }
-            }
-  
+    }
 
-    
+    // ── Pick the right workout for WorkOutWindow ───────────────────────────────
+    // If exToday matches a HIIT day, use hiitWork; otherwise use userFullWork
+    private var activeWorkout: fullTraining? {
+        if let hiit = hiitWork,
+           hiit.userExcersises.workout_plan.contains(where: { $0.muscle_group == exToday }) {
+            return hiit
+        }
+        return userFullWork
+    }
+
+    // ── Tab button helper ─────────────────────────────────────────────────────
+    @ViewBuilder
+    private func tabButton(icon: String, tab: Int, activeColor: Color) -> some View {
+        Button { whichWin = tab } label: {
+            Image(systemName: icon)
+                .padding()
+                .foregroundColor(whichWin == tab ? activeColor : .white)
+                .background(Color.black)
+                .cornerRadius(10)
+        }
+    }
 }
+
 #Preview {
     ExcerciseWindow()
 }

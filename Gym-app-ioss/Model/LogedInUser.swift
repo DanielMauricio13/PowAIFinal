@@ -43,6 +43,9 @@ struct workout_plans: Codable {
 struct userExcersise: Codable{
   
     var workout_plan:[workout_plans]
+    init() {                          // ← this must be here
+            self.workout_plan = []
+        }
 }
 
 struct fullTraining: Codable {

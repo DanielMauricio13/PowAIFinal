@@ -49,7 +49,7 @@ struct MailView: UIViewControllerRepresentable {
     func updateUIViewController(_ uiViewController: MFMailComposeViewController, context: Context) {}
 }
 
-struct recoverAccount: View {
+struct recoverAccountS: View {
     @State private var email = ""
     @State private var showMail = false
     @State private var showAlert = false
