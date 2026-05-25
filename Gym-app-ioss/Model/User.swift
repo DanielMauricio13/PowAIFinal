@@ -34,6 +34,10 @@ struct User: Identifiable, Codable {
     var membershipPlan: String?
     var membershipStartedAt: Date?
     var membershipExpiresAt: Date?
+    var membershipPlatform: String?
+    var appleProductID: String?
+    var appleOriginalTransactionID: String?
+    var appleLatestTransactionID: String?
 
     enum CodingKeys: String, CodingKey {
         case id, firstName, lastName, age, gender, weight, goal, bodyStructure, height
@@ -43,6 +47,10 @@ struct User: Identifiable, Codable {
         case membershipPlan = "membership_plan"
         case membershipStartedAt = "membership_started_at"
         case membershipExpiresAt = "membership_expires_at"
+        case membershipPlatform = "membership_platform"
+        case appleProductID = "apple_product_id"
+        case appleOriginalTransactionID = "apple_original_transaction_id"
+        case appleLatestTransactionID = "apple_latest_transaction_id"
         case heightInc
     }
 }
