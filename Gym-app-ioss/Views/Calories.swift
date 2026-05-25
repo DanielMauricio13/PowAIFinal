@@ -17,7 +17,7 @@ struct Calories: View {
 
     var body: some View {
         NavigationStack {
-            ZStack(alignment: .topLeading) {
+            ZStack(alignment: .bottom) {
                 gymBackground
                 // ── Main content ──────────────────────────────────────
                 VStack {
@@ -76,7 +76,7 @@ struct Calories: View {
                     }
                 }
 
-                // ── Tracker button — top-left overlay ─────────────────
+                // ── Tracker button — bottom-center overlay ──────────────
                 NavigationLink {
                     NutritionTrackerView(
                         email: mainUser?.email ?? "",
@@ -99,8 +99,7 @@ struct Calories: View {
                     )
                     .shadow(color: .red.opacity(0.4), radius: 6, x: 0, y: 3)
                 }
-                .padding(.top, 12)
-                .padding(.leading, 16)
+                                .padding(.bottom, 20)
             }
         }
     }
