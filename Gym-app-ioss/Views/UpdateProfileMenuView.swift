@@ -29,7 +29,7 @@ struct UpdateProfileMenuView: View {
             VStack(spacing: 32) {
                 // Header
                 VStack(spacing: 8) {
-                    Image(systemName: "pencil.circle.fill]")
+                    Image(systemName: "pencil.circle.fill")
                         .font(.system(size: 48))
                         .foregroundStyle(Color.orange)
                     Text("Update Profile")
@@ -296,7 +296,7 @@ struct UpdateEmailView: View {
             var request = URLRequest(url: url)
             request.httpMethod = "PUT"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let body = ["email": newEmail]
+            let body = ["email": newEmail.uppercased()]
             request.httpBody = try JSONEncoder().encode(body)
 
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -363,7 +363,7 @@ struct UpdateFullProfileView: View {
     // Picker options
     private let genders   = ["Male", "Female", "Other"]
     private let goals     = ["Lose weight", "Gain muscle", "Maintain weight", "Improve endurance"]
-    private let bodies    = ["Slim", "Average", "Athletic", "Heavy"]
+    private let bodies    = ["Ectomorph", "Mesomorph", "Endomorph"]
     private let locations = ["Home", "Gym", "Outdoors"]
     private let levels    = ["Beginner", "Intermediate", "Advanced"]
     private let hUnits    = ["cm", "ft"]
@@ -779,12 +779,14 @@ struct UpdateFullProfileView: View {
     }
 
     private func saveProfileAndRegenerate() async {
+        print("save")
         errorMessage = nil
         guard let userID = mainUser.id,
-              let url = URL(string: "\(Constants.baseURL)users/\(userID)/regenerate") else {
+              let url = URL(string: "\(Constants.baseURL)users/\(userID)/profile/regenerate-workout") else {
             errorMessage = "Could not build request URL."
             return
         }
+        print("loading")
         isLoading = true
         defer { isLoading = false }
         do {
