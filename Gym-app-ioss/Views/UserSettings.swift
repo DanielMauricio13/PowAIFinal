@@ -2,8 +2,6 @@
 //  UserSettings.swift
 //  Gym-app-ioss
 //
-//  Created by Daniel Pinilla on 5/13/24.
-//
 
 import SwiftUI
 
@@ -11,6 +9,7 @@ struct UserSettings: View {
     @Binding var persistenceManager: PersistenceManager
     @Binding var LogOut: Bool
     @State var wantsDelete: Bool = false
+    @State private var showUpdateProfile: Bool = false
     var mainUser: User
     @State var userID: UUID = UUID()
 
@@ -33,11 +32,15 @@ struct UserSettings: View {
         .onAppear {
             userID = mainUser.id ?? UUID()
         }
+        .sheet(isPresented: $showUpdateProfile) {
+            UpdateProfileMenuView(mainUser: mainUser, isPresented: $showUpdateProfile)
+        }
     }
 
     private var gymBackground: some View {
         LinearGradient(
-            colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1), Color(red: 0.2, green: 0.03, blue: 0.03)],
+            colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1),
+                     Color(red: 0.2, green: 0.03, blue: 0.03)],
             startPoint: .topLeading,
             endPoint: .bottomTrailing
         )
@@ -63,6 +66,20 @@ struct UserSettings: View {
             Text("Control your profile and session")
                 .foregroundStyle(Color.white.opacity(0.7))
                 .font(.headline)
+
+            // ── NEW: Update Profile ──
+            actionButton(
+                title: "Update Profile",
+                systemImage: "pencil.circle.fill",
+                background: LinearGradient(
+                    colors: [Color(red: 0.15, green: 0.5, blue: 1.0),
+                             Color(red: 0.05, green: 0.3, blue: 0.8)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            ) {
+                showUpdateProfile = true
+            }
 
             actionButton(
                 title: "Delete account",
@@ -151,7 +168,9 @@ struct UserSettings: View {
         )
     }
 
-    private func actionButton(title: String, systemImage: String, background: LinearGradient, action: @escaping () -> Void) -> some View {
+    private func actionButton(title: String, systemImage: String,
+                               background: LinearGradient,
+                               action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: 10) {
                 Image(systemName: systemImage)
@@ -179,15 +198,10 @@ struct UserSettings: View {
     }
 
     func delete() async throws {
-        guard let url = URL(string: "\(Constants.baseURL)users/\(userID)") else {
-            return
-        }
-        print(url)
+        guard let url = URL(string: "\(Constants.baseURL)users/\(userID)") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = HttpMethods.DELETE.rawValue
-        print(request)
         let (_, response) = try await URLSession.shared.data(for: request)
-
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw HttpEroor.BadResponse
         }
