@@ -190,6 +190,7 @@ struct UserSettings: View {
     func logout() {
         UserDefaults.standard.removeObject(forKey: "isAuthenticated")
         UserDefaults.standard.removeObject(forKey: "username")
+        UserDefaults.standard.removeObject( forKey: "email")
         HealthManager.shared.calories = 0
         HealthManager.shared.protein = 0
         HealthManager.shared.carbs = 0

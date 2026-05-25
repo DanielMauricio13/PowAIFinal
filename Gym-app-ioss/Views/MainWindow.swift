@@ -59,6 +59,7 @@ struct MainWindow: View {
                     case .success(let user):
                         mainUser = user // Assign the loggedInUser to mainUser
 //                        print("User info received:", user)
+                        UserDefaults.standard.set(user.email, forKey: "email")
                         
                         // Data has been loaded, update loading state
                         isLoading = false

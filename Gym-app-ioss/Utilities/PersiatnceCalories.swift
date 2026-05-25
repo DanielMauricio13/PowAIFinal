@@ -66,36 +66,34 @@ extension UserDefaults {
 import Foundation
 import Combine
 
+import Foundation
+import SwiftUI
+
+@MainActor
 class HealthManager: ObservableObject {
     static let shared = HealthManager()
-    
+
     @Published var protein: Int {
         didSet {
-            DispatchQueue.main.async {
-                UserDefaults.standard.protein = self.protein
-            }
+            UserDefaults.standard.protein = self.protein
         }
     }
-    
+
     @Published var calories: Int {
         didSet {
-            DispatchQueue.main.async {
-                UserDefaults.standard.calories = self.calories
-            }
+            UserDefaults.standard.calories = self.calories
         }
     }
+
     @Published var carbs: Int {
         didSet {
-            DispatchQueue.main.async {
-                UserDefaults.standard.carbs = self.carbs
-            }
+            UserDefaults.standard.carbs = self.carbs
         }
     }
+
     @Published var sugars: Int {
         didSet {
-            DispatchQueue.main.async {
-                UserDefaults.standard.sugars = self.sugars
-            }
+            UserDefaults.standard.sugars = self.sugars
         }
     }
 
@@ -104,20 +102,19 @@ class HealthManager: ObservableObject {
         self.calories = UserDefaults.standard.calories
         self.carbs = UserDefaults.standard.carbs
         self.sugars = UserDefaults.standard.sugars
-        
-        // Check if the last reset date was today; if not, reset values
+
         if let lastResetDate = UserDefaults.standard.lastResetDate,
            !Calendar.current.isDateInToday(lastResetDate) {
-            self.protein = 0
-            self.calories = 0
-            self.carbs = 0
-            self.sugars = 0
+
+            Task {
+               try await saveDailyNutritionToDB()
+                resetHealthData()
+            }
+
+        } else if UserDefaults.standard.lastResetDate == nil {
+            UserDefaults.standard.lastResetDate = Date()
         }
-        
-        // Set the last reset date to today
-        UserDefaults.standard.lastResetDate = Date()
-        
-        // Schedule the reset at midnight
+
         scheduleMidnightReset()
     }
 
@@ -125,7 +122,6 @@ class HealthManager: ObservableObject {
         let now = Date()
         let calendar = Calendar.current
 
-        // Calculate the next midnight
         var components = calendar.dateComponents([.year, .month, .day], from: now)
         components.hour = 0
         components.minute = 0
@@ -136,16 +132,84 @@ class HealthManager: ObservableObject {
             return
         }
 
-        // Schedule the reset
         let timeInterval = nextMidnight.timeIntervalSince(now)
         print("Scheduling health data reset in \(timeInterval) seconds")
 
         Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { _ in
-            print("Resetting health data")
-            DispatchQueue.main.async {
+            Task { @MainActor in
+                print("Saving daily nutrition before reset")
+
+                
+               try await self.saveDailyNutritionToDB()
+
+                print("Resetting health data")
                 self.resetHealthData()
             }
         }
+    }
+
+    private func saveDailyNutritionToDB() async throws{
+        // Capture values BEFORE reset
+        let currentProtein = self.protein
+        let currentCalories = self.calories
+        let currentCarbs = self.carbs
+        let currentSugars = self.sugars
+
+        // Replace this with wherever you store the logged-in user's email
+        guard let email = UserDefaults.standard.string(forKey: "email") else {
+            print("No user email found. Skipping daily nutrition save.")
+            return
+        }
+
+        guard let url = URL(string: "https://powai-ea13190d89b9.herokuapp.com/daily-nutrition/newEntry") else {
+            print("Invalid daily nutrition URL")
+            return
+        }
+
+        struct DailyNutritionPayload: Codable {
+            let email: String
+            let date: Date
+            let protein: Double
+            let carbs: Double
+            let calories: Double
+            let sugars: Double
+        }
+         func isoString(_ date: Date) -> String {
+            let f = ISO8601DateFormatter()
+            f.formatOptions = [.withInternetDateTime]   // no fractional seconds — Vapor rejects .000Z
+            return f.string(from: date)
+        }
+    
+
+        
+            var req = URLRequest(url: url); 
+            req.httpMethod = "POST"
+            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            
+            let body: [String: Any] = ["email": email, "date": isoString(Calendar.current.startOfDay(for: Date())), "protein": currentProtein,"carbs" : currentCarbs
+            , "calories": currentCalories, "sugars": currentSugars]
+            req.httpBody = try JSONSerialization.data(withJSONObject: body)
+                #if DEBUG
+                print("addWeight body:", String(data: req.httpBody!, encoding: .utf8) ?? "")
+                #endif
+
+                let (respData, response) = try await URLSession.shared.data(for: req)
+                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+
+                #if DEBUG
+                    print("addWeight status:", status,
+                            "| body:", String(data: respData, encoding: .utf8) ?? "")
+                #endif
+
+                guard (200..<300).contains(status) else {
+                        let reason = (try? JSONDecoder().decode([String: String].self, from: respData))?["reason"]
+                            ?? "HTTP \(status)"
+                            throw NSError(domain: "WeightService", code: status,
+                  userInfo: [NSLocalizedDescriptionKey: reason])
+}
+          
+
+       
     }
 
     private func resetHealthData() {
@@ -153,11 +217,9 @@ class HealthManager: ObservableObject {
         self.calories = 0
         self.carbs = 0
         self.sugars = 0
-        DispatchQueue.main.async {
-            UserDefaults.standard.lastResetDate = Date()
-        }
-        
-        // Reschedule the reset for the next midnight
+
+        UserDefaults.standard.lastResetDate = Date()
+
         scheduleMidnightReset()
     }
 }
