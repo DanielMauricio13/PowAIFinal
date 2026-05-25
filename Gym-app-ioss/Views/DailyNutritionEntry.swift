@@ -268,9 +268,9 @@ struct NutritionTrackerView: View {
 
             VStack {
                 Spacer()
-                logNutritionButton
-                    .padding(.horizontal, 24)
-                    .padding(.bottom, 96)
+//                logNutritionButton
+//                    .padding(.horizontal, 24)
+//                    .padding(.bottom, 96)
             }
         }
         .task { await vm.load() }
@@ -653,7 +653,8 @@ struct NutritionTrackerView: View {
                                     atX: loc.x - geo.frame(in: .local).minX) {
                                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                                         let nearest = vm.entries.min {
-                                            abs($0.date.timeIntervalSince(date))
+                                            abs($0.date.timeIntervalSince(date)) <
+                                            
                                             abs($1.date.timeIntervalSince(date))
                                         }
                                         vm.selectedEntry =

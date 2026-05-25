@@ -5,55 +5,116 @@
 //  Created by Daniel Pinilla on 5/13/24.
 //
 
+//
+//  Calories.swift
+//  Gym-app-ioss
+//
+
 import SwiftUI
 
 struct Calories: View {
     var mainUser: User?
-     
+
     var body: some View {
-        Text("Todays Nutrition").font(.largeTitle).bold() .italic()
-            .shadow(color: .white, radius: 10).foregroundStyle(Color.white)
-        ScrollView{
-            
-        VStack {
-            
-            HStack{
-                Spacer()
-                VStack(alignment: .center) {
-                    CircularProgressBar(progress: HealthManager.shared.calories, goal: mainUser?.DailyCalories ?? 1)
-                    Text("Your Calories goal: \(HealthManager.shared.calories) / \(mainUser?.DailyCalories ?? 1) 🔥").font(.title3).foregroundStyle(Color.white).shadow(color: .red, radius: 10)
-                    Spacer()
-                }.frame(width: 200,height: 300)
-                Spacer()
-                VStack(alignment: .center){
-                    CircularProgressBar(progress: HealthManager.shared.protein, goal: mainUser?.DailyProtein ?? 1)
-                    Text("Your Protein goal: \(HealthManager.shared.protein) / \(mainUser?.DailyProtein ?? 1) 🍗").font(.title3).foregroundStyle(Color.white).shadow(color: .red, radius: 10)
-                    Spacer()
-                }.frame(width: 200,height: 300)
-                Spacer()
-            }
-            HStack{
-                Spacer()
-                VStack(alignment: .center) {
-                    CircularProgressBar(progress: HealthManager.shared.carbs, goal: mainUser?.carbs ?? 1)
-                    Text("Your Carbs goal: \(HealthManager.shared.carbs) / \(mainUser?.carbs ?? 1) 🥐").font(.title3).foregroundStyle(Color.white).shadow(color: .red, radius: 10)
-                    Spacer()
-                }.frame(width: 200,height: 300)
-                Spacer()
-                VStack(alignment: .center){
-                    CircularProgressBar(progress: HealthManager.shared.sugars, goal: mainUser?.sugars ?? 1)
-                    Text("Your Sugar goal: \(HealthManager.shared.sugars) / \(mainUser?.sugars ?? 1) 🍭").font(.title3).foregroundStyle(Color.white).shadow(color: .red, radius: 10)
-                    Spacer()
-                }.frame(width: 200,height: 300)
-                Spacer()
+        NavigationStack {
+            ZStack(alignment: .topLeading) {
+                gymBackground
+                // ── Main content ──────────────────────────────────────
+                VStack {
+                    Text("Todays Nutrition")
+                        .font(.largeTitle).bold().italic()
+                        .shadow(color: .white, radius: 10)
+                        .foregroundStyle(Color.white)
+
+                    ScrollView {
+                        VStack {
+                            HStack {
+                                Spacer()
+                                VStack(alignment: .center) {
+                                    CircularProgressBar(progress: HealthManager.shared.calories,
+                                                        goal: mainUser?.DailyCalories ?? 1)
+                                    Text("Your Calories goal: \(HealthManager.shared.calories) / \(mainUser?.DailyCalories ?? 1) 🔥")
+                                        .font(.title3).foregroundStyle(Color.white)
+                                        .shadow(color: .red, radius: 10)
+                                    Spacer()
+                                }.frame(width: 200, height: 300)
+                                Spacer()
+                                VStack(alignment: .center) {
+                                    CircularProgressBar(progress: HealthManager.shared.protein,
+                                                        goal: mainUser?.DailyProtein ?? 1)
+                                    Text("Your Protein goal: \(HealthManager.shared.protein) / \(mainUser?.DailyProtein ?? 1) 🍗")
+                                        .font(.title3).foregroundStyle(Color.white)
+                                        .shadow(color: .red, radius: 10)
+                                    Spacer()
+                                }.frame(width: 200, height: 300)
+                                Spacer()
+                            }
+
+                            HStack {
+                                Spacer()
+                                VStack(alignment: .center) {
+                                    CircularProgressBar(progress: HealthManager.shared.carbs,
+                                                        goal: mainUser?.carbs ?? 1)
+                                    Text("Your Carbs goal: \(HealthManager.shared.carbs) / \(mainUser?.carbs ?? 1) 🥐")
+                                        .font(.title3).foregroundStyle(Color.white)
+                                        .shadow(color: .red, radius: 10)
+                                    Spacer()
+                                }.frame(width: 200, height: 300)
+                                Spacer()
+                                VStack(alignment: .center) {
+                                    CircularProgressBar(progress: HealthManager.shared.sugars,
+                                                        goal: mainUser?.sugars ?? 1)
+                                    Text("Your Sugar goal: \(HealthManager.shared.sugars) / \(mainUser?.sugars ?? 1) 🍭")
+                                        .font(.title3).foregroundStyle(Color.white)
+                                        .shadow(color: .red, radius: 10)
+                                    Spacer()
+                                }.frame(width: 200, height: 300)
+                                Spacer()
+                            }
+                        }
+                        .padding()
+                    }
+                }
+
+                // ── Tracker button — top-left overlay ─────────────────
+                NavigationLink {
+                    NutritionTrackerView(
+                        email: mainUser?.email ?? "",
+                        user: mainUser ?? User(id: nil, firstName: "", lastName: "", membershipStatus: "trial")
+                    )
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "chart.line.uptrend.xyaxis")
+                            .font(.caption.weight(.bold))
+                        Text("Tracker")
+                            .font(.caption.weight(.bold))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        LinearGradient(colors: [.red, .orange],
+                                       startPoint: .leading, endPoint: .trailing),
+                        in: RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    )
+                    .shadow(color: .red.opacity(0.4), radius: 6, x: 0, y: 3)
+                }
+                .padding(.top, 12)
+                .padding(.leading, 16)
             }
         }
-        .padding()
     }
-        
+    private var gymBackground: some View {
+        LinearGradient(
+            colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1),
+                     Color(red: 0.2, green: 0.03, blue: 0.03)],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
     }
-        
-    }
+}
+
 
 
 struct CircularProgressBar: View {
