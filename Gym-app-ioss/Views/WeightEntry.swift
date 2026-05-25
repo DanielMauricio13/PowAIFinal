@@ -535,6 +535,7 @@ struct WeightTrackerView: View {
                     }
                 }
                 .frame(height: 200)
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous)) // ← clips chart overflow
             }
         }
         .padding(20)
@@ -547,6 +548,7 @@ struct WeightTrackerView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)) // ← clips card overflow
     }
 
     // MARK: History Card
