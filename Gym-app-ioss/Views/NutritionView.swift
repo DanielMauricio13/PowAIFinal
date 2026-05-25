@@ -34,6 +34,10 @@ struct NutritionView: View {
     @State private var showImageError = false
     @State private var imageErrorMessage = ""
 
+    // ── NEW ──────────────────────────────────────────────────────────────────
+    @State private var favoriteItems: [Food] = []
+    // ─────────────────────────────────────────────────────────────────────────
+
     var email: String
 
     var body: some View {
@@ -44,6 +48,12 @@ struct NutritionView: View {
                         Text("Add food")
                             .font(.title2.bold())
                             .frame(maxWidth: .infinity, alignment: .leading)
+
+                        // ── NEW: Favorites shelf ─────────────────────────────
+                        if !favoriteItems.isEmpty {
+                            favoritesShelf
+                        }
+                        // ────────────────────────────────────────────────────
 
                         Picker("Entry Mode", selection: $entryMode) {
                             ForEach(EntryMode.allCases) { mode in
@@ -65,7 +75,10 @@ struct NutritionView: View {
                     }
                     .padding()
                     .navigationBarTitleDisplayMode(.inline)
-                    .onAppear { items = persistenceManager.loadItems() }
+                    .onAppear {
+                        items = persistenceManager.loadItems()
+                        favoriteItems = persistenceManager.loadFavorites()   // ← NEW
+                    }
                     .sheet(isPresented: $showScanner) {
                         BarcodeScannerView { code in
                             Task { await handleBarcode(code) }
@@ -81,14 +94,10 @@ struct NutritionView: View {
                     }
                     .alert("Barcode Error", isPresented: $showBarcodeError) {
                         Button("OK", role: .cancel) {}
-                    } message: {
-                        Text(barcodeErrorMessage)
-                    }
+                    } message: { Text(barcodeErrorMessage) }
                     .alert("Image Analysis Error", isPresented: $showImageError) {
                         Button("OK", role: .cancel) {}
-                    } message: {
-                        Text(imageErrorMessage)
-                    }
+                    } message: { Text(imageErrorMessage) }
 
                     if isAnalyzingImage {
                         ZStack {
@@ -125,7 +134,11 @@ struct NutritionView: View {
                 .padding(.horizontal)
 
                 if viewModel.items.isEmpty {
-                    ContentUnavailableView("Start logging meals", systemImage: "fork.knife", description: Text("Tap + to add using Smart, Manual, barcode, or camera."))
+                    ContentUnavailableView(
+                        "Start logging meals",
+                        systemImage: "fork.knife",
+                        description: Text("Tap + to add using Smart, Manual, barcode, or camera.")
+                    )
                 } else {
                     ScrollView {
                         VStack(spacing: 10) {
@@ -158,11 +171,121 @@ struct NutritionView: View {
             }
             .alert("Barcode Error", isPresented: $showBarcodeError) {
                 Button("OK", role: .cancel) {}
-            } message: {
-                Text(barcodeErrorMessage)
-            }
+            } message: { Text(barcodeErrorMessage) }
         }
     }
+
+    // MARK: - Favorites Shelf ─────────────────────────────────────────────────
+
+    private var favoritesShelf: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Favorites", systemImage: "star.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.yellow)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(favoriteItems, id: \.Name) { food in
+                        FavoriteCard(food: food) {
+                            // Quick-add
+                            tempFood = food
+                            addItem()
+                            HealthManager.shared.calories     += food.Calories
+                            HealthManager.shared.sugars       += food.Sugars
+                            HealthManager.shared.protein      += food.Protein
+                            HealthManager.shared.carbs        += food.Carbohydrates
+                            buttonPressed = false
+                        } onRemove: {
+                            // Remove from favorites
+                            persistenceManager.removeFavorite(byName: food.Name)
+                            favoriteItems = persistenceManager.loadFavorites()
+                        }
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+        .padding()
+        .background(.thinMaterial)
+        .cornerRadius(14)
+    }
+
+    // MARK: - Favorite Card ───────────────────────────────────────────────────
+
+    struct FavoriteCard: View {
+        let food: Food
+        let onAdd: () -> Void
+        let onRemove: () -> Void
+
+        var body: some View {
+            VStack(alignment: .leading, spacing: 6) {
+                HStack(alignment: .top) {
+                    Text(food.Name)
+                        .font(.footnote.weight(.semibold))
+                        .lineLimit(2)
+                        .frame(maxWidth: 90, alignment: .leading)
+
+                    Spacer(minLength: 0)
+
+                    // Remove from favorites
+                    Button(action: onRemove) {
+                        Image(systemName: "star.slash.fill")
+                            .font(.caption)
+                            .foregroundStyle(.yellow.opacity(0.8))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Text("\(food.Calories) kcal")
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+
+                HStack(spacing: 4) {
+                    MacroPill(label: "P", value: food.Protein, color: .blue)
+                    MacroPill(label: "C", value: food.Carbohydrates, color: .orange)
+                    MacroPill(label: "S", value: food.Sugars, color: .pink)
+                }
+
+                // Quick-add button
+                Button(action: onAdd) {
+                    Label("Add", systemImage: "plus")
+                        .font(.caption.weight(.semibold))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.mini)
+                .tint(.accentColor)
+            }
+            .padding(10)
+            .frame(width: 130)
+            .background(.regularMaterial)
+            .cornerRadius(12)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.yellow.opacity(0.35), lineWidth: 1)
+            )
+        }
+    }
+
+    // MARK: - Macro Pill (helper) ─────────────────────────────────────────────
+
+    struct MacroPill: View {
+        let label: String
+        let value: Int
+        let color: Color
+
+        var body: some View {
+            Text("\(label) \(value)g")
+                .font(.system(size: 9, weight: .medium))
+                .padding(.horizontal, 5)
+                .padding(.vertical, 2)
+                .background(color.opacity(0.15))
+                .foregroundStyle(color)
+                .cornerRadius(6)
+        }
+    }
+
+    // MARK: - Existing subviews (unchanged) ───────────────────────────────────
 
     private var smartForm: some View {
         VStack(spacing: 10) {
@@ -193,7 +316,6 @@ struct NutritionView: View {
         VStack(spacing: 10) {
             TextField("Food name", text: $newItemName)
                 .textFieldStyle(.roundedBorder)
-
             HStack {
                 macroField("Calories", value: $Calories)
                 macroField("Sugar", value: $Sugar)
@@ -234,9 +356,9 @@ struct NutritionView: View {
                     tempFood = Food(Name: newItemName, Calories: Calories, Sugars: Sugar, Carbohydrates: Carbs, Protein: Protein)
                     addItem()
                     HealthManager.shared.calories += tempFood?.Calories ?? 0
-                    HealthManager.shared.sugars += tempFood?.Sugars ?? 0
-                    HealthManager.shared.protein += tempFood?.Protein ?? 0
-                    HealthManager.shared.carbs += tempFood?.Carbohydrates ?? 0
+                    HealthManager.shared.sugars   += tempFood?.Sugars ?? 0
+                    HealthManager.shared.protein  += tempFood?.Protein ?? 0
+                    HealthManager.shared.carbs    += tempFood?.Carbohydrates ?? 0
                     resetForm()
                     buttonPressed = false
                 } else {
@@ -249,14 +371,11 @@ struct NutritionView: View {
         }
     }
 
+    // MARK: - Helpers (unchanged) ─────────────────────────────────────────────
+
     private func resetForm() {
-        newItemName = ""
-        number = 0
-        quantity = ""
-        Calories = 0
-        Sugar = 0
-        Carbs = 0
-        Protein = 0
+        newItemName = ""; number = 0; quantity = ""
+        Calories = 0; Sugar = 0; Carbs = 0; Protein = 0
     }
 
     private func addItem() {
@@ -266,15 +385,18 @@ struct NutritionView: View {
         viewModel.items.append(ExcListItem(
             title: food.Name,
             description: "This food with this portion has approx: \(food.Calories) calories, \(food.Protein)g of protein, \(food.Carbohydrates)g carbs, \(food.Sugars)g sugars",
-            totalCalories: 0,
-            duration: 0,
-            NumExcersises: 0
+            totalCalories: 0, duration: 0, NumExcersises: 0
         ))
     }
 
     func deleteItems(at offsets: IndexSet) { items.remove(atOffsets: offsets); clampHealth(); persistenceManager.saveItems(items: items) }
     func deleteItemss(name: String) { persistenceManager.clearItem(byName: name); clampHealth() }
-    private func clampHealth() { if HealthManager.shared.calories < 0 { HealthManager.shared.calories = 0 }; if HealthManager.shared.protein < 0 { HealthManager.shared.protein = 0 }; if HealthManager.shared.sugars < 0 { HealthManager.shared.sugars = 0 }; if HealthManager.shared.carbs < 0 { HealthManager.shared.carbs = 0 } }
+    private func clampHealth() {
+        if HealthManager.shared.calories < 0 { HealthManager.shared.calories = 0 }
+        if HealthManager.shared.protein  < 0 { HealthManager.shared.protein  = 0 }
+        if HealthManager.shared.sugars   < 0 { HealthManager.shared.sugars   = 0 }
+        if HealthManager.shared.carbs    < 0 { HealthManager.shared.carbs    = 0 }
+    }
 
     func geminii() async throws {
         let urlString = Constants.baseURL + "/ai/analyzeFood"
@@ -287,14 +409,12 @@ struct NutritionView: View {
         let (data, _) = try await URLSession.shared.data(for: request)
         let food = try JSONDecoder().decode(Food.self, from: data)
         await MainActor.run {
-            tempFood = food
-            addItem()
+            tempFood = food; addItem()
             HealthManager.shared.calories += food.Calories
-            HealthManager.shared.sugars += food.Sugars
-            HealthManager.shared.protein += food.Protein
-            HealthManager.shared.carbs += food.Carbohydrates
-            resetForm()
-            buttonPressed = false
+            HealthManager.shared.sugars   += food.Sugars
+            HealthManager.shared.protein  += food.Protein
+            HealthManager.shared.carbs    += food.Carbohydrates
+            resetForm(); buttonPressed = false
         }
     }
 
@@ -320,12 +440,11 @@ struct NutritionView: View {
             let (data, _) = try await session.data(for: request)
             let food = try JSONDecoder().decode(Food.self, from: data)
             await MainActor.run {
-                tempFood = food
-                addItem()
+                tempFood = food; addItem()
                 HealthManager.shared.calories += food.Calories
-                HealthManager.shared.sugars += food.Sugars
-                HealthManager.shared.protein += food.Protein
-                HealthManager.shared.carbs += food.Carbohydrates
+                HealthManager.shared.sugars   += food.Sugars
+                HealthManager.shared.protein  += food.Protein
+                HealthManager.shared.carbs    += food.Carbohydrates
                 buttonPressed = false
             }
         } catch {
@@ -336,18 +455,19 @@ struct NutritionView: View {
     func handleBarcode(_ code: String) async {
         do {
             let food = try await BarcodeService.fetchFood(for: code)
-            tempFood = food
-            addItem()
+            tempFood = food; addItem()
             HealthManager.shared.calories += food.Calories
-            HealthManager.shared.sugars += food.Sugars
-            HealthManager.shared.protein += food.Protein
-            HealthManager.shared.carbs += food.Carbohydrates
+            HealthManager.shared.sugars   += food.Sugars
+            HealthManager.shared.protein  += food.Protein
+            HealthManager.shared.carbs    += food.Carbohydrates
             buttonPressed = false
         } catch {
             barcodeErrorMessage = error.localizedDescription
             showBarcodeError = true
         }
     }
+
+    // MARK: - Expandable row (unchanged) ──────────────────────────────────────
 
     struct ExpandableBoxView: View {
         var item: ExcListItem
@@ -365,8 +485,7 @@ struct NutritionView: View {
         var body: some View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(item.title)
-                        .font(.headline)
+                    Text(item.title).font(.headline)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(item.isExpanded ? 180 : 0))
@@ -374,21 +493,25 @@ struct NutritionView: View {
                 }
 
                 if item.isExpanded {
-                    Text(item.description)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-
+                    Text(item.description).font(.subheadline).foregroundStyle(.secondary)
                     HStack {
                         Button("Remove") { persistenceManager.clearItem(byName: item.title) }
                             .foregroundColor(.red)
                         Spacer()
                         Button {
                             if let food = persistenceManager.getItem(byName: item.title) {
-                                if isSaved { persistenceManager.removeFavorite(byName: food.Name); isSaved = false }
-                                else { persistenceManager.addFavorite(food: food); Task { await persistenceManager.sendFavorites(email: email) }; isSaved = true }
+                                if isSaved {
+                                    persistenceManager.removeFavorite(byName: food.Name)
+                                    isSaved = false
+                                } else {
+                                    persistenceManager.addFavorite(food: food)
+                                    Task { await persistenceManager.sendFavorites(email: email) }
+                                    isSaved = true
+                                }
                             }
                         } label: {
-                            Label(isSaved ? "Favorited" : "Favorite", systemImage: isSaved ? "star.fill" : "star")
+                            Label(isSaved ? "Favorited" : "Favorite",
+                                  systemImage: isSaved ? "star.fill" : "star")
                                 .foregroundStyle(.yellow)
                         }
                     }
@@ -400,6 +523,8 @@ struct NutritionView: View {
         }
     }
 }
+
+// MARK: - CameraPickerView (unchanged) ────────────────────────────────────────
 
 struct CameraPickerView: UIViewControllerRepresentable {
     let onImage: (UIImage) -> Void
@@ -415,7 +540,8 @@ struct CameraPickerView: UIViewControllerRepresentable {
     class Coordinator: NSObject, UIImagePickerControllerDelegate, UINavigationControllerDelegate {
         let onImage: (UIImage) -> Void
         init(onImage: @escaping (UIImage) -> Void) { self.onImage = onImage }
-        func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        func imagePickerController(_ picker: UIImagePickerController,
+                                   didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey: Any]) {
             picker.dismiss(animated: true)
             if let image = info[.originalImage] as? UIImage { onImage(image) }
         }
