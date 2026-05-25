@@ -59,6 +59,7 @@
 		43F0C0042EAB000100000001 /* BarcodeScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F0C0032EAB000100000001 /* BarcodeScannerView.swift */; };
 		43F816EC2FC1A20500CDFAA5 /* WorkoutDTO.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816EB2FC1A20400CDFAA5 /* WorkoutDTO.swift */; };
 		43F816F62FC3927100CDFAA5 /* recoverAccount 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */; };
+		43F816F82FC3CDD400CDFAA5 /* WeightEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -132,6 +133,7 @@
 		43F0C0032EAB000100000001 /* BarcodeScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BarcodeScannerView.swift; sourceTree = "<group>"; };
 		43F816EB2FC1A20400CDFAA5 /* WorkoutDTO.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkoutDTO.swift; sourceTree = "<group>"; };
 		43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "recoverAccount 2.swift"; sourceTree = "<group>"; };
+		43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightEntry.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -259,6 +261,7 @@
 		43CDA0282A8D869B000BCA3B /* Views */ = {
 			isa = PBXGroup;
 			children = (
+				43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */,
 				43F816F52FC3927100CDFAA5 /* recoverAccount 2.swift */,
 				43CDA00A2A8C479C000BCA3B /* LogInWindow.swift */,
 				43CDA0182A8C49E4000BCA3B /* createUserWindow.swift */,
@@ -441,6 +444,7 @@
 				43C27BFA2BEC5EC600A73F0F /* Food.swift in Sources */,
 				43CDA01B2A8C654E000BCA3B /* questionaire.swift in Sources */,
 				43C27BFC2BF246FE00A73F0F /* UserSettings.swift in Sources */,
+				43F816F82FC3CDD400CDFAA5 /* WeightEntry.swift in Sources */,
 				43CDA0172A8C491B000BCA3B /* MainWindow.swift in Sources */,
 				43C27C002BF24DEC00A73F0F /* Calories.swift in Sources */,
 				43CDA0092A8C479C000BCA3B /* Gym_app_iossApp.swift in Sources */,

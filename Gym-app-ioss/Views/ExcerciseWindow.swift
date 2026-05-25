@@ -51,7 +51,6 @@ struct ExcerciseWindow: View {
                     VStack {
                         // ── Content area ──────────────────────────────────────
                         if exToday != "" && whichWin == 0 {
-                            // Decide whether to use HIIT or regular workout
                             WorkOutWindow(
                                 mainUser: mainUser,
                                 userFullWork: activeWorkout,
@@ -64,7 +63,7 @@ struct ExcerciseWindow: View {
                                 viewModel: ListViewModel(items: []),
                                 viewModel2: ListViewModel(items: []),
                                 exToday: $exToday,
-                                hiitWork: $hiitWork           // ← pass binding
+                                hiitWork: $hiitWork
                             )
                         } else if whichWin == 1 {
                             NutritionView(
@@ -76,6 +75,9 @@ struct ExcerciseWindow: View {
                         } else if whichWin == 2 {
                             Calories(mainUser: mainUser)
                         } else if whichWin == 3 {
+                            // ── Weight Progress tab ───────────────────────────
+                            WeightTrackerView(email: mainUser?.email ?? "")
+                        } else if whichWin == 4 {
                             if let mainUser {
                                 UserSettings(
                                     persistenceManager: $persistenceManager,
@@ -94,13 +96,15 @@ struct ExcerciseWindow: View {
                         // ── Tab bar ───────────────────────────────────────────
                         HStack {
                             Spacer()
-                            tabButton(icon: "house",  tab: 0, activeColor: .cyan)
+                            tabButton(icon: "house",                     tab: 0, activeColor: .cyan)
                             Spacer()
-                            tabButton(icon: "leaf",   tab: 1, activeColor: .green)
+                            tabButton(icon: "leaf",                      tab: 1, activeColor: .green)
                             Spacer()
-                            tabButton(icon: "flame",  tab: 2, activeColor: .orange)
+                            tabButton(icon: "flame",                     tab: 2, activeColor: .orange)
                             Spacer()
-                            tabButton(icon: "gear",   tab: 3, activeColor: .red)
+                            tabButton(icon: "chart.line.uptrend.xyaxis", tab: 3, activeColor: .green)
+                            Spacer()
+                            tabButton(icon: "gear",                      tab: 4, activeColor: .red)  // ← was tab:3, fixed
                             Spacer()
                         }
                         .padding()
@@ -125,8 +129,7 @@ struct ExcerciseWindow: View {
         }
     }
 
-    // ── Pick the right workout for WorkOutWindow ───────────────────────────────
-    // If exToday matches a HIIT day, use hiitWork; otherwise use userFullWork
+    // ── Pick the right workout for WorkOutWindow ──────────────────────────────
     private var activeWorkout: fullTraining? {
         if let hiit = hiitWork,
            hiit.userExcersises.workout_plan.contains(where: { $0.muscle_group == exToday }) {
