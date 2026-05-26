@@ -415,8 +415,8 @@ struct UpdateFullProfileView: View {
     init(mainUser: User, isPresented: Binding<Bool>) {
         self.mainUser = mainUser
         self._isPresented = isPresented
-        _firstName     = State(initialValue: mainUser.firstName ?? "")
-        _lastName      = State(initialValue: mainUser.lastName ?? "")
+        _firstName     = State(initialValue: mainUser.firstName )
+        _lastName      = State(initialValue: mainUser.lastName )
         _age           = State(initialValue: mainUser.age ?? 25)
         _gender        = State(initialValue: mainUser.gender ?? "Male")
         _weight        = State(initialValue: Double(mainUser.weight ?? 70))

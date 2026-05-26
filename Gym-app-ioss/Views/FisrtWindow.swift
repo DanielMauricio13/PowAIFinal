@@ -196,18 +196,18 @@ struct FisrtWindow: View {
 
             // No ?? needed — User fields are non-optional Int/String
             let body: [String: Any] = [
-                "age":           user.age,
-                "gender":        user.gender,
-                "weight":        user.weight,
+                "age":           user.age ?? "20",
+                "gender":        user.gender ?? "Male",
+                "weight":        user.weight ?? 70,
                 "weightUnit":    "kg",
-                "height":        user.height,
+                "height":        user.height ?? 150,
                 "heightUnit":    "cm",
-                "bodyStructure": user.bodyStructure,
-                "goal":          user.goal,
+                "bodyStructure": user.bodyStructure ?? "Endomorph",
+                "goal":          user.goal ?? "stay fit",
                 "whereWork":     "gym",
                 "level":         level.lowercased(),
-                "numDays":       user.numDays,
-                "numHours":      user.numHours   // numHours is String on User
+                "numDays":       user.numDays ?? 4,
+                "numHours":      user.numHours ?? "1.5"   // numHours is String on User
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
