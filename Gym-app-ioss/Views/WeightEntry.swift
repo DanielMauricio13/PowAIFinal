@@ -187,6 +187,20 @@ struct WeightTrackerView: View {
     // ── Unit toggle ────────────────────────────────────────────────────────────
     /// "lbs" or "kg". All stored values are in lbs; this is display-only.
     @State private var displayUnit: String = "lbs"
+    
+    private func utcHistoryDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "EEEE, MMM d"
+        return formatter.string(from: date)
+    }
+
+    private func utcShortDateString(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.timeZone = TimeZone(secondsFromGMT: 0)
+        formatter.dateFormat = "MMM d"
+        return formatter.string(from: date)
+    }
 
     /// Convert a stored-lbs value for display.
     private func display(_ lbs: Double) -> Double {
@@ -462,10 +476,32 @@ struct WeightTrackerView: View {
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
     }
+    private func chartDisplayDate(_ date: Date) -> Date {
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+
+        let components = utcCalendar.dateComponents([.year, .month, .day], from: date)
+
+        var localCalendar = Calendar.current
+        localCalendar.timeZone = TimeZone.current
+
+        return localCalendar.date(from: DateComponents(
+            calendar: localCalendar,
+            timeZone: TimeZone.current,
+            year: components.year,
+            month: components.month,
+            day: components.day,
+            hour: 12,
+            minute: 0,
+            second: 0
+        )) ?? date
+    }
 
     // MARK: Chart Card
 
     private var chartCard: some View {
+        
+      
         VStack(alignment: .leading, spacing: 14) {
             HStack {
                 Text("Progress over time")
@@ -500,7 +536,7 @@ struct WeightTrackerView: View {
                         let w = display(e.weight)
 
                         AreaMark(
-                            x: .value("Date", e.date),
+                            x: .value("Date", chartDisplayDate(e.date)),
                             y: .value(unitLabel, w)
                         )
                         .foregroundStyle(
@@ -512,7 +548,7 @@ struct WeightTrackerView: View {
                         .interpolationMethod(.catmullRom)
 
                         LineMark(
-                            x: .value("Date", e.date),
+                            x: .value("Date", chartDisplayDate(e.date)),
                             y: .value(unitLabel, w)
                         )
                         .foregroundStyle(
@@ -526,14 +562,14 @@ struct WeightTrackerView: View {
                         .shadow(color: .orange.opacity(0.45), radius: 6)
 
                         PointMark(
-                            x: .value("Date", e.date),
+                            x: .value("Date", chartDisplayDate(e.date)),
                             y: .value(unitLabel, w)
                         )
                         .symbolSize(vm.selectedEntry?.id == e.id ? 110 : 40)
                         .foregroundStyle(vm.selectedEntry?.id == e.id ? .white : .orange)
                         .annotation(position: .top, spacing: 5) {
                             if vm.selectedEntry?.id == e.id {
-                                Text(e.date, style: .date)
+                                Text(utcShortDateString(e.date))
                                     .font(.caption2.weight(.semibold))
                                     .foregroundStyle(.white.opacity(0.8))
                                     .padding(.horizontal, 7)
@@ -573,7 +609,8 @@ struct WeightTrackerView: View {
                                 if let date: Date = proxy.value(atX: loc.x - geo.frame(in: .local).minX) {
                                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
                                         let nearest = vm.entries.min {
-                                            abs($0.date.timeIntervalSince(date)) < abs($1.date.timeIntervalSince(date))
+                                            abs(chartDisplayDate($0.date).timeIntervalSince(date)) <
+                                            abs(chartDisplayDate($1.date).timeIntervalSince(date))
                                         }
                                         vm.selectedEntry = (vm.selectedEntry?.id == nearest?.id) ? nil : nearest
                                     }
@@ -638,11 +675,11 @@ struct WeightTrackerView: View {
         return HStack {
             Label {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(entry.date, format: .dateTime.weekday(.wide).month(.abbreviated).day())
+                    Text(utcHistoryDateString(entry.date))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.95))
                     if isSelected {
-                        Text(entry.date, style: .time)
+                        Text("Saved entry")
                             .font(.caption2.weight(.medium))
                             .foregroundStyle(.white.opacity(0.45))
                             .transition(.opacity)
