@@ -55,18 +55,16 @@ struct WeightEntry: Identifiable, Codable {
 
 actor WeightService {
     static let shared = WeightService()
-    private let baseURL = Constants.baseURL // <- replace
+    private let baseURL = Constants.baseURL
 
     func fetchWeights(email: String) async throws -> [WeightEntry] {
-        // Percent-encode the email so @ and . are safe in a query string
         var components = URLComponents(string: "\(baseURL)/weights")!
         components.queryItems = [URLQueryItem(name: "email", value: email)]
         guard let url = components.url else { throw URLError(.badURL) }
         let (data, _) = try await URLSession.shared.data(from: url)
-        #if DEBUG
+#if DEBUG
         print("weights JSON:", String(data: data, encoding: .utf8) ?? "<binary>")
-        #endif
-        // Surface a server-side error clearly instead of a cryptic decode failure
+#endif
         if let obj = try? JSONDecoder().decode([String: String].self, from: data),
            let reason = obj["reason"] {
             throw NSError(domain: "WeightService", code: 0,
@@ -75,11 +73,9 @@ actor WeightService {
         return try JSONDecoder().decode([WeightEntry].self, from: data)
     }
 
-    // ISO-8601 with fractional seconds — matches Vapor's Content decoder
-    // when configured with app.content.use(.json) or left at default.
     private func isoString(_ date: Date) -> String {
         let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]   // no fractional seconds — Vapor rejects .000Z
+        f.formatOptions = [.withInternetDateTime]
         return f.string(from: date)
     }
 
@@ -91,17 +87,17 @@ actor WeightService {
         let body: [String: Any] = ["email": email, "date": isoString(date), "weight": weight]
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-        #if DEBUG
+#if DEBUG
         print("addWeight body:", String(data: req.httpBody!, encoding: .utf8) ?? "")
-        #endif
+#endif
 
         let (respData, response) = try await URLSession.shared.data(for: req)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-        #if DEBUG
+#if DEBUG
         print("addWeight status:", status,
               "| body:", String(data: respData, encoding: .utf8) ?? "")
-        #endif
+#endif
 
         guard (200..<300).contains(status) else {
             let reason = (try? JSONDecoder().decode([String: String].self, from: respData))?["reason"]
@@ -122,10 +118,10 @@ actor WeightService {
         let (respData, response) = try await URLSession.shared.data(for: req)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-        #if DEBUG
+#if DEBUG
         print("deleteWeight status:", status,
               "| body:", String(data: respData, encoding: .utf8) ?? "")
-        #endif
+#endif
 
         guard (200..<300).contains(status) else {
             let reason = (try? JSONDecoder().decode([String: String].self, from: respData))?["reason"]
@@ -150,20 +146,13 @@ final class WeightTrackerViewModel: ObservableObject {
 
     init(email: String) { self.email = email }
 
-    var latestWeight: Double?  { entries.last?.weight }
-    var peakWeight:   Double?  { entries.map(\.weight).max() }
-    var lowWeight:    Double?  { entries.map(\.weight).min() }
+    var latestWeight: Double? { entries.last?.weight }
+    var peakWeight:   Double? { entries.map(\.weight).max() }
+    var lowWeight:    Double? { entries.map(\.weight).min() }
 
     var totalChange: Double? {
         guard entries.count >= 2 else { return nil }
         return entries.last!.weight - entries.first!.weight
-    }
-
-    var yDomain: ClosedRange<Double> {
-        guard let lo = entries.map(\.weight).min(),
-              let hi = entries.map(\.weight).max() else { return 0...200 }
-        let pad = max((hi - lo) * 0.2, 8)
-        return (lo - pad)...(hi + pad)
     }
 
     func load() async {
@@ -195,11 +184,35 @@ struct WeightTrackerView: View {
     @State private var showAddSheet  = false
     @State private var entryToDelete: WeightEntry?
 
+    // ── Unit toggle ────────────────────────────────────────────────────────────
+    /// "lbs" or "kg". All stored values are in lbs; this is display-only.
+    @State private var displayUnit: String = "lbs"
+
+    /// Convert a stored-lbs value for display.
+    private func display(_ lbs: Double) -> Double {
+        displayUnit == "kg" ? lbs / 2.20462 : lbs
+    }
+
+    /// Short label for the current unit.
+    private var unitLabel: String { displayUnit }
+
+    /// Dynamic Y-axis domain in display units.
+    private var yDomain: ClosedRange<Double> {
+        guard let lo = vm.entries.map(\.weight).min(),
+              let hi = vm.entries.map(\.weight).max() else {
+            return displayUnit == "kg" ? 0...150 : 0...200
+        }
+        let pad = max((hi - lo) * 0.2, 8)
+        let loD = display(lo - pad)
+        let hiD = display(hi + pad)
+        return min(loD, hiD)...max(loD, hiD)
+    }
+    // ──────────────────────────────────────────────────────────────────────────
+
     init(email: String) {
         _vm = StateObject(wrappedValue: WeightTrackerViewModel(email: email))
     }
 
-    // Red → orange, matching "Start Workout" button
     private let accentGradient = LinearGradient(
         colors: [.red, .orange],
         startPoint: .leading, endPoint: .trailing
@@ -216,14 +229,13 @@ struct WeightTrackerView: View {
                     statsRow
                     chartCard
                     historyCard
-                    Color.clear.frame(height: 80)   // FAB clearance
+                    Color.clear.frame(height: 80)
                 }
                 .padding(.horizontal, 24)
                 .padding(.top, 28)
                 .padding(.bottom, 36)
             }
 
-            // Floating action button — pinned bottom
             VStack {
                 Spacer()
                 logWeightButton
@@ -246,7 +258,9 @@ struct WeightTrackerView: View {
                     )
                 )
         }
-        .confirmationDialog("Remove this entry?", isPresented: .constant(entryToDelete != nil), titleVisibility: .visible) {
+        .confirmationDialog("Remove this entry?",
+                            isPresented: .constant(entryToDelete != nil),
+                            titleVisibility: .visible) {
             Button("Delete", role: .destructive) {
                 if let e = entryToDelete { Task { await vm.delete(e) }; entryToDelete = nil }
             }
@@ -257,7 +271,7 @@ struct WeightTrackerView: View {
         } message: { Text(vm.errorMessage ?? "") }
     }
 
-    // MARK: Background — identical gradient to MainWindow2
+    // MARK: Background
 
     private var gymBackground: some View {
         LinearGradient(
@@ -296,26 +310,53 @@ struct WeightTrackerView: View {
                     .font(.subheadline)
                     .foregroundStyle(.white.opacity(0.9))
             }
+
             Spacer()
-            if vm.isLoading {
-                ProgressView().tint(.white).padding(.top, 6)
-            } else {
-                Button { Task { await vm.load() } } label: {
-                    Image(systemName: "arrow.clockwise")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.7))
-                        .padding(10)
+
+            VStack(spacing: 8) {
+                // Refresh button
+                if vm.isLoading {
+                    ProgressView().tint(.white).padding(.top, 6)
+                } else {
+                    Button { Task { await vm.load() } } label: {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.7))
+                            .padding(10)
+                            .background(
+                                .ultraThinMaterial.opacity(0.35),
+                                in: RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            )
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                            )
+                    }
+                }
+
+                // ── UNIT TOGGLE BUTTON ─────────────────────────────────────
+                Button {
+                    withAnimation(.spring(response: 0.3, dampingFraction: 0.7)) {
+                        displayUnit = displayUnit == "lbs" ? "kg" : "lbs"
+                    }
+                } label: {
+                    Text(displayUnit == "lbs" ? "→ kg" : "→ lbs")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
                         .background(
-                            .ultraThinMaterial.opacity(0.35),
+                            LinearGradient(
+                                colors: [.red, .orange],
+                                startPoint: .leading, endPoint: .trailing
+                            ),
                             in: RoundedRectangle(cornerRadius: 12, style: .continuous)
                         )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                .stroke(Color.white.opacity(0.2), lineWidth: 1)
-                        )
+                        .shadow(color: .red.opacity(0.35), radius: 6, x: 0, y: 3)
                 }
-                .padding(.top, 4)
+                // ──────────────────────────────────────────────────────────
             }
+            .padding(.top, 4)
         }
     }
 
@@ -329,29 +370,32 @@ struct WeightTrackerView: View {
                     .foregroundStyle(.white.opacity(0.8))
 
                 HStack(alignment: .lastTextBaseline, spacing: 6) {
-                    Text(vm.latestWeight.map { String(format: "%.1f", $0) } ?? "—")
+                    Text(vm.latestWeight.map { String(format: "%.1f", display($0)) } ?? "—")
                         .font(.system(size: 52, weight: .black, design: .rounded))
                         .foregroundStyle(.white)
                         .contentTransition(.numericText())
 
-                    Text("lbs")
+                    Text(unitLabel)
                         .font(.title3.weight(.bold))
                         .foregroundStyle(.white.opacity(0.6))
                         .padding(.bottom, 4)
+                        .animation(.none, value: displayUnit)
                 }
             }
 
             Spacer()
 
             if let delta = vm.totalChange {
+                let displayDelta = displayUnit == "kg" ? delta / 2.20462 : delta
                 VStack(alignment: .trailing, spacing: 4) {
                     Text("Total change")
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.6))
 
-                    Text(String(format: "%+.1f lbs", delta))
+                    Text(String(format: "%+.1f \(unitLabel)", displayDelta))
                         .font(.system(size: 22, weight: .black, design: .rounded))
                         .foregroundStyle(delta <= 0 ? Color.green : Color.red)
+                        .contentTransition(.numericText())
 
                     Label(delta <= 0 ? "Trending down" : "Trending up",
                           systemImage: delta <= 0 ? "arrow.down.right" : "arrow.up.right")
@@ -379,12 +423,12 @@ struct WeightTrackerView: View {
             statBadge(
                 icon: "scalemass.fill",
                 label: "Peak",
-                value: vm.peakWeight.map { String(format: "%.1f", $0) } ?? "—"
+                value: vm.peakWeight.map { String(format: "%.1f", display($0)) } ?? "—"
             )
             statBadge(
                 icon: "arrow.down.to.line",
                 label: "Low",
-                value: vm.lowWeight.map { String(format: "%.1f", $0) } ?? "—"
+                value: vm.lowWeight.map { String(format: "%.1f", display($0)) } ?? "—"
             )
             statBadge(
                 icon: "calendar",
@@ -431,9 +475,10 @@ struct WeightTrackerView: View {
                 Spacer()
 
                 if let sel = vm.selectedEntry {
-                    Text(String(format: "%.1f lbs", sel.weight))
+                    Text(String(format: "%.1f \(unitLabel)", display(sel.weight)))
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.orange)
+                        .contentTransition(.numericText())
                         .transition(.opacity.combined(with: .scale(scale: 0.9)))
                 }
             }
@@ -452,9 +497,11 @@ struct WeightTrackerView: View {
             } else {
                 Chart {
                     ForEach(vm.entries) { e in
+                        let w = display(e.weight)
+
                         AreaMark(
                             x: .value("Date", e.date),
-                            y: .value("lbs",  e.weight)
+                            y: .value(unitLabel, w)
                         )
                         .foregroundStyle(
                             LinearGradient(
@@ -466,7 +513,7 @@ struct WeightTrackerView: View {
 
                         LineMark(
                             x: .value("Date", e.date),
-                            y: .value("lbs",  e.weight)
+                            y: .value(unitLabel, w)
                         )
                         .foregroundStyle(
                             LinearGradient(
@@ -480,7 +527,7 @@ struct WeightTrackerView: View {
 
                         PointMark(
                             x: .value("Date", e.date),
-                            y: .value("lbs",  e.weight)
+                            y: .value(unitLabel, w)
                         )
                         .symbolSize(vm.selectedEntry?.id == e.id ? 110 : 40)
                         .foregroundStyle(vm.selectedEntry?.id == e.id ? .white : .orange)
@@ -499,7 +546,7 @@ struct WeightTrackerView: View {
                         }
                     }
                 }
-                .chartYScale(domain: vm.yDomain)
+                .chartYScale(domain: yDomain)
                 .chartXAxis {
                     AxisMarks(values: .automatic(desiredCount: 4)) { _ in
                         AxisValueLabel(format: .dateTime.month(.abbreviated).day())
@@ -535,7 +582,7 @@ struct WeightTrackerView: View {
                     }
                 }
                 .frame(height: 200)
-                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous)) // ← clips chart overflow
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             }
         }
         .padding(20)
@@ -548,7 +595,7 @@ struct WeightTrackerView: View {
             RoundedRectangle(cornerRadius: 20, style: .continuous)
                 .stroke(Color.white.opacity(0.2), lineWidth: 1)
         )
-        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous)) // ← clips card overflow
+        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
     }
 
     // MARK: History Card
@@ -609,10 +656,12 @@ struct WeightTrackerView: View {
 
             Spacer()
 
-            Text(String(format: "%.1f lbs", entry.weight))
+            // ── Shows value in current display unit ────────────────────────
+            Text(String(format: "%.1f \(unitLabel)", display(entry.weight)))
                 .font(.system(size: 16, weight: .black, design: .rounded))
                 .foregroundStyle(isSelected ? .orange : .white)
                 .contentTransition(.numericText())
+            // ───────────────────────────────────────────────────────────────
 
             Button {
                 entryToDelete = entry
@@ -652,7 +701,7 @@ struct WeightTrackerView: View {
         }
     }
 
-    // MARK: Log Weight Button — matches "Start Workout" style exactly
+    // MARK: Log Weight Button
 
     private var logWeightButton: some View {
         Button { showAddSheet = true } label: {
@@ -690,7 +739,6 @@ struct AddWeightSheet: View {
     private var value: Double? { Double(weightText) }
     private var isValid: Bool { (value ?? 0) > 0 && (value ?? 9999) < 9999 }
 
-    /// Always in lbs for storage
     private var valueInLbs: Double? {
         guard let v = value else { return nil }
         return selectedUnit == "kg" ? v * 2.20462 : v
@@ -699,7 +747,6 @@ struct AddWeightSheet: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
 
-            // Title
             VStack(alignment: .leading, spacing: 6) {
                 Text("Log today's weight")
                     .font(.headline)
@@ -715,9 +762,7 @@ struct AddWeightSheet: View {
             .padding(.top, 28)
             .padding(.bottom, 20)
 
-            // Input card
             VStack(spacing: 16) {
-                // Number
                 HStack(alignment: .lastTextBaseline, spacing: 8) {
                     TextField("0.0", text: $weightText)
                         .keyboardType(.decimalPad)
@@ -736,7 +781,6 @@ struct AddWeightSheet: View {
                         .animation(.none, value: selectedUnit)
                 }
 
-                // Unit segmented picker
                 HStack(spacing: 0) {
                     ForEach(unitOptions, id: \.self) { unit in
                         Button {
@@ -788,7 +832,6 @@ struct AddWeightSheet: View {
 
             Spacer()
 
-            // Save button
             Button {
                 if let lbs = valueInLbs, isValid { onSave(lbs); dismiss() }
             } label: {
@@ -804,7 +847,8 @@ struct AddWeightSheet: View {
                 .background(
                     AnyShapeStyle(
                         isValid
-                            ? AnyShapeStyle(LinearGradient(colors: [.red, .orange], startPoint: .leading, endPoint: .trailing))
+                            ? AnyShapeStyle(LinearGradient(colors: [.red, .orange],
+                                                           startPoint: .leading, endPoint: .trailing))
                             : AnyShapeStyle(Color.white.opacity(0.1))
                     ),
                     in: RoundedRectangle(cornerRadius: 16, style: .continuous)

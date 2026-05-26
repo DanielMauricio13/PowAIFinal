@@ -779,14 +779,14 @@ struct UpdateFullProfileView: View {
     }
 
     private func saveProfileAndRegenerate() async {
-        print("save")
+      
         errorMessage = nil
         guard let userID = mainUser.id,
               let url = URL(string: "\(Constants.baseURL)users/\(userID)/profile/regenerate-workout") else {
             errorMessage = "Could not build request URL."
             return
         }
-        print("loading")
+        
         isLoading = true
         defer { isLoading = false }
         do {
@@ -799,10 +799,14 @@ struct UpdateFullProfileView: View {
                 errorMessage = "Server error. Please try again."
                 return
             }
+            
             isPresented = false
+            
+            
         } catch {
             errorMessage = error.localizedDescription
         }
+        
     }
 
     private var gymBg: some View {
@@ -813,4 +817,5 @@ struct UpdateFullProfileView: View {
         )
         .ignoresSafeArea()
     }
+   
 }

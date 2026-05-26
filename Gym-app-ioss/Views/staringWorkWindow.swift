@@ -18,6 +18,7 @@ struct StaringWorkWindow: View {
     @State private var timerIsRunning = false
     @State private var timeRemaining2 = 60
     @State private var timerIsRunning2 = false
+    @StateObject private var hkManager = HealthKitManager()
     @State var totalTime = 5
     @State var totalTime2 = 60
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -77,6 +78,12 @@ struct StaringWorkWindow: View {
 
                     ImageView(imageURL: "https://powai-ea13190d89b9.herokuapp.com/images/imageName?name=\(todaysWork?.exercises[index].name ?? "bad").jpg")
                         .frame(width: 400, height: 300)
+                    HeartRateOverlay(
+                               bpm: hkManager.latestBPM,
+                               isMonitoring: hkManager.isMonitoring
+                           )
+                           .padding(.top, 54)     // clears the safe-area / Dynamic Island
+                           .padding(.trailing, 18)
                     if finishedSet == false ||  finishedRecover == true  {
                         HStack {
                             Text("Set \(set):").font(.title).padding(.leading).padding(.top).foregroundStyle(Color.white).bold()
@@ -128,7 +135,9 @@ struct StaringWorkWindow: View {
                                 finishedRecover = false
                                 triggerVibration()
                                 excSer = todaysWork?.exercises[index].sets
-                            }
+                                
+                            }.task { await hkManager.requestAuthorization() }
+                               
                             if set + 1 > excSer ?? 9{
                                 Spacer()
                             }
@@ -150,7 +159,11 @@ struct StaringWorkWindow: View {
                                     startTime = .now
                                     
                                     let attriutes = TimeTrackingAttributes(Initial: .now)
-                                    let state = TimeTrackingAttributes.ContentState(startTime: .now, set: set - 1)
+                                    let state = TimeTrackingAttributes.ContentState(
+                                        startTime: .now,
+                                        set: set - 1,
+                                        heartRate: hkManager.latestBPM   // ← seed with current reading
+                                    )
                                     let contrent = ActivityContent(state: state, staleDate: nil)
                                     
                                     activity = try?  Activity<TimeTrackingAttributes>.request(attributes: attriutes, content: contrent, pushType: nil)
@@ -187,7 +200,11 @@ struct StaringWorkWindow: View {
                                 else {
                                     
                                     guard startTime != nil else {return}
-                                    let finalContentState = TimeTrackingAttributes.ContentState(startTime: .now, set: set - 1)
+                                    let finalContentState = TimeTrackingAttributes.ContentState(
+                                        startTime: .now,
+                                        set: set - 1,
+                                        heartRate: hkManager.latestBPM
+                                    )
                                     let finalContent = ActivityContent(state: finalContentState, staleDate: nil)
                                     
                                     Task {
@@ -219,8 +236,21 @@ struct StaringWorkWindow: View {
                     }
                 }
                 Spacer()
-                }
-            } 
+                } .onDisappear { hkManager.stopMonitoring() }
+                    .onChange(of: hkManager.latestBPM) { _, newBPM in   // ← add here
+                          guard let activity else { return }
+                          let updatedState = TimeTrackingAttributes.ContentState(
+                              startTime: activity.content.state.startTime,
+                              set: activity.content.state.set,
+                              heartRate: newBPM
+                          )
+                          Task {
+                              await activity.update(
+                                  ActivityContent(state: updatedState, staleDate: nil)
+                              )
+                          }
+                      }
+            }
             else {
                 VStack {
                 Spacer()

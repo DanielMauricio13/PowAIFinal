@@ -62,6 +62,8 @@
 		43F816F82FC3CDD400CDFAA5 /* WeightEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */; };
 		43F816FA2FC41F8800CDFAA5 /* UpdateProfileMenuView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816F92FC41F8800CDFAA5 /* UpdateProfileMenuView.swift */; };
 		43F816FC2FC4277300CDFAA5 /* DailyNutritionEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816FB2FC4277300CDFAA5 /* DailyNutritionEntry.swift */; };
+		43F817062FC52F3100CDFAA5 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F817052FC52F3100CDFAA5 /* HealthKitManager.swift */; };
+		43F8170A2FC52F5900CDFAA5 /* HeartRateOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F817092FC52F5900CDFAA5 /* HeartRateOverlay.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -138,6 +140,9 @@
 		43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WeightEntry.swift; sourceTree = "<group>"; };
 		43F816F92FC41F8800CDFAA5 /* UpdateProfileMenuView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UpdateProfileMenuView.swift; sourceTree = "<group>"; };
 		43F816FB2FC4277300CDFAA5 /* DailyNutritionEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyNutritionEntry.swift; sourceTree = "<group>"; };
+		43F817052FC52F3100CDFAA5 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
+		43F817092FC52F5900CDFAA5 /* HeartRateOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateOverlay.swift; sourceTree = "<group>"; };
+		43F8170B2FC5319000CDFAA5 /* Gym-app-ioss.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Gym-app-ioss.entitlements"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -212,6 +217,7 @@
 		43CDA0072A8C479C000BCA3B /* Gym-app-ioss */ = {
 			isa = PBXGroup;
 			children = (
+				43F8170B2FC5319000CDFAA5 /* Gym-app-ioss.entitlements */,
 				43D59B152DDA6C0000250F98 /* RiveAssets */,
 				4376F40A2C03F49300937885 /* Info.plist */,
 				43CDA0082A8C479C000BCA3B /* Gym_app_iossApp.swift */,
@@ -238,6 +244,8 @@
 		43CDA01E2A8D8438000BCA3B /* Model */ = {
 			isa = PBXGroup;
 			children = (
+				43F817092FC52F5900CDFAA5 /* HeartRateOverlay.swift */,
+				43F817052FC52F3100CDFAA5 /* HealthKitManager.swift */,
 				43F816EB2FC1A20400CDFAA5 /* WorkoutDTO.swift */,
 				43CDA01F2A8D8444000BCA3B /* User.swift */,
 				43CDA0362AA56D74000BCA3B /* LogedInUser.swift */,
@@ -451,9 +459,11 @@
 				43C27BFA2BEC5EC600A73F0F /* Food.swift in Sources */,
 				43F816FC2FC4277300CDFAA5 /* DailyNutritionEntry.swift in Sources */,
 				43CDA01B2A8C654E000BCA3B /* questionaire.swift in Sources */,
+				43F817062FC52F3100CDFAA5 /* HealthKitManager.swift in Sources */,
 				43C27BFC2BF246FE00A73F0F /* UserSettings.swift in Sources */,
 				43F816F82FC3CDD400CDFAA5 /* WeightEntry.swift in Sources */,
 				43CDA0172A8C491B000BCA3B /* MainWindow.swift in Sources */,
+				43F8170A2FC52F5900CDFAA5 /* HeartRateOverlay.swift in Sources */,
 				43C27C002BF24DEC00A73F0F /* Calories.swift in Sources */,
 				43CDA0092A8C479C000BCA3B /* Gym_app_iossApp.swift in Sources */,
 				43C27BFE2BF24A7300A73F0F /* FisrtWindow.swift in Sources */,
@@ -488,6 +498,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PowAI_Widget/Info.plist;
@@ -501,7 +512,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ioss.PowAI-Widget";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ios.PowAI-Widget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
@@ -519,6 +530,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = PowAI_Widget/Info.plist;
@@ -532,7 +544,7 @@
 				);
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ioss.PowAI-Widget";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ios.PowAIWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -666,14 +678,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
+				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Gym-app-ioss/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "POW IA";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to scan food barcodes and let you take food photos for nutrition evaluation.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Used to display your live heart rate during workouts";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Used to save workout sessions to Health";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -687,7 +704,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ioss";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
@@ -704,14 +721,19 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
+				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "Gym-app-ioss/Info.plist";
 				INFOPLIST_KEY_CFBundleDisplayName = "POW IA";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
+				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to scan food barcodes and let you take food photos for nutrition evaluation.";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "Used to display your live heart rate during workouts";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Used to save workout sessions to Health";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -725,7 +747,7 @@
 					"@executable_path/Frameworks",
 				);
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ioss";
+				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
