@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		433F834D2FC6F30200B7DC83 /* AuthSession 2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 433F834C2FC6F30200B7DC83 /* AuthSession 2.swift */; };
 		4349A6892BFE606400684853 /* workoutVieModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4349A6882BFE606400684853 /* workoutVieModel.swift */; };
 		4349A68B2C00CB0400684853 /* PersistanceFood.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4349A68A2C00CB0400684853 /* PersistanceFood.swift */; };
 		4376F4092C02685C00937885 /* PersiatnceCalories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4376F4082C02685C00937885 /* PersiatnceCalories.swift */; };
@@ -91,6 +92,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		433F834C2FC6F30200B7DC83 /* AuthSession 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthSession 2.swift"; sourceTree = "<group>"; };
 		4349A6882BFE606400684853 /* workoutVieModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = workoutVieModel.swift; sourceTree = "<group>"; };
 		4349A68A2C00CB0400684853 /* PersistanceFood.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistanceFood.swift; sourceTree = "<group>"; };
 		4376F4082C02685C00937885 /* PersiatnceCalories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersiatnceCalories.swift; sourceTree = "<group>"; };
@@ -260,6 +262,7 @@
 		43CDA0212A8D852E000BCA3B /* Utilities */ = {
 			isa = PBXGroup;
 			children = (
+				433F834C2FC6F30200B7DC83 /* AuthSession 2.swift */,
 				43CDA0222A8D8547000BCA3B /* Constants.swift */,
 				43CDA0242A8D85A3000BCA3B /* ModalType.swift */,
 				43CDA0262A8D85D8000BCA3B /* HttpClient.swift */,
@@ -445,6 +448,7 @@
 				43CDA02B2A8D8733000BCA3B /* ExcercisesViewModel.swift in Sources */,
 				43C27BF82BEC5CCA00A73F0F /* NutritionView.swift in Sources */,
 				43C393AB2C20FB1A00060774 /* appDelegate.swift in Sources */,
+				433F834D2FC6F30200B7DC83 /* AuthSession 2.swift in Sources */,
 				43C393892C1B57B200060774 /* TimeTrackingAttributes.swift in Sources */,
 				43B1943F2AC760F5002CF64D /* MainWindow2.swift in Sources */,
 				4349A68B2C00CB0400684853 /* PersistanceFood.swift in Sources */,
