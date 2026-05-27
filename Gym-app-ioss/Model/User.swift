@@ -30,7 +30,7 @@ struct User: Identifiable, Codable {
     var carbs: Int?
     var burnCalories: Int?
     var water: Double?
-    var membershipStatus: String?
+    var membershipStatus: String
     var membershipPlan: String?
     var membershipStartedAt: Date?
     var membershipExpiresAt: Date?
