@@ -133,9 +133,7 @@ struct MainWindow: View {
             }
             
             do {
-                if let jsonString = String(data: jsonData, encoding: .utf8) {
-                    print("RAW USER JSON: \(jsonString)")
-                }
+               
                 let decoder = JSONDecoder()
                 decoder.dateDecodingStrategy = .iso8601
                 let user = try decoder.decode(User.self, from: jsonData)

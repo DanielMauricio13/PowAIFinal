@@ -116,7 +116,7 @@ struct createUserWindow: View {
                                 .onTapGesture {
                                     button.play(animationName: "active")
                                     Task {
-                                        self.email = email.lowercased().trimmingCharacters(in: .whitespaces)
+                                        self.email = email.uppercased()
                                         try await checkEmail(self.email)
                                     }
                                 }
@@ -139,6 +139,7 @@ struct createUserWindow: View {
         passwordTooShort   = false
         wrongPassword      = 0
         wrongEmail         = 0
+        
 
         // 1. Name checks
         guard !firstName.isEmpty, !lastName.isEmpty else { return }

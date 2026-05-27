@@ -46,8 +46,8 @@
             filePath = "Gym-app-ioss/Views/MainWindow.swift"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "155"
-            endingLineNumber = "155"
+            startingLineNumber = "153"
+            endingLineNumber = "153"
             landmarkName = "fetchUserInfo(completion:)"
             landmarkType = "7">
          </BreakpointContent>
@@ -344,7 +344,7 @@
          BreakpointExtensionID = "Xcode.Breakpoint.FileBreakpoint">
          <BreakpointContent
             uuid = "3621E8D9-FDF6-4279-9B6F-B984159464A4"
-            shouldBeEnabled = "Yes"
+            shouldBeEnabled = "No"
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "Gym-app-ioss/Views/UpdateProfileMenuView.swift"
