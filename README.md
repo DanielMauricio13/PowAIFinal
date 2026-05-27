@@ -1,51 +1,57 @@
-# PowAI
+# PowAI Final
 
-PowAI is a Swift-based iOS fitness application that uses generative AI to build personalized workout plans and track daily nutrition. Create a profile, answer a brief questionnaire, and receive routines tailored to your goals and schedule.
+PowAI Final is an AI-powered iOS fitness app that combines personalized training, nutrition coaching, and real-time workout support in one experience. The app has evolved from a basic workout generator into a broader fitness companion with account flows, richer nutrition inputs, Live Activities, and a dedicated workout widget.
 
-## Features
-- **Account creation and login** with JWT-based authentication.
-- **AI-generated workouts** based on your fitness level, location and time available.
-- **Live Activities** and notifications to monitor rest periods during workouts.
-- **Food tracking** powered by generative AI to estimate calories, protein, carbs and sugars.
-- **Barcode scanning** to instantly log nutritional info from packaged foods.
-- **Daily goal tracking** for calories and macronutrients.
+## What’s New in This Version
+- A more complete onboarding flow with account creation, login, and profile management.
+- Expanded nutrition logging modes: **Smart AI**, **Manual entry**, **Barcode scanning**, and **Camera-based food analysis**.
+- Favorite foods for fast re-logging of common meals.
+- Improved workout session tracking with Live Activities and Dynamic Island support.
+- Rest-session widget enhancements that include set count, elapsed time, and heart-rate display.
+
+## Core Features
+
+### 1) Personalized Training
+- AI-generated workout plans tailored to user profile and goals.
+- Workout day selection and per-exercise breakdowns (sets/reps/calorie estimates).
+- In-session rest tracking to support structured training.
+
+### 2) Smart Nutrition Tracking
+- Add foods using:
+  - AI text-based interpretation.
+  - Manual macro/calorie input.
+  - Barcode scanning for packaged products.
+  - Camera capture + AI analysis for meal estimation.
+- Track calories, protein, carbs, and sugars against daily targets.
+- Save and quickly re-add favorite foods.
+
+### 3) Live Activities + Widget Experience
+- Workout rest periods can be tracked with Live Activities.
+- Dynamic Island and Lock Screen presentation for at-a-glance timing.
+- Widget view surfaces:
+  - Current set number.
+  - Elapsed timer.
+  - Heart-rate (BPM) with zone-based visual feedback.
+
+### 4) Account & Profile Utilities
+- Secure session flow with token-based authenticated requests.
+- Profile retrieval and update paths.
+- Additional account utilities such as recovery and settings views.
+
+## Project Structure
+- `Gym-app-ioss/` — Main iOS app source (views, models, utilities, view models).
+- `PowAI_Widget/` — WidgetKit + ActivityKit implementation for workout Live Activities.
+- `Gym-app-ioss.xcodeproj/` — Xcode project and schemes.
 
 ## Getting Started
-1. Build and run on an iOS device or simulator.
-2. Sign up with your email, set your goals and start training!
+1. Open `Gym-app-ioss.xcodeproj` in Xcode.
+2. Select an iOS Simulator or physical device.
+3. Build and run the app.
+4. Create an account (or log in), complete onboarding, and start your plan.
 
-## Workouts
-After logging in your personalized routine is displayed on the main screen. Selecting a workout shows each exercise with sets, reps and estimated calories. Begin the session to activate the Live Activity timer and track your progress.
+## Privacy, Safety, and Disclaimer
+PowAI Final stores account and activity-related data only for core app functionality (training, nutrition logging, and progress support). AI outputs are guidance tools and **not medical advice**. Always consult a qualified healthcare professional before changing diet, training intensity, or health routines.
 
-![Workout list](https://github.com/user-attachments/assets/17227519-7285-4d65-9dec-28ff6bc50672)
-![Workout detail](https://github.com/user-attachments/assets/6ca7773b-c59a-4e18-b257-5dd5870fbe9e)
+---
 
-## Nutrition
-Enter any food item or scan its barcode and PowAI will retrieve the nutritional content. Your current intake is compared against the daily targets provided by the AI.
-
-![Food entry](https://github.com/user-attachments/assets/0a37e332-9fd1-4348-be5d-e5fa6ca51904)
-![Daily goal progress](https://github.com/user-attachments/assets/98997647-36b1-436a-b79e-19ddac21bb31)
-
-## Screenshots
-![Login](https://github.com/user-attachments/assets/871892ac-ded1-45d6-a87f-bd7bce5949a5)
-![Rest timer](https://github.com/user-attachments/assets/863eceba-4a7d-4dbe-bf15-8861dcccec22)
-
-Enjoy your workouts with **PowAI**!
-
-## User Data Policy and Disclaimer
-PowAI collects and stores your account details only to deliver in‑app features
-such as AI‑generated workouts, nutrition logs and live activity tracking.
-Workout and nutrition suggestions come from an AI model and **do not constitute
-licensed medical advice**. They are provided as a general guideline. Always
-consult a qualified healthcare professional before making significant changes to
-your diet or exercise routine. PowAI does not endorse any specific diet or
-exercise program, and your data will never be sold or repurposed for other
-services.
-# GYM-AI
-# GYM-AI
-# GYM-AI
-# GYM-AI
-# GYM-AI
-# GYM-AI
-# POWFInal
-# PowAIFinal
+If you are continuing development, keep this README aligned with new capabilities (especially onboarding, workout analytics, nutrition inputs, and widget behavior).
