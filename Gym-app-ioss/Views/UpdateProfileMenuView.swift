@@ -296,6 +296,7 @@ struct UpdateEmailView: View {
             var request = URLRequest(url: url)
             request.httpMethod = "PUT"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.applyBearerToken()
             let body = ["email": newEmail.uppercased()]
             request.httpBody = try JSONEncoder().encode(body)
 
@@ -766,6 +767,7 @@ struct UpdateFullProfileView: View {
             var request = URLRequest(url: url)
             request.httpMethod = "PUT"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.applyBearerToken()
             request.httpBody = try JSONSerialization.data(withJSONObject: buildPayload())
             let (_, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
@@ -793,6 +795,7 @@ struct UpdateFullProfileView: View {
             var request = URLRequest(url: url)
             request.httpMethod = "PUT"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.applyBearerToken()
             request.httpBody = try JSONSerialization.data(withJSONObject: buildPayload())
             let (_, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {

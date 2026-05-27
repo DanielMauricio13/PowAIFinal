@@ -58,10 +58,11 @@ actor WeightService {
     private let baseURL = Constants.baseURL
 
     func fetchWeights(email: String) async throws -> [WeightEntry] {
-        var components = URLComponents(string: "\(baseURL)/weights")!
-        components.queryItems = [URLQueryItem(name: "email", value: email)]
-        guard let url = components.url else { throw URLError(.badURL) }
-        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let url = URL(string: "\(baseURL)/weights") else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.applyBearerToken()
+        let (data, _) = try await URLSession.shared.data(for: request)
 #if DEBUG
         print("weights JSON:", String(data: data, encoding: .utf8) ?? "<binary>")
 #endif
@@ -83,8 +84,9 @@ actor WeightService {
         guard let url = URL(string: "\(baseURL)/weights/newWeight") else { throw URLError(.badURL) }
         var req = URLRequest(url: url); req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.applyBearerToken()
 
-        let body: [String: Any] = ["email": email, "date": isoString(date), "weight": weight]
+        let body: [String: Any] = ["date": isoString(date), "weight": weight]
         req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
 #if DEBUG
@@ -111,8 +113,9 @@ actor WeightService {
         guard let url = URL(string: "\(baseURL)/weights/by-date") else { throw URLError(.badURL) }
         var req = URLRequest(url: url); req.httpMethod = "DELETE"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.applyBearerToken()
         req.httpBody = try JSONSerialization.data(withJSONObject: [
-            "email": email, "date": isoString(date)
+            "date": isoString(date)
         ])
 
         let (respData, response) = try await URLSession.shared.data(for: req)

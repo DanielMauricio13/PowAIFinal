@@ -96,7 +96,7 @@ struct MainWindow: View {
     
 
     func fetchUserInfo(completion: @escaping (Result<User, Error>) -> Void) {
-        guard let apiUrl = URL(string: "\(Constants.baseURL)profile?email=\(self.email)") else {
+        guard let apiUrl = URL(string: "\(Constants.baseURL)users/me") else {
             logout()
             completion(.failure(URLError(.badURL)))
             return
@@ -105,15 +105,12 @@ struct MainWindow: View {
         var request = URLRequest(url: apiUrl)
         request.httpMethod = "GET"
         
-        // Retrieve the JWT token from UserDefaults
-        if let token = UserDefaults.standard.string(forKey: "jwtToken") {
-            // Add the Authorization header
-            request.addValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
-        } else {
+        guard AuthSession.getToken() != nil else {
             logout()
             completion(.failure(NetworkError.noToken))
             return
         }
+        request.applyBearerToken()
         
         let session = URLSession.shared
         let task = session.dataTask(with: request) { data, response, error in
@@ -200,8 +197,7 @@ struct MainWindow: View {
 
     func fetchExerciseData(completion: @escaping (Result<fullTraining, Error>) -> Void) {
             // Replace this URL with your Vapor server endpoint
-        guard let encodedEmail = email.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed),
-              let url = URL(string: "\(Constants.baseURL)\(EndPoints.training)userExcersises?email=\(encodedEmail)") else {
+        guard let url = URL(string: "\(Constants.baseURL)\(EndPoints.training)userExcersises") else {
             completion(.failure(URLError(.badURL)))
             return
         }
@@ -209,6 +205,7 @@ struct MainWindow: View {
             // Create an HTTP GET request
             var request = URLRequest(url: url)
             request.httpMethod = "GET"
+            request.applyBearerToken()
             
             // Create a URLSession task to perform the request
             let task = URLSession.shared.dataTask(with: request) { data, response, error in
@@ -273,6 +270,7 @@ struct MainWindow: View {
     func logout()->Void {
         UserDefaults.standard.removeObject(forKey: "isAuthenticated")
         UserDefaults.standard.removeObject(forKey: "username")
+        AuthSession.clearToken()
         HealthManager.shared.calories = 0
         HealthManager.shared.protein = 0
         userFound = false
