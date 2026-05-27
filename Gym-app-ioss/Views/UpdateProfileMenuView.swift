@@ -756,8 +756,8 @@ struct UpdateFullProfileView: View {
 
     private func saveProfileOnly() async {
         errorMessage = nil
-        guard let userID = mainUser.id,
-              let url = URL(string: "\(Constants.baseURL)users/\(userID)/profile") else {
+        guard mainUser.id != nil,
+              let url = URL(string: "\(Constants.baseURL)users/profile") else {
             errorMessage = "Could not build request URL."
             return
         }
@@ -783,8 +783,8 @@ struct UpdateFullProfileView: View {
     private func saveProfileAndRegenerate() async {
       
         errorMessage = nil
-        guard let userID = mainUser.id,
-              let url = URL(string: "\(Constants.baseURL)users/\(userID)/profile/regenerate-workout") else {
+        guard mainUser.id != nil,
+              let url = URL(string: "\(Constants.baseURL)users/profile/regenerate-workout") else {
             errorMessage = "Could not build request URL."
             return
         }
