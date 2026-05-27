@@ -283,8 +283,7 @@ struct UpdateEmailView: View {
             return
         }
 
-        guard let userID = mainUser.id,
-              let url = URL(string: "\(Constants.baseURL)users/\(userID)/email") else {
+        guard let url = URL(string: "\(Constants.baseURL)users/email") else {
             errorMessage = "Could not build request URL."
             return
         }
@@ -293,10 +292,15 @@ struct UpdateEmailView: View {
         defer { isLoading = false }
 
         do {
+            guard let token = AuthSession.getToken(), !token.isEmpty else {
+                errorMessage = "Your session expired. Please sign in again."
+                return
+            }
+
             var request = URLRequest(url: url)
             request.httpMethod = "PUT"
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            request.applyBearerToken()
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
             let body = ["email": newEmail.uppercased()]
             request.httpBody = try JSONEncoder().encode(body)
 
