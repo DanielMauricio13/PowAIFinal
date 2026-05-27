@@ -79,10 +79,11 @@ actor NutritionService {
     }
 
     func fetchEntries(email: String) async throws -> [DailyNutritionEntry] {
-        var components = URLComponents(string: "\(baseURL)/daily-nutrition")!
-        components.queryItems = [URLQueryItem(name: "email", value: email)]
-        guard let url = components.url else { throw URLError(.badURL) }
-        let (data, _) = try await URLSession.shared.data(from: url)
+        guard let url = URL(string: "\(baseURL)/daily-nutrition") else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.applyBearerToken()
+        let (data, _) = try await URLSession.shared.data(for: request)
         if let obj = try? JSONDecoder().decode([String: String].self, from: data),
            let reason = obj["reason"] {
             throw NSError(domain: "NutritionService", code: 0,
@@ -96,8 +97,9 @@ actor NutritionService {
         guard let url = URL(string: "\(baseURL)/daily-nutrition/newEntry") else { throw URLError(.badURL) }
         var req = URLRequest(url: url); req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.applyBearerToken()
         let body: [String: Any] = [
-            "email": email, "date": isoString(date),
+            "date": isoString(date),
             "protein": protein, "carbs": carbs,
             "calories": calories, "sugars": sugars
         ]
@@ -117,8 +119,9 @@ actor NutritionService {
         guard let url = URL(string: "\(baseURL)/daily-nutrition/by-date") else { throw URLError(.badURL) }
         var req = URLRequest(url: url); req.httpMethod = "PUT"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.applyBearerToken()
         let body: [String: Any] = [
-            "email": email, "date": isoString(date),
+            "date": isoString(date),
             "protein": protein, "carbs": carbs,
             "calories": calories, "sugars": sugars
         ]
@@ -137,8 +140,9 @@ actor NutritionService {
         guard let url = URL(string: "\(baseURL)/daily-nutrition/by-date") else { throw URLError(.badURL) }
         var req = URLRequest(url: url); req.httpMethod = "DELETE"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.applyBearerToken()
         req.httpBody = try JSONSerialization.data(withJSONObject: [
-            "email": email, "date": isoString(date)
+            "date": isoString(date)
         ])
         let (respData, response) = try await URLSession.shared.data(for: req)
         let status = (response as? HTTPURLResponse)?.statusCode ?? 0

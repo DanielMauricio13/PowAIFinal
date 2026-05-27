@@ -83,12 +83,14 @@ struct LogInWindow: View {
     
     func authenticateUser(_ user: String, _ password: String) {
         
-        guard let url = URL(string: "\(Constants.baseURL)login?email=\(user)&password=\(password)") else {
+        guard let url = URL(string: "\(Constants.baseURL)login") else {
             return
         }
         
         var request = URLRequest(url: url)
-        request.httpMethod = "GET"  // or "GET" if your endpoint expects GET method
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.httpBody = try? JSONEncoder().encode(["email": user, "password": password])
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
             if let response = response as? HTTPURLResponse {
@@ -101,9 +103,13 @@ struct LogInWindow: View {
                                     UserDefaults.standard.set(true, forKey: "isAuthenticated")
                                     UserDefaults.standard.set(username, forKey: "username")
 
-                                    if let data = data, let token = String(data: data, encoding: .utf8) {
-                                        // Store the token securely
-                                        UserDefaults.standard.set(token, forKey: "jwtToken")
+                                    if let data = data {
+                                        if let response = try? JSONDecoder().decode([String: String].self, from: data),
+                                           let token = response["token"] ?? response["jwt"] {
+                                            AuthSession.saveToken(token)
+                                        } else if let token = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty {
+                                            AuthSession.saveToken(token)
+                                        }
                                     }
 
                     

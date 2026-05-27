@@ -44,6 +44,7 @@ class HttpClient{
         
         request.httpMethod = httpMethod
         request.addValue(MIMEType.JSON.rawValue, forHTTPHeaderField: HttpHeaders.contentType.rawValue)
+        request.applyBearerToken()
         
         request.httpBody = try? JSONEncoder().encode(object)
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -58,6 +59,7 @@ class HttpClient{
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.applyBearerToken()
 
         if let object = object {
             request.httpBody = try JSONEncoder().encode(object)
