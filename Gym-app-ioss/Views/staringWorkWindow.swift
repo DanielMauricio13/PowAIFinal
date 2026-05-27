@@ -76,7 +76,7 @@ struct StaringWorkWindow: View {
                         .foregroundStyle(Color.white)
                         .shadow(color: .black.opacity(0.6), radius: 8, x: 0, y: 3)
 
-                    ImageView(imageURL: "https://powai-ea13190d89b9.herokuapp.com/images/imageName?name=\(todaysWork?.exercises[index].name ?? "bad").jpg")
+                    ImageView(imageURL: "\(Constants.baseURL)images/imageName?name=\(todaysWork?.exercises[index].name ?? "bad").jpg")
                         .frame(width: 400, height: 300)
                     HeartRateOverlay(
                                bpm: hkManager.latestBPM,

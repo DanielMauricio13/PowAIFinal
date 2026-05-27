@@ -161,7 +161,7 @@ class HealthManager: ObservableObject {
             return
         }
 
-        guard let url = URL(string: "https://powai-ea13190d89b9.herokuapp.com/daily-nutrition/newEntry") else {
+        guard let url = URL(string: "\(Constants.baseURL)daily-nutrition/newEntry") else {
             print("Invalid daily nutrition URL")
             return
         }
@@ -185,6 +185,7 @@ class HealthManager: ObservableObject {
             var req = URLRequest(url: url); 
             req.httpMethod = "POST"
             req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            req.applyBearerToken()
             
             let body: [String: Any] = ["email": email, "date": isoString(Calendar.current.startOfDay(for: Date())), "protein": currentProtein,"carbs" : currentCarbs
             , "calories": currentCalories, "sugars": currentSugars]
