@@ -199,9 +199,10 @@ struct UserSettings: View {
     }
 
     func delete() async throws {
-        guard let url = URL(string: "\(Constants.baseURL)users/\(userID)") else { return }
+        guard let url = URL(string: "\(Constants.baseURL)users/me") else { return }
         var request = URLRequest(url: url)
         request.httpMethod = HttpMethods.DELETE.rawValue
+        request.applyBearerToken()
         let (_, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw HttpEroor.BadResponse
