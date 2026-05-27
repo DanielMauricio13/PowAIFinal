@@ -44,7 +44,9 @@ class HttpClient{
         
         request.httpMethod = httpMethod
         request.addValue(MIMEType.JSON.rawValue, forHTTPHeaderField: HttpHeaders.contentType.rawValue)
-        request.applyBearerToken()
+        if let token = AuthSession.getToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         
         request.httpBody = try? JSONEncoder().encode(object)
         let (_, response) = try await URLSession.shared.data(for: request)
@@ -59,7 +61,9 @@ class HttpClient{
         var request = URLRequest(url: url)
         request.httpMethod = httpMethod
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.applyBearerToken()
+        if let token = AuthSession.getToken(), !token.isEmpty {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
 
         if let object = object {
             request.httpBody = try JSONEncoder().encode(object)
