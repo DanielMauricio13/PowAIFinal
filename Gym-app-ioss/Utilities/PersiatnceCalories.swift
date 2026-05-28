@@ -7,7 +7,7 @@
 
 import Foundation
 import Combine
-
+import SwiftUI
 
 extension UserDefaults {
     private enum Keys {
@@ -45,10 +45,10 @@ extension UserDefaults {
     }
     var sugars: Int {
         get {
-            return integer(forKey: Keys.carbs)
+            return integer(forKey: Keys.sugars)
         }
         set {
-            set(newValue, forKey: Keys.carbs)
+            set(newValue, forKey: Keys.sugars)
         }
     }
 
@@ -62,16 +62,10 @@ extension UserDefaults {
     }
 }
 
-
-import Foundation
-import Combine
-
-import Foundation
-import SwiftUI
-
 @MainActor
 class HealthManager: ObservableObject {
     static let shared = HealthManager()
+    private var midnightResetTimer: Timer?
 
     @Published var protein: Int {
         didSet {
@@ -105,10 +99,9 @@ class HealthManager: ObservableObject {
 
         if let lastResetDate = UserDefaults.standard.lastResetDate,
            !Calendar.current.isDateInToday(lastResetDate) {
-
+            let dateToSave = Calendar.current.startOfDay(for: lastResetDate)
             Task {
-               try await saveDailyNutritionToDB()
-                resetHealthData()
+                await persistAndReset(for: dateToSave)
             }
 
         } else if UserDefaults.standard.lastResetDate == nil {
@@ -119,8 +112,11 @@ class HealthManager: ObservableObject {
     }
 
     private func scheduleMidnightReset() {
+        midnightResetTimer?.invalidate()
+
         let now = Date()
         let calendar = Calendar.current
+        let dateToSave = calendar.startOfDay(for: now)
 
         var components = calendar.dateComponents([.year, .month, .day], from: now)
         components.hour = 0
@@ -135,82 +131,86 @@ class HealthManager: ObservableObject {
         let timeInterval = nextMidnight.timeIntervalSince(now)
         print("Scheduling health data reset in \(timeInterval) seconds")
 
-        Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { _ in
+        midnightResetTimer = Timer.scheduledTimer(withTimeInterval: timeInterval, repeats: false) { _ in
             Task { @MainActor in
-                print("Saving daily nutrition before reset")
-
-                
-               try await self.saveDailyNutritionToDB()
-
-                print("Resetting health data")
-                self.resetHealthData()
+                await self.persistAndReset(for: dateToSave)
             }
         }
     }
 
-    private func saveDailyNutritionToDB() async throws{
+    private func persistAndReset(for date: Date) async {
+        do {
+            print("Saving daily nutrition before reset")
+            try await saveDailyNutritionToDB(for: date)
+
+            print("Resetting health data")
+            resetHealthData()
+        } catch {
+            print("Daily nutrition save failed. Keeping current health data for retry: \(error.localizedDescription)")
+            scheduleSaveRetry(for: date)
+        }
+    }
+
+    private func scheduleSaveRetry(for date: Date) {
+        midnightResetTimer?.invalidate()
+        midnightResetTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: false) { _ in
+            Task { @MainActor in
+                await self.persistAndReset(for: date)
+            }
+        }
+    }
+
+    private func saveDailyNutritionToDB(for date: Date) async throws {
         // Capture values BEFORE reset
         let currentProtein = self.protein
         let currentCalories = self.calories
         let currentCarbs = self.carbs
         let currentSugars = self.sugars
 
-        // Replace this with wherever you store the logged-in user's email
-        guard let email = UserDefaults.standard.string(forKey: "email") else {
-            print("No user email found. Skipping daily nutrition save.")
-            return
-        }
-
         guard let url = URL(string: "\(Constants.baseURL)daily-nutrition/newEntry") else {
             print("Invalid daily nutrition URL")
             return
         }
 
-        struct DailyNutritionPayload: Codable {
-            let email: String
-            let date: Date
-            let protein: Double
-            let carbs: Double
-            let calories: Double
-            let sugars: Double
-        }
-         func isoString(_ date: Date) -> String {
+        func isoString(_ date: Date) -> String {
             let f = ISO8601DateFormatter()
             f.formatOptions = [.withInternetDateTime]   // no fractional seconds — Vapor rejects .000Z
             return f.string(from: date)
         }
-    
 
-        
-            var req = URLRequest(url: url); 
-            req.httpMethod = "POST"
-            req.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            req.applyBearerToken()
-            
-            let body: [String: Any] = ["email": email, "date": isoString(Calendar.current.startOfDay(for: Date())), "protein": currentProtein,"carbs" : currentCarbs
-            , "calories": currentCalories, "sugars": currentSugars]
-            req.httpBody = try JSONSerialization.data(withJSONObject: body)
-                #if DEBUG
-                print("addWeight body:", String(data: req.httpBody!, encoding: .utf8) ?? "")
-                #endif
+        var req = URLRequest(url: url)
+        req.httpMethod = "POST"
+        req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        req.applyBearerToken()
 
-                let (respData, response) = try await URLSession.shared.data(for: req)
-                let status = (response as? HTTPURLResponse)?.statusCode ?? 0
+        let body: [String: Any] = [
+            "email": UserDefaults.standard.string(forKey: "email") ?? "",
+            "date": isoString(Calendar.current.startOfDay(for: date)),
+            "protein": currentProtein,
+            "carbs": currentCarbs,
+            "calories": currentCalories,
+            "sugars": currentSugars
+        ]
+        req.httpBody = try JSONSerialization.data(withJSONObject: body)
 
-                #if DEBUG
-                    print("addWeight status:", status,
-                            "| body:", String(data: respData, encoding: .utf8) ?? "")
-                #endif
+        #if DEBUG
+        print("dailyNutrition body:", String(data: req.httpBody!, encoding: .utf8) ?? "")
+        #endif
 
-                guard (200..<300).contains(status) else {
-                        let reason = (try? JSONDecoder().decode([String: String].self, from: respData))?["reason"]
-                            ?? "HTTP \(status)"
-                            throw NSError(domain: "WeightService", code: status,
-                  userInfo: [NSLocalizedDescriptionKey: reason])
-}
-          
+        let (respData, response) = try await URLSession.shared.data(for: req)
+        let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-       
+        #if DEBUG
+        print("dailyNutrition status:", status,
+              "| body:", String(data: respData, encoding: .utf8) ?? "")
+        #endif
+
+        guard (200..<300).contains(status) else {
+            let reason = (try? JSONDecoder().decode([String: String].self, from: respData))?["reason"]
+                ?? "HTTP \(status)"
+            throw NSError(domain: "NutritionService", code: status,
+                          userInfo: [NSLocalizedDescriptionKey: reason])
+        }
     }
 
     private func resetHealthData() {

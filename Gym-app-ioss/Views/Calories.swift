@@ -120,6 +120,16 @@ struct CircularProgressBar: View {
     var progress: Int
     var goal: Int
     
+    private var progressFraction: Double {
+        guard goal > 0 else { return 0 }
+        return min(Double(progress) / Double(goal), 1.0)
+    }
+
+    private var progressPercent: Int {
+        guard goal > 0 else { return 0 }
+        return min(progress * 100 / goal, 100)
+    }
+
     var body: some View {
         ZStack {
             Circle()
@@ -129,14 +139,14 @@ struct CircularProgressBar: View {
                 .foregroundColor(Color.black)
             
             Circle()
-                .trim(from: 0.0, to: CGFloat(min(Double(progress) / Double(goal), 1.0)))
+                .trim(from: 0.0, to: CGFloat(progressFraction))
                 .stroke(style: StrokeStyle(lineWidth: 20.0, lineCap: .round, lineJoin: .round))
                 .frame(width: 150, height: 150) // Adjust the frame size
                 .foregroundColor(Color.red)
                 .rotationEffect(Angle(degrees: 270.0))
                 
             
-            Text(String(format: "%d%%", min(progress * 100 / goal, 100)))
+            Text(String(format: "%d%%", progressPercent))
                 .font(.title)
                 .foregroundStyle(Color.white)
                 .bold()
@@ -144,7 +154,5 @@ struct CircularProgressBar: View {
         .padding(40)
     }
 }
-
-
 
 

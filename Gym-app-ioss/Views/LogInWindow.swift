@@ -102,6 +102,7 @@ struct LogInWindow: View {
                                     isAuthenticated = true
                                     UserDefaults.standard.set(true, forKey: "isAuthenticated")
                                     UserDefaults.standard.set(username, forKey: "username")
+                                UserDefaults.standard.set(username, forKey: "email")
 
                                     if let data = data {
                                         if let response = try? JSONDecoder().decode([String: String].self, from: data),

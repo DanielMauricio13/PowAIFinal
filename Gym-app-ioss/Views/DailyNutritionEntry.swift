@@ -33,6 +33,17 @@ struct DailyNutritionEntry: Identifiable, Codable {
         case id, email, date, protein, carbs, calories, sugars
     }
 
+    init(id: UUID = UUID(), email: String, date: Date,
+         protein: Double, carbs: Double, calories: Double, sugars: Double) {
+        self.id = id
+        self.email = email
+        self.date = date
+        self.protein = protein
+        self.carbs = carbs
+        self.calories = calories
+        self.sugars = sugars
+    }
+
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
 
@@ -174,10 +185,10 @@ final class NutritionTrackerViewModel: ObservableObject {
     }
 
     // Goal values from User profile
-    var goalCalories: Double { Double(user.DailyCalories ?? 2000) }
-    var goalProtein:  Double { Double(user.DailyProtein  ?? 150)  }
-    var goalCarbs:    Double { Double(user.carbs          ?? 250)  }
-    var goalSugars:   Double { Double(user.sugars         ?? 50)   }
+    var goalCalories: Double { positiveGoal(user.DailyCalories, fallback: 2000) }
+    var goalProtein:  Double { positiveGoal(user.DailyProtein, fallback: 150)  }
+    var goalCarbs:    Double { positiveGoal(user.carbs, fallback: 250)         }
+    var goalSugars:   Double { positiveGoal(user.sugars, fallback: 50)         }
 
     // Latest entry
     var latest: DailyNutritionEntry? { entries.last }
@@ -191,6 +202,21 @@ final class NutritionTrackerViewModel: ObservableObject {
     private func avg(_ vals: [Double]) -> Double? {
         guard !vals.isEmpty else { return nil }
         return vals.reduce(0, +) / Double(vals.count)
+    }
+
+    private func positiveGoal(_ goal: Int?, fallback: Int) -> Double {
+        let value = goal ?? fallback
+        return Double(value > 0 ? value : fallback)
+    }
+
+    func entries(including localEntry: DailyNutritionEntry?) -> [DailyNutritionEntry] {
+        guard let localEntry else { return entries }
+
+        var merged = entries.filter {
+            !Calendar.current.isDate($0.date, inSameDayAs: localEntry.date)
+        }
+        merged.append(localEntry)
+        return merged.sorted { $0.date < $1.date }
     }
 
     func yDomain(for values: [Double], goal: Double) -> ClosedRange<Double> {
@@ -241,6 +267,7 @@ private struct MacroConfig {
 
 struct NutritionTrackerView: View {
     @StateObject private var vm: NutritionTrackerViewModel
+    @ObservedObject private var healthManager = HealthManager.shared
     @State private var showAddSheet   = false
     @State private var entryToDelete: DailyNutritionEntry?
 
@@ -251,6 +278,33 @@ struct NutritionTrackerView: View {
     private let accentGradient = LinearGradient(
         colors: [.red, .orange], startPoint: .leading, endPoint: .trailing
     )
+
+    private var localEntry: DailyNutritionEntry? {
+        guard healthManager.calories > 0 ||
+              healthManager.protein > 0 ||
+              healthManager.carbs > 0 ||
+              healthManager.sugars > 0 else {
+            return nil
+        }
+
+        return DailyNutritionEntry(
+            id: UUID(uuidString: "00000000-0000-0000-0000-000000000001") ?? UUID(),
+            email: vm.email,
+            date: Calendar.current.startOfDay(for: Date()),
+            protein: Double(healthManager.protein),
+            carbs: Double(healthManager.carbs),
+            calories: Double(healthManager.calories),
+            sugars: Double(healthManager.sugars)
+        )
+    }
+
+    private var displayEntries: [DailyNutritionEntry] {
+        vm.entries(including: localEntry)
+    }
+
+    private var latestDisplayEntry: DailyNutritionEntry? {
+        displayEntries.last
+    }
 
     var body: some View {
         ZStack {
@@ -369,7 +423,7 @@ struct NutritionTrackerView: View {
     // MARK: Hero Card — today's totals vs goals
 
     private var heroCard: some View {
-        let entry = vm.latest
+        let entry = latestDisplayEntry
         return VStack(spacing: 16) {
             HStack(alignment: .center) {
                 VStack(alignment: .leading, spacing: 4) {
@@ -454,14 +508,24 @@ struct NutritionTrackerView: View {
     // MARK: Stats Row
 
     private var statsRow: some View {
-        HStack(spacing: 14) {
+        let entries = displayEntries
+        let avgCalories = average(entries, for: \.calories)
+        let avgProtein = average(entries, for: \.protein)
+
+        return HStack(spacing: 14) {
             statBadge(icon: "flame.fill",        label: "Avg kcal",
-                      value: vm.avgCalories.map { String(format: "%.0f", $0) } ?? "—")
+                      value: avgCalories.map { String(format: "%.0f", $0) } ?? "—")
             statBadge(icon: "bolt.fill",         label: "Avg protein",
-                      value: vm.avgProtein.map  { String(format: "%.0f g", $0) } ?? "—")
+                      value: avgProtein.map { String(format: "%.0f g", $0) } ?? "—")
             statBadge(icon: "calendar",          label: "Entries",
-                      value: "\(vm.entries.count)")
+                      value: "\(entries.count)")
         }
+    }
+
+    private func average(_ entries: [DailyNutritionEntry],
+                         for keyPath: KeyPath<DailyNutritionEntry, Double>) -> Double? {
+        guard !entries.isEmpty else { return nil }
+        return entries.map { $0[keyPath: keyPath] }.reduce(0, +) / Double(entries.count)
     }
 
     private func statBadge(icon: String, label: String, value: String) -> some View {
@@ -519,7 +583,8 @@ struct NutritionTrackerView: View {
     // MARK: Single Macro Chart Card
 
     private func macroChartCard(config: MacroConfig) -> some View {
-        let values   = vm.entries.map { $0[keyPath: config.keyPath] }
+        let entries  = displayEntries
+        let values   = entries.map { $0[keyPath: config.keyPath] }
         let yDomain  = vm.yDomain(for: values, goal: config.goal)
         let gradient = LinearGradient(colors: config.gradientColors,
                                       startPoint: .leading, endPoint: .trailing)
@@ -569,12 +634,12 @@ struct NutritionTrackerView: View {
                 }
             }
 
-            if vm.entries.isEmpty {
+            if entries.isEmpty {
                 emptyChartPlaceholder
             } else {
                 Chart {
                     // Area fill
-                    ForEach(vm.entries) { e in
+                    ForEach(entries) { e in
                         AreaMark(
                             x: .value("Date", e.date),
                             y: .value(config.title, e[keyPath: config.keyPath])
@@ -584,7 +649,7 @@ struct NutritionTrackerView: View {
                     }
 
                     // Line
-                    ForEach(vm.entries) { e in
+                    ForEach(entries) { e in
                         LineMark(
                             x: .value("Date", e.date),
                             y: .value(config.title, e[keyPath: config.keyPath])
@@ -596,7 +661,7 @@ struct NutritionTrackerView: View {
                     }
 
                     // Points
-                    ForEach(vm.entries) { e in
+                    ForEach(entries) { e in
                         let isSelected = vm.selectedEntry?.id == e.id
                         PointMark(
                             x: .value("Date", e.date),
@@ -656,9 +721,9 @@ struct NutritionTrackerView: View {
                                 if let date: Date = proxy.value(
                                     atX: loc.x - geo.frame(in: .local).minX) {
                                     withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
-                                        let nearest = vm.entries.min {
+                                        let nearest = entries.min {
                                             abs($0.date.timeIntervalSince(date)) <
-                                            
+
                                             abs($1.date.timeIntervalSince(date))
                                         }
                                         vm.selectedEntry =

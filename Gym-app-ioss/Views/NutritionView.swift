@@ -146,7 +146,10 @@ struct NutritionView: View {
                                 ExpandableBoxView(
                                     item: item,
                                     persistenceManager: self.persistenceManager,
-                                    email: email
+                                    email: email,
+                                    onRemove: {
+                                        removeItem(named: item.title)
+                                    }
                                 )
                                 .onTapGesture { viewModel.toggleExpand(for: item) }
                                 .animation(.easeInOut, value: item.isExpanded)
@@ -157,17 +160,7 @@ struct NutritionView: View {
                 }
             }
             .onAppear {
-                viewModel.items.removeAll()
-                let temp = persistenceManager.loadItems()
-                for i in 0..<temp.count {
-                    viewModel.items.append(ExcListItem(
-                        title: temp[i].Name,
-                        description: "This food with this portion has approx: \(temp[i].Calories) calories, \(temp[i].Protein)g of protein, \(temp[i].Carbohydrates)g carbs, \(temp[i].Sugars)g sugars",
-                        totalCalories: 0,
-                        duration: 0,
-                        NumExcersises: 0
-                    ))
-                }
+                reloadItems()
             }
             .alert("Barcode Error", isPresented: $showBarcodeError) {
                 Button("OK", role: .cancel) {}
@@ -389,8 +382,27 @@ struct NutritionView: View {
         ))
     }
 
+    private func reloadItems() {
+        items = persistenceManager.loadItems()
+        viewModel.items = items.map { food in
+            ExcListItem(
+                title: food.Name,
+                description: "This food with this portion has approx: \(food.Calories) calories, \(food.Protein)g of protein, \(food.Carbohydrates)g carbs, \(food.Sugars)g sugars",
+                totalCalories: 0,
+                duration: 0,
+                NumExcersises: 0
+            )
+        }
+    }
+
+    private func removeItem(named name: String) {
+        persistenceManager.clearItem(byName: name)
+        clampHealth()
+        reloadItems()
+    }
+
     func deleteItems(at offsets: IndexSet) { items.remove(atOffsets: offsets); clampHealth(); persistenceManager.saveItems(items: items) }
-    func deleteItemss(name: String) { persistenceManager.clearItem(byName: name); clampHealth() }
+    func deleteItemss(name: String) { removeItem(named: name) }
     private func clampHealth() {
         if HealthManager.shared.calories < 0 { HealthManager.shared.calories = 0 }
         if HealthManager.shared.protein  < 0 { HealthManager.shared.protein  = 0 }
@@ -473,12 +485,14 @@ struct NutritionView: View {
         var item: ExcListItem
         let persistenceManager: PersistenceManager
         let email: String
+        let onRemove: () -> Void
         @State private var isSaved: Bool
 
-        init(item: ExcListItem, persistenceManager: PersistenceManager, email: String) {
+        init(item: ExcListItem, persistenceManager: PersistenceManager, email: String, onRemove: @escaping () -> Void) {
             self.item = item
             self.persistenceManager = persistenceManager
             self.email = email
+            self.onRemove = onRemove
             _isSaved = State(initialValue: persistenceManager.loadFavorites().contains(where: { $0.Name == item.title }))
         }
 
@@ -495,7 +509,7 @@ struct NutritionView: View {
                 if item.isExpanded {
                     Text(item.description).font(.subheadline).foregroundStyle(.secondary)
                     HStack {
-                        Button("Remove") { persistenceManager.clearItem(byName: item.title) }
+                        Button("Remove", action: onRemove)
                             .foregroundColor(.red)
                         Spacer()
                         Button {

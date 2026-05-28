@@ -2,167 +2,333 @@
 //  questionaire.swift
 //  Gym-app-ioss
 //
-//  Created by Daniel Pinilla on 8/15/23.
+//  Redesigned: better layout, no overflow, card-style options
 //
 
 import SwiftUI
 import RiveRuntime
-struct questionaire: View {
-    @State private var questions: [Question] = [
-        Question(text: "What is your body Type?", options: ["Ectomorph", "Mesomorph", "Endomorph"], imageName: "cat" ),
-            Question(text: "What is your objective?", options: ["Increase mass", "Stay fit", "Lose weight"], imageName: "cat"),
-            Question(text: "Genetic gender?", options: ["Male", "Female"], imageName: "cat"),
-            Question(text: "How many days do you want to workout per week?" , options: ["1", "2", "3", "4", "5" ], imageName: "cat"),
-        Question(text: "how many hours per day do you want to workout?", options: ["less than 1 hour", "1 - 1:30", "1:30 hour to 2 hours", "more than 2 hours"], imageName: "cat"),
-        Question(text: "Where will you workout at?" , options: ["Home", "Gym" ], imageName: "cat"),
-        Question(text: "What is your wourkout experience", options: ["Beginner", "Intermediate", "Advanced"], imageName: "cat")
-        ]
-    @State private var currentQuestionIndex = 0
-    
-    let firstName: String
-    let lastName:String
-    var age: Int = 0
-    @State var gender: String = ""
-    var weight: Int = 0
-   @State var goal: String = ""
-   @State var bodyStructure: String = "ss"
-    var height: Int = 0
-    var DailyCalories: Int  = 0
-    var DailyProtein: Int  = 0
-    var email:String
-    var password: String
-    @State var numDays = ""
-    @State var workoutHours = ""
-    @State var nextPage:Bool = false
-    @State var numDaysw: String = ""
-    @State var numHours: String = ""
-    var body: some View {
-        
-        NavigationView {
-            ZStack{
-                LinearGradient(colors: [Color.red.opacity(0.7),Color.gray.opacity(0.9)],startPoint: .topLeading,endPoint: .bottomTrailing).ignoresSafeArea()
-                RiveViewModel(fileName: "shapes").view().ignoresSafeArea().blur(radius: 30)
-                VStack {
-                  
-                    
-                    if currentQuestionIndex < questions.count {
-                        Text("Building your plan!").font(.largeTitle).bold().foregroundColor(.white).padding(.bottom,100)
-                        if currentQuestionIndex == 0 {
-                            Image("Body-Set") // Replace with the actual name of your image
-                                            .resizable() // Makes the image resizable
-                                            .aspectRatio(contentMode: .fit) // Maintains the aspect ratio
-                                            .frame(width: 280, height: 200) // Sets the frame size
-                                            .clipShape(Rectangle()) // Optionally clips the image to a circle
-                                            .overlay(
-                                                Rectangle().stroke(Color.white, lineWidth: 1) // Adds a border to the image
-                                            ).border(Color.black,width: 2)
-                                            .shadow(radius: 40)
-                        }
-                        QuestionView(question: $questions[currentQuestionIndex], nextQuestion: nextQuestion)
-                        
-                    } else {
-                        if let numDaysInt = Int(questions[3].selectedOption) {
-                            finalData(firstName: firstName,
-                                      lastName: lastName,
-                                      gender: questions[2].selectedOption,
-                                      goal: questions[1].selectedOption,
-                                      bodyStructure: questions[0].selectedOption,
-                                      email: email,
-                                      password: password,
-                                      numDays: numDaysInt,
-                                      numHours: questions[4].selectedOption,
-                                      whereWork: questions[5].selectedOption, level: questions[6].selectedOption)
-                        } else {
-                            
-                        }
-                        
-                        
-                    }
-                }
-            }
-        }
-    
-    }
-    func nextQuestion() {
-            currentQuestionIndex += 1
-        }
-    
-    
-   
-    
-}
 
-struct questionaire_Previews: PreviewProvider {
-    static var previews: some View {
-        questionaire(firstName: "daniel", lastName: "p", email: "oakdd", password: "kdkasdkla")
-    }
-}
-
+// MARK: - Data Model
 
 struct Question: Hashable {
     var text: String
     var options: [String]
     var selectedOption: String = ""
-    var imageName: String // Name of the image
+    var imageName: String
 }
 
-struct QuestionView: View {
-    @Binding var question: Question
-    var nextQuestion: () -> Void
-    
+// MARK: - Main View
+
+struct questionaire: View {
+
+    @State private var questions: [Question] = [
+        Question(text: "What is your body type?",
+                 options: ["Ectomorph", "Mesomorph", "Endomorph"],
+                 imageName: "Body-Set"),
+        Question(text: "What is your objective?",
+                 options: ["Increase mass", "Stay fit", "Lose weight"],
+                 imageName: "cat"),
+        Question(text: "Genetic gender?",
+                 options: ["Male", "Female"],
+                 imageName: "cat"),
+        Question(text: "Days per week to workout?",
+                 options: ["1", "2", "3", "4", "5", "6", "7"],
+                 imageName: "cat"),
+        Question(text: "Hours per day to workout?",
+                 options: ["< 1 hour", "1 – 1:30 hrs", "1:30 – 2 hrs", "> 2 hours"],
+                 imageName: "cat"),
+        Question(text: "Where will you workout?",
+                 options: ["Home", "Gym"],
+                 imageName: "cat"),
+        Question(text: "Workout experience level?",
+                 options: ["Beginner", "Intermediate", "Advanced"],
+                 imageName: "cat"),
+    ]
+
+    @State private var currentQuestionIndex = 0
+    @State private var animateIn = false
+
+    // Passed-in user info
+    let firstName: String
+    let lastName: String
+    var age: Int = 0
+    var weight: Int = 0
+    var height: Int = 0
+    var email: String
+    var password: String
+
+    private var progress: Double {
+        Double(currentQuestionIndex) / Double(questions.count)
+    }
+
     var body: some View {
-        
-            
         ZStack {
-            
-            if(question.options.count <= 3){
-                Text(question.text)
-                    .font(.title)
-                    .padding(.bottom,300).foregroundStyle(LinearGradient(colors: [.white.opacity(0.8),.purple], startPoint: .topLeading, endPoint: .bottomTrailing)).bold().fontDesign(.rounded)
-                HStack{
-                    ForEach(question.options, id: \.self) { option in
-                        Button(action: {
-                            question.selectedOption = option // Store the selected option
-                            nextQuestion()
-                        }) {
-                            Text(option)
-                                .font(.headline)
-                                .padding()
-                                .foregroundColor(.white)
-                                .frame(width: 110, height: 90, alignment: .center)
-                                .background(RoundedRectangle(cornerRadius: 50).frame(width: 110, height: 50, alignment: .center).foregroundStyle( LinearGradient(colors: [Color.orange.opacity(0.7),Color.red.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing)))
-                            
-                        }
-                        .padding(.bottom, 10)
-                    }
+            // Background
+            LinearGradient(
+                colors: [Color.red.opacity(0.75), Color.gray.opacity(0.9)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+
+            RiveViewModel(fileName: "shapes").view()
+                .ignoresSafeArea()
+                .blur(radius: 30)
+
+            if currentQuestionIndex < questions.count {
+                // Quiz screen
+                VStack(spacing: 0) {
+                    headerBar
+                    Spacer(minLength: 0)
+                    questionCard
+                    Spacer(minLength: 0)
                 }
+                .padding(.horizontal, 20)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+                .id(currentQuestionIndex)
+
+            } else {
+                // Hand off to finalData
+                if let numDaysInt = Int(questions[3].selectedOption) {
+                    finalData(
+                        firstName: firstName,
+                        lastName: lastName,
+                        gender: questions[2].selectedOption,
+                        goal: questions[1].selectedOption,
+                        bodyStructure: questions[0].selectedOption,
+                        email: email,
+                        password: password,
+                        numDays: numDaysInt,
+                        numHours: questions[4].selectedOption,
+                        whereWork: questions[5].selectedOption,
+                        level: questions[6].selectedOption
+                    )
+                }
+            }
         }
-            else {
-              
-                
-                VStack(spacing: 1){
-                    Text(question.text)
-                        .font(.title)
-                        .padding().foregroundStyle(LinearGradient(colors: [.white.opacity(0.8),.purple], startPoint: .topLeading, endPoint: .bottomTrailing)).bold().fontDesign(.rounded).frame(height: 150)
-                    ForEach(question.options, id: \.self) { option in
-                        Button(action: {
-                            question.selectedOption = option // Store the selected option
-                            nextQuestion()
-                        }) {
-                            Text(option)
-                                .font(.headline)
-                                .padding()
-                                .foregroundColor(.white)
-                                .frame(width: 110, height: 90, alignment: .center)
-                                .background(RoundedRectangle(cornerRadius: 50).frame(width: 110, height: 50, alignment: .center).foregroundStyle( LinearGradient(colors: [Color.orange.opacity(0.7),Color.red.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing)))
-                            
+        .navigationBarBackButtonHidden(true)
+    }
+
+    // MARK: - Header
+
+    private var headerBar: some View {
+        VStack(spacing: 12) {
+            HStack {
+                // Back button (non-functional on first question)
+                Button {
+                    if currentQuestionIndex > 0 {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            currentQuestionIndex -= 1
                         }
-                        .padding(.bottom, 10)
+                    }
+                } label: {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(.white.opacity(currentQuestionIndex > 0 ? 1 : 0.3))
+                        .frame(width: 36, height: 36)
+                        .background(Color.white.opacity(0.15))
+                        .clipShape(Circle())
+                }
+                .disabled(currentQuestionIndex == 0)
+
+                Spacer()
+
+                Text("Building your plan")
+                    .font(.system(size: 16, weight: .semibold, design: .rounded))
+                    .foregroundColor(.white)
+
+                Spacer()
+
+                // Step counter
+                Text("\(currentQuestionIndex + 1) / \(questions.count)")
+                    .font(.system(size: 14, weight: .medium, design: .monospaced))
+                    .foregroundColor(.white.opacity(0.8))
+                    .frame(width: 36, height: 36)
+            }
+
+            // Progress bar
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.white.opacity(0.25))
+                        .frame(height: 5)
+                    Capsule()
+                        .fill(Color.white)
+                        .frame(width: geo.size.width * progress, height: 5)
+                        .animation(.easeInOut(duration: 0.4), value: currentQuestionIndex)
+                }
+            }
+            .frame(height: 5)
+        }
+        .padding(.top, 16)
+        .padding(.bottom, 24)
+    }
+
+    // MARK: - Body Type Info
+
+    private let bodyTypeDescriptions: [(name: String, emoji: String, desc: String)] = [
+        ("Ectomorph",  "🦴", "Lean & long. Fast metabolism, struggles to gain mass."),
+        ("Mesomorph",  "💪", "Athletic & muscular. Responds quickly to training."),
+        ("Endomorph",  "🔥", "Broader build. Gains mass easily, tends to store fat."),
+    ]
+
+    // MARK: - Question Card
+
+    private var questionCard: some View {
+        VStack(spacing: 20) {
+
+            // Body-type question: image + description cards
+            if currentQuestionIndex == 0 {
+                Image("Body-Set")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(maxHeight: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 16))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16)
+                            .stroke(Color.white.opacity(0.4), lineWidth: 1)
+                    )
+
+                // Per-type description pills
+                VStack(spacing: 8) {
+                    ForEach(bodyTypeDescriptions, id: \.name) { item in
+                        HStack(spacing: 12) {
+                            Text(item.emoji)
+                                .font(.system(size: 20))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(item.name)
+                                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                                    .foregroundColor(.white)
+                                Text(item.desc)
+                                    .font(.system(size: 12, weight: .regular, design: .rounded))
+                                    .foregroundColor(.white.opacity(0.7))
+                                    .fixedSize(horizontal: false, vertical: true)
+                            }
+                            Spacer()
+                        }
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(Color.white.opacity(0.1))
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .stroke(Color.white.opacity(0.18), lineWidth: 1)
+                                )
+                        )
                     }
                 }
             }
-            }.navigationBarBackButtonHidden()
-                .padding()
-        
+
+            // Question text
+            Text(questions[currentQuestionIndex].text)
+                .font(.system(size: 22, weight: .bold, design: .rounded))
+                .foregroundColor(.white)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, 8)
+
+            // Options list — always scrollable so nothing clips
+            ScrollView(showsIndicators: false) {
+                optionsGrid(for: questions[currentQuestionIndex])
+                    .padding(.bottom, 8)
+            }
+        }
+    }
+
+    // MARK: - Options Grid
+
+    @ViewBuilder
+    private func optionsGrid(for question: Question) -> some View {
+        let options = question.options
+        // Days (7 items) use a 4-column number grid; everything else 1-column cards
+        if options.count == 7 {
+            LazyVGrid(columns: [
+                GridItem(.flexible()), GridItem(.flexible()),
+                GridItem(.flexible()), GridItem(.flexible())
+            ], spacing: 12) {
+                ForEach(options, id: \.self) { option in
+                    optionButton(option: option, compact: true)
+                }
+            }
+        } else {
+            VStack(spacing: 12) {
+                ForEach(options, id: \.self) { option in
+                    optionButton(option: option, compact: false)
+                }
+            }
+        }
+    }
+
+    // MARK: - Option Button
+
+    @ViewBuilder
+    private func optionButton(option: String, compact: Bool) -> some View {
+        Button {
+            questions[currentQuestionIndex].selectedOption = option
+            withAnimation(.easeInOut(duration: 0.3)) {
+                currentQuestionIndex += 1
+            }
+        } label: {
+            if compact {
+                // Number pill for day-picker
+                Text(option)
+                    .font(.system(size: 18, weight: .bold, design: .rounded))
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 56)
+                    .background(
+                        RoundedRectangle(cornerRadius: 14)
+                            .fill(Color.white.opacity(0.18))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14)
+                                    .stroke(Color.white.opacity(0.3), lineWidth: 1)
+                            )
+                    )
+            } else {
+                // Full-width card row
+                HStack {
+                    Text(option)
+                        .font(.system(size: 16, weight: .semibold, design: .rounded))
+                        .foregroundColor(.white)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 14, weight: .semibold))
+                        .foregroundColor(.white.opacity(0.5))
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 18)
+                .background(
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(Color.white.opacity(0.15))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16)
+                                .stroke(Color.white.opacity(0.25), lineWidth: 1)
+                        )
+                )
+            }
+        }
+        .buttonStyle(ScaleButtonStyle())
+    }
+}
+
+// MARK: - Scale Press Effect
+
+struct ScaleButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.96 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+// MARK: - Preview
+
+struct questionaire_Previews: PreviewProvider {
+    static var previews: some View {
+        questionaire(firstName: "Daniel", lastName: "P", email: "test@email.com", password: "secret")
     }
 }
