@@ -22,14 +22,14 @@ struct Question: Hashable {
 struct questionaire: View {
 
     @State private var questions: [Question] = [
+        Question(text: "Genetic gender?",
+                 options: ["Male", "Female"],
+                 imageName: "cat"),
         Question(text: "What is your body type?",
                  options: ["Ectomorph", "Mesomorph", "Endomorph"],
                  imageName: "Body-Set"),
         Question(text: "What is your objective?",
                  options: ["Increase mass", "Stay fit", "Lose weight"],
-                 imageName: "cat"),
-        Question(text: "Genetic gender?",
-                 options: ["Male", "Female"],
                  imageName: "cat"),
         Question(text: "Days per week to workout?",
                  options: ["1", "2", "3", "4", "5", "6", "7"],
@@ -96,9 +96,9 @@ struct questionaire: View {
                     finalData(
                         firstName: firstName,
                         lastName: lastName,
-                        gender: questions[2].selectedOption,
-                        goal: questions[1].selectedOption,
-                        bodyStructure: questions[0].selectedOption,
+                        gender: questions[0].selectedOption,
+                        goal: questions[2].selectedOption,
+                        bodyStructure: questions[1].selectedOption,
                         email: email,
                         password: password,
                         numDays: numDaysInt,
@@ -175,14 +175,18 @@ struct questionaire: View {
         ("Endomorph",  "🔥", "Broader build. Gains mass easily, tends to store fat."),
     ]
 
+    private var bodyTypeImageName: String {
+        questions[0].selectedOption == "Male" ? "Body-Set" : "Female-Body-Set"
+    }
+
     // MARK: - Question Card
 
     private var questionCard: some View {
         VStack(spacing: 20) {
 
             // Body-type question: image + description cards
-            if currentQuestionIndex == 0 {
-                Image("Body-Set")
+            if currentQuestionIndex == 1 {
+                Image(bodyTypeImageName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(maxHeight: 150)
