@@ -33,6 +33,7 @@ struct NutritionView: View {
     @State private var isAnalyzingImage = false
     @State private var showImageError = false
     @State private var imageErrorMessage = ""
+    @State private var showMealsWindow = false
 
     // ── NEW ──────────────────────────────────────────────────────────────────
     @State private var favoriteItems: [Food] = []
@@ -128,6 +129,13 @@ struct NutritionView: View {
                         .font(.title3.bold())
                         .foregroundStyle(.white)
                     Spacer()
+                    Button { showMealsWindow = true } label: {
+                        Label("Meals", systemImage: "fork.knife.circle.fill")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+
                     Button { buttonPressed = true } label: {
                         Label("Add", systemImage: "plus.circle.fill")
                             .labelStyle(.iconOnly)
@@ -170,6 +178,11 @@ struct NutritionView: View {
             .alert("Barcode Error", isPresented: $showBarcodeError) {
                 Button("OK", role: .cancel) {}
             } message: { Text(barcodeErrorMessage) }
+            .sheet(isPresented: $showMealsWindow) {
+                MealsWindow { meal in
+                    addMealToDailyNutrition(meal)
+                }
+            }
         }
     }
 
@@ -226,6 +239,8 @@ struct NutritionView: View {
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.primary)
                         .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+                        .allowsTightening(true)
                         .frame(maxWidth: 90, alignment: .leading)
 
                     Spacer(minLength: 0)
@@ -419,6 +434,22 @@ struct NutritionView: View {
         reloadItems()
     }
 
+    private func addMealToDailyNutrition(_ meal: MealDTO) {
+        let food = Food(
+            Name: meal.name,
+            Calories: meal.macros.calories,
+            Sugars: meal.macros.sugars,
+            Carbohydrates: meal.macros.carbs,
+            Protein: meal.macros.protein
+        )
+        tempFood = food
+        addItem()
+        HealthManager.shared.calories += food.Calories
+        HealthManager.shared.sugars += food.Sugars
+        HealthManager.shared.protein += food.Protein
+        HealthManager.shared.carbs += food.Carbohydrates
+    }
+
     func deleteItems(at offsets: IndexSet) { items.remove(atOffsets: offsets); clampHealth(); persistenceManager.saveItems(items: items) }
     func deleteItemss(name: String) { removeItem(named: name) }
     private func clampHealth() {
@@ -584,5 +615,593 @@ struct CameraPickerView: UIViewControllerRepresentable {
             if let image = info[.originalImage] as? UIImage { onImage(image) }
         }
         func imagePickerControllerDidCancel(_ picker: UIImagePickerController) { picker.dismiss(animated: true) }
+    }
+}
+
+private struct MealMacrosDTO: Codable {
+    let calories: Int
+    let protein: Int
+    let carbs: Int
+    let sugars: Int
+    let fats: Int?
+}
+
+private struct MealDTO: Identifiable, Codable {
+    let id: UUID?
+    let name: String
+    let macros: MealMacrosDTO
+    let ingredients: [String]
+    let preparationDescription: String
+    let estimatedTimeMinutes: Int
+    let difficulty: String
+    let mealType: String
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case macros
+        case ingredients
+        case preparationDescription
+        case preparationDescriptionSnake = "preparation_description"
+        case estimatedTimeMinutes
+        case estimatedTimeMinutesSnake = "estimated_time_minutes"
+        case difficulty
+        case mealType
+        case mealTypeSnake = "meal_type"
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decodeIfPresent(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        macros = try container.decode(MealMacrosDTO.self, forKey: .macros)
+        ingredients = try container.decode([String].self, forKey: .ingredients)
+        preparationDescription = try container.decodeFlexibleString(.preparationDescription, .preparationDescriptionSnake)
+        estimatedTimeMinutes = try container.decodeFlexibleInt(.estimatedTimeMinutes, .estimatedTimeMinutesSnake)
+        difficulty = try container.decode(String.self, forKey: .difficulty)
+        mealType = try container.decodeFlexibleString(.mealType, .mealTypeSnake)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encodeIfPresent(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(macros, forKey: .macros)
+        try container.encode(ingredients, forKey: .ingredients)
+        try container.encode(preparationDescription, forKey: .preparationDescription)
+        try container.encode(estimatedTimeMinutes, forKey: .estimatedTimeMinutes)
+        try container.encode(difficulty, forKey: .difficulty)
+        try container.encode(mealType, forKey: .mealType)
+    }
+}
+
+private extension KeyedDecodingContainer where Key == MealDTO.CodingKeys {
+    func decodeFlexibleString(_ primary: Key, _ fallback: Key) throws -> String {
+        if let value = try decodeIfPresent(String.self, forKey: primary) {
+            return value
+        }
+        return try decode(String.self, forKey: fallback)
+    }
+
+    func decodeFlexibleInt(_ primary: Key, _ fallback: Key) throws -> Int {
+        if let value = try decodeIfPresent(Int.self, forKey: primary) {
+            return value
+        }
+        return try decode(Int.self, forKey: fallback)
+    }
+}
+
+private struct CreateMealsRequest: Encodable {
+    let ingredients: [String]
+    let difficulty: String
+    let mealType: String
+}
+
+private enum MealsAPI {
+    static func fetchMeals() async throws -> [MealDTO] {
+        guard let url = URL(string: Constants.baseURL + "meals") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.applyBearerToken()
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response)
+        return try JSONDecoder().decode([MealDTO].self, from: data)
+    }
+
+    static func createMeals(ingredients: [String], difficulty: String, mealType: String) async throws -> [MealDTO] {
+        guard let url = URL(string: Constants.baseURL + "meals") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.applyBearerToken()
+        request.httpBody = try JSONEncoder().encode(CreateMealsRequest(
+            ingredients: ingredients,
+            difficulty: difficulty.lowercased(),
+            mealType: mealType.lowercased()
+        ))
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        try validate(response)
+        return try JSONDecoder().decode([MealDTO].self, from: data)
+    }
+
+    private static func validate(_ response: URLResponse) throws {
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+    }
+}
+
+private struct MealsWindow: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var meals: [MealDTO] = []
+    @State private var isLoading = false
+    @State private var errorMessage: String?
+    @State private var showAddMeals = false
+    @State private var addedMealName: String?
+    @State private var selectedMealType = "All"
+    @State private var selectedDifficulty = "All"
+
+    let onAddMeal: (MealDTO) -> Void
+
+    private let mealTypeOptions = ["All", "Breakfast", "Lunch", "Dinner"]
+    private let difficultyOptions = ["All", "Easy", "Medium", "Hard"]
+
+    private var filteredMeals: [MealDTO] {
+        meals.filter { meal in
+            let typeMatches = selectedMealType == "All" || meal.mealType.lowercased() == selectedMealType.lowercased()
+            let difficultyMatches = selectedDifficulty == "All" || meal.difficulty.lowercased() == selectedDifficulty.lowercased()
+            return typeMatches && difficultyMatches
+        }
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppBackgroundView()
+
+                VStack(spacing: 16) {
+                    if isLoading && meals.isEmpty {
+                        Spacer()
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            .scaleEffect(1.4)
+                        Text("Loading meals...")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                        Spacer()
+                    } else if meals.isEmpty {
+                        Spacer()
+                        ContentUnavailableView(
+                            "No meals yet",
+                            systemImage: "fork.knife",
+                            description: Text("Tap + to generate meal ideas from ingredients you already have.")
+                        )
+                        .foregroundStyle(.white)
+                        Spacer()
+                    } else {
+                        filterControls
+
+                        if filteredMeals.isEmpty {
+                            Spacer()
+                            ContentUnavailableView(
+                                "No matching meals",
+                                systemImage: "line.3.horizontal.decrease.circle",
+                                description: Text("Adjust the meal type or difficulty filters.")
+                            )
+                            .foregroundStyle(.white)
+                            Spacer()
+                        } else {
+                            ScrollView {
+                                LazyVStack(spacing: 14) {
+                                    ForEach(filteredMeals) { meal in
+                                        MealOptionCard(meal: meal) {
+                                            onAddMeal(meal)
+                                            addedMealName = meal.name
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal)
+                                .padding(.bottom, 24)
+                            }
+                            .refreshable {
+                                await loadMeals()
+                            }
+                        }
+                    }
+                }
+                .padding(.top, 8)
+            }
+            .navigationTitle("Meals")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Close") {
+                        dismiss()
+                    }
+                    .foregroundStyle(.white)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showAddMeals = true
+                    } label: {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.title3)
+                    }
+                    .foregroundStyle(.white)
+                }
+            }
+            .task {
+                await loadMeals()
+            }
+            .sheet(isPresented: $showAddMeals) {
+                AddMealsIngredientsSheet { ingredients, difficulty, mealType in
+                    try await createMeals(
+                        ingredients: ingredients,
+                        difficulty: difficulty,
+                        mealType: mealType
+                    )
+                }
+            }
+            .alert("Meals Error", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
+            .alert("Meal Added", isPresented: Binding(
+                get: { addedMealName != nil },
+                set: { if !$0 { addedMealName = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text("\(addedMealName ?? "Meal") was added to today's nutrition.")
+            }
+        }
+    }
+
+    private var filterControls: some View {
+        HStack(spacing: 10) {
+            MealFilterMenu(
+                title: "Meal Type",
+                systemImage: "fork.knife",
+                selection: $selectedMealType,
+                options: mealTypeOptions
+            )
+
+            MealFilterMenu(
+                title: "Difficulty",
+                systemImage: "gauge.with.dots.needle.33percent",
+                selection: $selectedDifficulty,
+                options: difficultyOptions
+            )
+        }
+        .padding(.horizontal)
+    }
+
+    @MainActor
+    private func loadMeals() async {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            meals = try await MealsAPI.fetchMeals()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    @MainActor
+    private func createMeals(ingredients: [String], difficulty: String, mealType: String) async throws {
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let newMeals = try await MealsAPI.createMeals(
+                ingredients: ingredients,
+                difficulty: difficulty,
+                mealType: mealType
+            )
+            meals = newMeals + meals.filter { existing in
+                !newMeals.contains(where: { $0.id == existing.id })
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+            throw error
+        }
+    }
+}
+
+private struct MealOptionCard: View {
+    let meal: MealDTO
+    let onAdd: () -> Void
+
+    var body: some View {
+        ZStack(alignment: .topLeading) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top, spacing: 12) {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(meal.name)
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.7)
+                            .allowsTightening(true)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .padding(.leading, 34)
+
+                        HStack(spacing: 8) {
+                            MealBadge(text: meal.mealType.capitalized, systemImage: "clock")
+                            MealBadge(text: meal.difficulty.capitalized, systemImage: "gauge.with.dots.needle.33percent")
+                            MealBadge(text: "\(meal.estimatedTimeMinutes)m", systemImage: "timer")
+                        }
+                    }
+
+                    Spacer()
+
+                    Text("\(meal.macros.calories)")
+                        .font(.title3.bold())
+                        .foregroundStyle(.orange)
+                        + Text(" kcal")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.75))
+                }
+
+                HStack(spacing: 8) {
+                    MealMacroChip(label: "P", value: meal.macros.protein, color: .blue)
+                    MealMacroChip(label: "C", value: meal.macros.carbs, color: .orange)
+                    MealMacroChip(label: "S", value: meal.macros.sugars, color: .pink)
+                    if let fats = meal.macros.fats {
+                        MealMacroChip(label: "F", value: fats, color: .green)
+                    }
+                }
+
+                Text(meal.ingredients.joined(separator: ", "))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(3)
+
+                Text(meal.preparationDescription)
+                    .font(.footnote)
+                    .foregroundStyle(.white.opacity(0.72))
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Button(action: onAdd) {
+                Image(systemName: "plus")
+                    .font(.caption.bold())
+                    .foregroundStyle(.white)
+                    .frame(width: 28, height: 28)
+                    .background(Color.accentColor)
+                    .clipShape(Circle())
+                    .shadow(color: Color.black.opacity(0.25), radius: 5, y: 2)
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Add \(meal.name) to today's nutrition")
+        }
+        .padding()
+        .background(Color.white.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+        )
+        .cornerRadius(14)
+    }
+}
+
+private struct MealFilterMenu: View {
+    let title: String
+    let systemImage: String
+    @Binding var selection: String
+    let options: [String]
+
+    var body: some View {
+        Menu {
+            ForEach(options, id: \.self) { option in
+                Button {
+                    selection = option
+                } label: {
+                    if option == selection {
+                        Label(option, systemImage: "checkmark")
+                    } else {
+                        Text(option)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 8) {
+                Image(systemName: systemImage)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.62))
+                    Text(selection)
+                        .font(.footnote.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                        .allowsTightening(true)
+                }
+                Spacer(minLength: 0)
+                Image(systemName: "chevron.down")
+                    .font(.caption2.weight(.bold))
+            }
+            .foregroundStyle(.white)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 10)
+            .frame(maxWidth: .infinity)
+            .background(Color.white.opacity(0.1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
+            .cornerRadius(12)
+        }
+    }
+}
+
+private struct MealBadge: View {
+    let text: String
+    let systemImage: String
+
+    var body: some View {
+        Label(text, systemImage: systemImage)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.82))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 5)
+            .background(Color.black.opacity(0.28))
+            .cornerRadius(8)
+    }
+}
+
+private struct MealMacroChip: View {
+    let label: String
+    let value: Int
+    let color: Color
+
+    var body: some View {
+        Text("\(label) \(value)g")
+            .font(.caption.weight(.bold))
+            .foregroundStyle(color)
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(color.opacity(0.16))
+            .cornerRadius(9)
+    }
+}
+
+private struct AddMealsIngredientsSheet: View {
+    @Environment(\.dismiss) private var dismiss
+    @State private var ingredientsText = ""
+    @State private var selectedMealType = "Lunch"
+    @State private var selectedDifficulty = "Easy"
+    @State private var isSubmitting = false
+    @State private var errorMessage: String?
+
+    private let mealTypeOptions = ["Breakfast", "Lunch", "Dinner"]
+    private let difficultyOptions = ["Easy", "Medium", "Hard"]
+
+    let onSubmit: ([String], String, String) async throws -> Void
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppBackgroundView()
+
+                VStack(alignment: .leading, spacing: 16) {
+                    Text("Ingredients")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+
+                    TextEditor(text: $ingredientsText)
+                        .frame(minHeight: 150)
+                        .scrollContentBackground(.hidden)
+                        .padding(10)
+                        .background(Color.white.opacity(0.12))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 12)
+                                .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                        )
+                        .cornerRadius(12)
+                        .foregroundStyle(.white)
+
+                    Text("Separate ingredients with commas or new lines.")
+                        .font(.footnote)
+                        .foregroundStyle(.white.opacity(0.72))
+
+                    HStack(spacing: 10) {
+                        MealFilterMenu(
+                            title: "Meal Type",
+                            systemImage: "fork.knife",
+                            selection: $selectedMealType,
+                            options: mealTypeOptions
+                        )
+
+                        MealFilterMenu(
+                            title: "Difficulty",
+                            systemImage: "gauge.with.dots.needle.33percent",
+                            selection: $selectedDifficulty,
+                            options: difficultyOptions
+                        )
+                    }
+
+                    Button {
+                        submit()
+                    } label: {
+                        HStack {
+                            if isSubmitting {
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                            }
+                            Label("Create Meals", systemImage: "sparkles")
+                                .font(.headline)
+                        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(isSubmitting || parsedIngredients.isEmpty)
+
+                    Spacer()
+                }
+                .padding()
+            }
+            .navigationTitle("New Meals")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                    .foregroundStyle(.white)
+                }
+            }
+            .alert("Create Meals Error", isPresented: Binding(
+                get: { errorMessage != nil },
+                set: { if !$0 { errorMessage = nil } }
+            )) {
+                Button("OK", role: .cancel) {}
+            } message: {
+                Text(errorMessage ?? "")
+            }
+        }
+    }
+
+    private var parsedIngredients: [String] {
+        ingredientsText
+            .split { $0 == "," || $0 == "\n" || $0 == ";" }
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+    }
+
+    private func submit() {
+        let ingredients = parsedIngredients
+        guard !ingredients.isEmpty else { return }
+
+        isSubmitting = true
+        Task {
+            do {
+                try await onSubmit(ingredients, selectedDifficulty, selectedMealType)
+                await MainActor.run {
+                    isSubmitting = false
+                    dismiss()
+                }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
     }
 }

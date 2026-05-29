@@ -14,6 +14,7 @@ import AudioToolbox
 
 struct StaringWorkWindow: View {
     var todaysWork: workout_plans?
+    @State private var activeWorkout: workout_plans?
     @State private var timeRemaining = 5
     @State private var timerIsRunning = false
     @State private var timeRemaining2 = 60
@@ -27,6 +28,7 @@ struct StaringWorkWindow: View {
     @State var index = 0
     @State var set = 1
     var cals: Int
+    @State private var workoutCaloriesOverride: Int?
     @State var finishedSet = false
     @State var finishedRecover = false
     var onWorkoutFinished: (() -> Void)? = nil
@@ -42,6 +44,9 @@ struct StaringWorkWindow: View {
     @State private var isSavingRoutineWeight = false
     @State private var routineWeightError = ""
     @State private var showRoutineWeightError = false
+    @State private var isReplacingExercise = false
+    @State private var replaceExerciseError = ""
+    @State private var showReplaceExerciseError = false
     
     @State var activity: Activity<TimeTrackingAttributes>? = nil
     @State var isTrackingTime: Bool = false
@@ -79,12 +84,12 @@ struct StaringWorkWindow: View {
                 .zIndex(10)
             }
 
-            if timeRemaining == 0 || index >= todaysWork?.exercises.count ?? 1 {                //if strting exercise time has ended or workout is over
+            if timeRemaining == 0 || index >= currentWorkout?.exercises.count ?? 1 {                //if strting exercise time has ended or workout is over
                 VStack {
-                if index >= todaysWork?.exercises.count ?? 1 {                              //if workout is over
+                if index >= currentWorkout?.exercises.count ?? 1 {                              //if workout is over
                     Spacer()
                     Text("All Done!").font(.title3).italic().bold().foregroundStyle(Color.orange).font(.title2)
-                    Text("You just burned \(cals) calories 🔥").font(.title2).italic().bold().foregroundStyle(Color.red)
+                    Text("You just burned \(displayedCalories) calories 🔥").font(.title2).italic().bold().foregroundStyle(Color.red)
 
                     Button {
                         onWorkoutFinished?()
@@ -103,14 +108,14 @@ struct StaringWorkWindow: View {
                     }
                 }                       //workout is over
                 else {
-                    Text("\(todaysWork?.exercises[index].name ?? "PullUps")")
+                    Text("\(currentExercise?.name ?? "PullUps")")
                         .font(.largeTitle)
                         .italic()
                         .bold()
                         .foregroundStyle(Color.white)
                         .shadow(color: .black.opacity(0.6), radius: 8, x: 0, y: 3)
 
-                    ImageView(imageURL: "\(Constants.baseURL)images/imageName?name=\(todaysWork?.exercises[index].name ?? "bad").jpg")
+                    ImageView(imageURL: "\(Constants.baseURL)images/imageName?name=\(currentExercise?.name ?? "bad").jpg")
                         .frame(
                             width: AdaptiveLayout.clampedWidth(400, horizontalPadding: 24),
                             height: AdaptiveLayout.scaled(300, compact: 220)
@@ -126,7 +131,39 @@ struct StaringWorkWindow: View {
                             Text("Set \(set):").font(.title).padding(.leading).padding(.top).foregroundStyle(Color.white).bold()
                             Spacer()
                         }
-                        Text("Reps \(todaysWork?.exercises[index].reps ?? "1")").font(.title).padding(.leading).padding(.top).foregroundStyle(Color.white).bold()
+                        Text("Reps \(currentExercise?.reps ?? "1")").font(.title).padding(.leading).padding(.top).foregroundStyle(Color.white).bold()
+
+                        if routineDay == nil {
+                            Button {
+                                Task { await replaceCurrentExercise() }
+                            } label: {
+                                HStack(spacing: 8) {
+                                    if isReplacingExercise {
+                                        ProgressView()
+                                            .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                                    } else {
+                                        Image(systemName: "arrow.triangle.2.circlepath")
+                                    }
+
+                                    Text(isReplacingExercise ? "Replacing..." : "Replace Exercise")
+                                        .fontWeight(.bold)
+                                }
+                                .font(.subheadline)
+                                .foregroundColor(.white)
+                                .padding(.horizontal, 14)
+                                .padding(.vertical, 8)
+                                .background(Color.blue.opacity(0.78))
+                                .overlay(
+                                    Capsule()
+                                        .stroke(Color.white.opacity(0.28), lineWidth: 1)
+                                )
+                                .clipShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                            .disabled(isReplacingExercise || currentExercise == nil)
+                            .padding(.top, 4)
+                        }
+
                         if routineDay != nil {
                             Button {
                                 prepareRoutineWeightMenu()
@@ -191,7 +228,7 @@ struct StaringWorkWindow: View {
                                 finishedSet = false
                                 finishedRecover = false
                                 triggerVibration()
-                                excSer = todaysWork?.exercises[index].sets
+                                excSer = currentExercise?.sets
                                 
                             }.task { await hkManager.requestAuthorization() }
                                
@@ -311,7 +348,7 @@ struct StaringWorkWindow: View {
             else {
                 VStack {
                 Spacer()
-                Text("Get Ready!\nNext Exercise is \(todaysWork?.exercises[index].name ?? "pushdowns")")
+                Text("Get Ready!\nNext Exercise is \(currentExercise?.name ?? "pushdowns")")
                     .font(.title2)
                     .multilineTextAlignment(.center)
                     .foregroundStyle(Color.white)
@@ -347,6 +384,7 @@ struct StaringWorkWindow: View {
             }
         }
         .onAppear {
+            activeWorkout = todaysWork
             syncRoutineWeights()
         }
         .sheet(isPresented: $showRoutineWeightMenu) {
@@ -358,6 +396,23 @@ struct StaringWorkWindow: View {
         } message: {
             Text(routineWeightError)
         }
+        .alert("Couldn’t Replace Exercise", isPresented: $showReplaceExerciseError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(replaceExerciseError)
+        }
+    }
+
+    private var currentWorkout: workout_plans? {
+        activeWorkout ?? todaysWork
+    }
+
+    private var currentExercise: Excersise? {
+        currentWorkout?.exercises[safe: index]
+    }
+
+    private var displayedCalories: Int {
+        workoutCaloriesOverride ?? cals
     }
 
     private var routineWeightMenu: some View {
@@ -373,7 +428,7 @@ struct StaringWorkWindow: View {
                     .fontWeight(.heavy)
                     .fontDesign(.rounded)
 
-                Text(todaysWork?.exercises[safe: index]?.name ?? "Current Exercise")
+                Text(currentExercise?.name ?? "Current Exercise")
                     .font(.subheadline)
                     .foregroundColor(.secondary)
                     .multilineTextAlignment(.center)
@@ -494,7 +549,7 @@ struct StaringWorkWindow: View {
 
     private func saveRoutineWeight() async {
         guard let routineDay else { return }
-        guard let exercise = todaysWork?.exercises[safe: index] else {
+        guard let exercise = currentExercise else {
             presentRoutineWeightError("Missing current exercise.")
             return
         }
@@ -558,6 +613,70 @@ struct StaringWorkWindow: View {
     private func presentRoutineWeightError(_ message: String) {
         routineWeightError = message
         showRoutineWeightError = true
+    }
+
+    private func replaceCurrentExercise() async {
+        guard routineDay == nil else { return }
+        guard let workout = currentWorkout, let exercise = currentExercise else {
+            presentReplaceExerciseError("Missing current exercise.")
+            return
+        }
+
+        isReplacingExercise = true
+        defer { isReplacingExercise = false }
+
+        do {
+            guard let url = URL(string: Constants.baseURL + "ai/replaceExercise") else {
+                throw URLError(.badURL)
+            }
+
+            var request = URLRequest(url: url)
+            request.httpMethod = "POST"
+            request.applyBearerToken()
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+            let body: [String: Any] = [
+                "day": workout.day,
+                "muscleGroup": workout.muscle_group,
+                "exerciseName": exercise.name,
+                "exerciseIndex": index
+            ]
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                throw URLError(.badServerResponse)
+            }
+
+            guard (200..<300).contains(http.statusCode) else {
+                let reason = (try? JSONDecoder().decode([String: String].self, from: data))?["reason"]
+                    ?? "Server returned status \(http.statusCode)."
+                presentReplaceExerciseError(reason)
+                return
+            }
+
+            let updatedWorkout = try JSONDecoder().decode(workout_plans.self, from: data)
+            guard updatedWorkout.exercises.indices.contains(index) else {
+                presentReplaceExerciseError("The replacement did not include the current exercise.")
+                return
+            }
+
+            activeWorkout = updatedWorkout
+            workoutCaloriesOverride = updatedWorkout.exercises.reduce(0) { $0 + $1.calories_burned }
+            excSer = updatedWorkout.exercises[index].sets
+            set = 1
+            finishedSet = false
+            finishedRecover = false
+            startTime = nil
+            isTrackingTime = false
+        } catch {
+            presentReplaceExerciseError(error.localizedDescription)
+        }
+    }
+
+    private func presentReplaceExerciseError(_ message: String) {
+        replaceExerciseError = message
+        showReplaceExerciseError = true
     }
 }
 
