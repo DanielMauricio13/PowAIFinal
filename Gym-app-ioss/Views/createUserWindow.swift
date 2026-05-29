@@ -24,6 +24,11 @@ struct createUserWindow: View {
     @State private var invalidEmailFormat = false  // NEW
     let button = RiveViewModel(fileName: "button")
 
+    private var cardWidth: CGFloat { AdaptiveLayout.clampedWidth(350, horizontalPadding: 28) }
+    private var cardHeight: CGFloat { AdaptiveLayout.clampedHeight(700, verticalPadding: 36) }
+    private var actionWidth: CGFloat { AdaptiveLayout.clampedWidth(330, horizontalPadding: 44) }
+    private var titleSize: CGFloat { AdaptiveLayout.scaled(35, compact: 30) }
+
     // MARK: - Helpers
 
     /// Basic RFC-5322-style regex — catches obvious typos like missing @, no TLD, spaces, etc.
@@ -35,23 +40,31 @@ struct createUserWindow: View {
     var body: some View {
         if isDataSaved {
             questionaire(firstName: firstName, lastName: lastName, email: email, password: password)
+                .onAppear(perform: clearSavedSessionForSignup)
         } else {
             NavigationView {
                 ZStack {
-                    Rectangle().fill(.black).ignoresSafeArea()
-                    LinearGradient(colors: [Color.red.opacity(0.8), Color.cyan.opacity(0.2)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+                    AppBackgroundView()
                     Circle().frame(width: 300).foregroundStyle(Color.blue.opacity(0.3)).blur(radius: 10).offset(x: -100, y: -150).animation(.snappy, value: 10)
                     Circle().frame(width: 300).foregroundStyle(Color.purple.opacity(0.3)).blur(radius: 10).offset(x: 150, y: 250)
-                    RoundedRectangle(cornerRadius: 30, style: .continuous).frame(width: 500, height: 500).foregroundStyle(LinearGradient(colors: [Color.purple, .blue], startPoint: .top, endPoint: .bottom)).offset(x: 300, y: -200).blur(radius: 30).rotationEffect(.degrees(170))
+                    RoundedRectangle(cornerRadius: 30, style: .continuous)
+                        .frame(
+                            width: AdaptiveLayout.clampedWidth(500, horizontalPadding: -60),
+                            height: AdaptiveLayout.clampedWidth(500, horizontalPadding: -60)
+                        )
+                        .foregroundStyle(LinearGradient(colors: [Color.purple, .blue], startPoint: .top, endPoint: .bottom))
+                        .offset(x: 300, y: -200)
+                        .blur(radius: 30)
+                        .rotationEffect(.degrees(170))
                     RiveViewModel(fileName: "shapes").view().ignoresSafeArea().blur(radius: 30)
 
                     ZStack {
-                        RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial).frame(width: 350, height: 700)
+                        RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial).frame(width: cardWidth, height: cardHeight)
                         VStack(spacing: 0) {
                             Spacer()
                             Text("Create Account")
                                 .foregroundStyle(LinearGradient(colors: [.accentColor, .purple], startPoint: .topLeading, endPoint: .bottomTrailing))
-                                .font(.system(size: 35, weight: .bold))
+                                .font(.system(size: titleSize, weight: .bold))
                                 .padding(.bottom, 20)
 
                             // First Name
@@ -105,7 +118,7 @@ struct createUserWindow: View {
                             }
 
                             button.view()
-                                .frame(width: 380, height: 48)
+                                .frame(width: actionWidth, height: 48)
                                 .overlay(
                                     Label("Create account", systemImage: "arrow.forward")
                                         .foregroundStyle(Color.black)
@@ -126,7 +139,15 @@ struct createUserWindow: View {
                     }
                 }
             }
+            .onAppear(perform: clearSavedSessionForSignup)
         }
+    }
+
+    private func clearSavedSessionForSignup() {
+        AuthSession.clearToken()
+        UserDefaults.standard.removeObject(forKey: "isAuthenticated")
+        UserDefaults.standard.removeObject(forKey: "username")
+        UserDefaults.standard.removeObject(forKey: "email")
     }
 
     // MARK: - Validation + Network
@@ -201,7 +222,7 @@ private struct ValidationLabel: View {
             .font(.caption).bold()
             .foregroundStyle(Color.red)
             .fontDesign(.rounded)
-            .frame(width: 300, alignment: .leading) // was maxWidth: .infinity
+            .frame(width: AdaptiveLayout.clampedWidth(300, horizontalPadding: 52), alignment: .leading) // was maxWidth: .infinity
             .padding(.leading, 4)
     }
 }
@@ -251,7 +272,7 @@ private struct PasswordStrengthBar: View {
                 .font(.caption2).fontDesign(.rounded)
                 .foregroundStyle(color)
         }
-        .frame(width: 300)
+        .frame(width: AdaptiveLayout.clampedWidth(300, horizontalPadding: 52))
     }
 }
 
@@ -261,7 +282,7 @@ private extension View {
     func inputStyle(highlight: Bool) -> some View {
         self
             .padding()
-            .frame(width: 300, height: 50)
+            .frame(width: AdaptiveLayout.clampedWidth(300, horizontalPadding: 52), height: 50)
             .background(Color.black.opacity(0.05))
             .cornerRadius(10)
             .overlay(

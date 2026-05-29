@@ -22,7 +22,7 @@ struct MainWindow: View {
     var body: some View {
         NavigationView {
             ZStack {
-                LinearGradient(colors: [Color.black, Color(red: 0.24, green: 0.03, blue: 0.06)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+                AppBackgroundView()
                 
                 if isLoading {
                     // Show loading indicator or message while waiting for data
@@ -54,39 +54,39 @@ struct MainWindow: View {
             }
             .navigationBarBackButtonHidden(true)
             .onAppear {
+                guard AuthSession.getToken()?.isEmpty == false else {
+                    logout()
+                    isLoading = false
+                    return
+                }
+
                 fetchUserInfo { result in
                     switch result {
                     case .success(let user):
                         mainUser = user // Assign the loggedInUser to mainUser
 //                        print("User info received:", user)
                         UserDefaults.standard.set(user.email, forKey: "email")
-                        
-                        // Data has been loaded, update loading state
-                        isLoading = false
+
+                        fetchExerciseData { result in
+                            switch result {
+                            case .success(let user):
+                                userFullWork = user // Assign the loggedInUser to mainUser
+        //                        print("user Excersises receiver:", user)
+                            case .failure(let error):
+                                // Handle any errors here
+                                print("Error fetching excersises:", error)
+                            }
+
+                            // Data has been loaded, update loading state
+                            isLoading = false
+                        }
                     case .failure(let error):
                         // Handle any errors here
                         logout()
+                        isLoading = false
                         print("Error fetching user info:", error)
-                        
                     }
                 }
-                fetchExerciseData { result in
-                    switch result {
-                    case .success(let user):
-                        userFullWork = user // Assign the loggedInUser to mainUser
-//                        print("user Excersises receiver:", user)
-                        
-                        // Data has been loaded, update loading state
-                        isLoading = false
-                    case .failure(let error):
-                        // Handle any errors here
-                        print("Error fetching excersises:", error)
-                        
-                        // Data loading failed, update loading state
-                        isLoading = false
-                    }
-                }
-                
             }
            
             
@@ -280,4 +280,3 @@ struct MainWindow: View {
       //  persistenceManager.clearItems()
     }
 }
-

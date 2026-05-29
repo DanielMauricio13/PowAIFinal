@@ -47,6 +47,7 @@ struct questionaire: View {
 
     @State private var currentQuestionIndex = 0
     @State private var animateIn = false
+    @State private var showFinalData = false
 
     // Passed-in user info
     let firstName: String
@@ -62,20 +63,15 @@ struct questionaire: View {
     }
 
     var body: some View {
-        ZStack {
-            // Background
-            LinearGradient(
-                colors: [Color.red.opacity(0.75), Color.gray.opacity(0.9)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+        NavigationStack {
+            ZStack {
+                // Background
+                AppBackgroundView()
 
-            RiveViewModel(fileName: "shapes").view()
-                .ignoresSafeArea()
-                .blur(radius: 30)
+                RiveViewModel(fileName: "shapes").view()
+                    .ignoresSafeArea()
+                    .blur(radius: 30)
 
-            if currentQuestionIndex < questions.count {
                 // Quiz screen
                 VStack(spacing: 0) {
                     headerBar
@@ -89,27 +85,42 @@ struct questionaire: View {
                     removal: .move(edge: .leading).combined(with: .opacity)
                 ))
                 .id(currentQuestionIndex)
-
-            } else {
-                // Hand off to finalData
-                if let numDaysInt = Int(questions[3].selectedOption) {
-                    finalData(
-                        firstName: firstName,
-                        lastName: lastName,
-                        gender: questions[0].selectedOption,
-                        goal: questions[2].selectedOption,
-                        bodyStructure: questions[1].selectedOption,
-                        email: email,
-                        password: password,
-                        numDays: numDaysInt,
-                        numHours: questions[4].selectedOption,
-                        whereWork: questions[5].selectedOption,
-                        level: questions[6].selectedOption
-                    )
-                }
             }
+            .navigationDestination(isPresented: $showFinalData) {
+                finalDataView
+                    .navigationBarBackButtonHidden(true)
+            }
+            .navigationBarBackButtonHidden(true)
         }
         .navigationBarBackButtonHidden(true)
+    }
+
+    private var finalDataView: some View {
+        finalData(
+            firstName: firstName,
+            lastName: lastName,
+            gender: selectedOption(at: 0, fallback: "Male"),
+            goal: selectedOption(at: 2, fallback: "Stay fit"),
+            bodyStructure: selectedOption(at: 1, fallback: "Mesomorph"),
+            email: email,
+            password: password,
+            numDays: selectedNumDays,
+            numHours: selectedOption(at: 4, fallback: "1 – 1:30 hrs"),
+            whereWork: selectedOption(at: 5, fallback: "Gym"),
+            level: selectedOption(at: 6, fallback: "Intermediate")
+        )
+    }
+
+    private var selectedNumDays: Int {
+        Int(selectedOption(at: 3, fallback: "4")) ?? 4
+    }
+
+    private func selectedOption(at index: Int, fallback: String) -> String {
+        guard questions.indices.contains(index),
+              !questions[index].selectedOption.isEmpty else {
+            return fallback
+        }
+        return questions[index].selectedOption
     }
 
     // MARK: - Header
@@ -272,9 +283,15 @@ struct questionaire: View {
     @ViewBuilder
     private func optionButton(option: String, compact: Bool) -> some View {
         Button {
+            guard questions.indices.contains(currentQuestionIndex) else { return }
             questions[currentQuestionIndex].selectedOption = option
-            withAnimation(.easeInOut(duration: 0.3)) {
-                currentQuestionIndex += 1
+
+            if currentQuestionIndex == questions.count - 1 {
+                showFinalData = true
+            } else {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    currentQuestionIndex += 1
+                }
             }
         } label: {
             if compact {

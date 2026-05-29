@@ -44,70 +44,76 @@ struct finalData: View {
     @State var isAgreed:Bool = true
     @State var water: Double?
     @State var isChecked:Bool = false
+    @State private var showLoginAfterAccountCreated = false
+    @State private var didRequestRegistration = false
+    @State private var registrationError = ""
+    @State private var showRegistrationError = false
     @State private var selectedWeightUnit = "Kg"
        @State private var selectedHeightUnit = "cm"
        let weightOptions = ["Kg", "lb"]
        let heightOptions = ["cm", "Ft + in"]
-       
+
     @State var hasAgreed:Bool = true
-    
+
     var body: some View {
-    
-        if submit{
-            ZStack{
-                LogInWindow().navigationBarBackButtonHidden(true)
-            }.navigationBarBackButtonHidden(true)
-        }
-        else if pres == true{
-            LoadingView()
-        }
-        else if isAgreed == false {
-            ZStack{
-                LinearGradient(colors: [Color.blue.opacity(0.7),Color.purple.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing).ignoresSafeArea()
-                Circle().frame(width: 300).foregroundStyle(Color.blue.opacity(0.3)).blur(radius: 10).offset(x: -10, y: -150)
-                Circle().frame(width: 300).foregroundStyle(Color.white.opacity(0.3)).blur(radius: 10).offset(x: 10, y: 250)
-                VStack{
-                    HStack{
-                      
-                        
-                        Button(action: {
-                            isChecked.toggle()
-                                }) {
-                                    HStack {
-                                        Image(systemName: isChecked ? "checkmark.square" : "square")
-                                            .foregroundColor(.blue)
-                                        Text("I agree to the")
-                                        NavigationLink(destination: Terms_of_Use()){
-                                            Text("Privacy Policy").bold().underline()
+        Group {
+            if showLoginAfterAccountCreated {
+                ZStack{
+                    LogInWindow().navigationBarBackButtonHidden(true)
+                }.navigationBarBackButtonHidden(true)
+            }
+            else if submit {
+                accountCreatedView
+            }
+            else if pres == true{
+                LoadingView()
+            }
+            else if isAgreed == false {
+                ZStack{
+                    AppBackgroundView()
+                    Circle().frame(width: 300).foregroundStyle(Color.blue.opacity(0.3)).blur(radius: 10).offset(x: -10, y: -150)
+                    Circle().frame(width: 300).foregroundStyle(Color.white.opacity(0.3)).blur(radius: 10).offset(x: 10, y: 250)
+                    VStack{
+                        HStack{
+
+
+                            Button(action: {
+                                isChecked.toggle()
+                                    }) {
+                                        HStack {
+                                            Image(systemName: isChecked ? "checkmark.square" : "square")
+                                                .foregroundColor(.blue)
+                                            Text("I agree to the")
+                                            NavigationLink(destination: Terms_of_Use()){
+                                                Text("Privacy Policy").bold().underline()
+                                            }
                                         }
                                     }
-                                }
-                                .buttonStyle(.plain)
-                        
-                    }
-                    
-                    Button{
-                        if isChecked{
-                            pres = true
-                            Task{ try await register()}
+                                    .buttonStyle(.plain)
+
                         }
-                    }label: {
-                        Text("Create account ").foregroundColor(.white).font(.title).background(Rectangle().clipShape(.buttonBorder)).padding(.top)
+
+                        Button{
+                            if isChecked{
+                                startRegistration()
+                            }
+                        }label: {
+                            Text("Create account ").foregroundColor(.white).font(.title).background(Rectangle().clipShape(.buttonBorder)).padding(.top)
+                        }
                     }
                 }
             }
-        }
-        else{
-            ZStack{
-                LinearGradient(colors: [Color.blue.opacity(0.7),Color.purple.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing).ignoresSafeArea()
-                Circle().frame(width: 300).foregroundStyle(Color.blue.opacity(0.3)).blur(radius: 10).offset(x: -100, y: -150)
-                Circle().frame(width: 300).foregroundStyle(Color.white.opacity(0.3)).blur(radius: 10).offset(x: 150, y: 250)
-                RiveViewModel(fileName: "shapes").view().ignoresSafeArea().blur(radius: 30)
-            VStack{
-                Text("Final data").font(.title).foregroundStyle(LinearGradient(colors: [.accentColor,.purple], startPoint: .topLeading, endPoint: .bottomTrailing)).bold().fontDesign(.rounded).shadow(color: .blue, radius: 10)
-                Spacer()
+            else{
+                ZStack{
+                    AppBackgroundView()
+                    Circle().frame(width: 300).foregroundStyle(Color.blue.opacity(0.3)).blur(radius: 10).offset(x: -100, y: -150)
+                    Circle().frame(width: 300).foregroundStyle(Color.white.opacity(0.3)).blur(radius: 10).offset(x: 150, y: 250)
+                    RiveViewModel(fileName: "shapes").view().ignoresSafeArea().blur(radius: 30)
                 VStack{
-                    Form {
+                    Text("Final data").font(.title).foregroundStyle(LinearGradient(colors: [.accentColor,.purple], startPoint: .topLeading, endPoint: .bottomTrailing)).bold().fontDesign(.rounded).shadow(color: .blue, radius: 10)
+                    Spacer()
+                    VStack{
+                        Form {
                                     // AGE SECTION
                                     Section(header: Text("Age").foregroundColor(age == 0 ? .red : .accentColor)) {
                                         TextField("Age", text: Binding<String>(
@@ -152,14 +158,7 @@ struct finalData: View {
                                             .pickerStyle(MenuPickerStyle())
                                         }
                                         .onChange(of: selectedHeightUnit) {
-                                            if selectedHeightUnit == "cm" {
-                                                // Convert ft + in to cm
-                                                height = Int(Double(heightFt) * 30.48 + Double(heightIn) * 2.54)
-                                            } else {
-                                                // Convert cm to ft + in
-                                                heightFt = height / 30
-                                                heightIn = Int(Double(height).truncatingRemainder(dividingBy: 30) / 2.54)
-                                            }
+                                            convertHeightUnit()
                                         }
                                     }
 
@@ -181,16 +180,12 @@ struct finalData: View {
                                             .pickerStyle(MenuPickerStyle())
                                         }
                                         .onChange(of: selectedWeightUnit) {
-                                            if selectedWeightUnit == "Kg" {
-                                                weight = Int(Double(weight) / 2.205) // Convert lbs → kg
-                                            } else {
-                                                weight = Int(Double(weight) * 2.205) // Convert kg → lbs
-                                            }
+                                            convertWeightUnit()
                                         }
                                     }
                                 }
                                 .scrollContentBackground(.hidden)
-                    
+
                     //                    Button{
                     //                        Task{ try await submitData()}
                     //                    }label: {
@@ -201,17 +196,90 @@ struct finalData: View {
                     }label: {
                         Text("Create account").foregroundColor(.white).font(.title).fontDesign(.rounded).bold()
                     }
-                    
+
+                    }
                 }
+
             }
-            
+            }
         }
+        .alert("Couldn’t Create Account", isPresented: $showRegistrationError) {
+            Button("OK", role: .cancel) { }
+        } message: {
+            Text(registrationError)
         }
     }
-    
-   
-    
+
+    private var accountCreatedView: some View {
+        ZStack {
+            AppBackgroundView()
+            RiveViewModel(fileName: "shapes").view()
+                .ignoresSafeArea()
+                .blur(radius: 30)
+
+            VStack(spacing: 18) {
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 64))
+                    .foregroundColor(.green)
+
+                Text("Account Created")
+                    .font(.system(size: 30, weight: .heavy, design: .rounded))
+                    .foregroundColor(.white)
+
+                Text("Your plan is ready. Sign in to start training.")
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .foregroundColor(.white.opacity(0.75))
+                    .padding(.horizontal, 30)
+
+                Button {
+                    showLoginAfterAccountCreated = true
+                } label: {
+                    Text("Go to Login")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                        .background(Color.orange)
+                        .cornerRadius(10)
+                }
+                .padding(.horizontal, 34)
+                .padding(.top, 8)
+            }
+        }
+        .navigationBarBackButtonHidden(true)
+    }
+
+    private func convertHeightUnit() {
+        if selectedHeightUnit == "cm" {
+            let feetInCm = Double(heightFt) * 30.48
+            let inchesInCm = Double(heightIn) * 2.54
+            height = Int(feetInCm + inchesInCm)
+        } else {
+            let heightValue = Double(height)
+            heightFt = height / 30
+            heightIn = Int(heightValue.truncatingRemainder(dividingBy: 30) / 2.54)
+        }
+    }
+
+    private func convertWeightUnit() {
+        let currentWeight = Double(weight)
+
+        if selectedWeightUnit == "Kg" {
+            let convertedWeight = currentWeight / 2.205
+            weight = Int(convertedWeight)
+        } else {
+            let convertedWeight = currentWeight * 2.205
+            weight = Int(convertedWeight)
+        }
+    }
+
+
+
     func register() async throws {
+        guard didRequestRegistration else { return }
+
         let urlString = Constants.baseURL + "/ai/register"
 //        let urlString = "http://127.0.0.1:8080/ai/register"
         guard let url = URL(string: urlString) else { throw HttpEroor.badURL }
@@ -241,9 +309,9 @@ struct finalData: View {
             "numDays":       numDays,
             "numHours":      numHours
         ]
-        
+
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
-       
+
         let (_, response) = try await URLSession.shared.data(for: request)
         guard (response as? HTTPURLResponse)?.statusCode == 200 else {
             throw HttpEroor.badURL
@@ -251,9 +319,27 @@ struct finalData: View {
 
         submit = true
     }
-        
-    
-    
+
+    private func startRegistration() {
+        guard !pres else { return }
+
+        didRequestRegistration = true
+        pres = true
+
+        Task {
+            do {
+                try await register()
+            } catch {
+                pres = false
+                didRequestRegistration = false
+                registrationError = error.localizedDescription
+                showRegistrationError = true
+            }
+        }
+    }
+
+
+
 }
 
 struct finalData_Previews: PreviewProvider {
@@ -273,6 +359,6 @@ struct LoadingView: View {
                 Spacer()
             }
         }
-        
+
     }
 }

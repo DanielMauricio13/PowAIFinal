@@ -107,20 +107,14 @@ struct ExcerciseWindow: View {
                             tabButton(icon: "gear",                      tab: 4, activeColor: .red)  // ← was tab:3, fixed
                             Spacer()
                         }
-                        .padding()
-                        .frame(height: 70)
+                        .padding(.horizontal, AdaptiveLayout.isCompactPhone ? 10 : 16)
+                        .padding(.vertical, 10)
+                        .frame(height: AdaptiveLayout.scaled(70, compact: 64))
                         .background(RoundedRectangle(cornerRadius: 30).fill(.ultraThinMaterial))
                         .edgesIgnoringSafeArea(.bottom)
                     }
                 }
-                .background(
-                    LinearGradient(
-                        colors: [Color.cyan.opacity(0.7), Color.black.opacity(0.7)],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                    .ignoresSafeArea()
-                )
+                .background(AppBackgroundView())
                 .navigationBarHidden(true)
             }
             .onAppear {
@@ -143,7 +137,10 @@ struct ExcerciseWindow: View {
     private func tabButton(icon: String, tab: Int, activeColor: Color) -> some View {
         Button { whichWin = tab } label: {
             Image(systemName: icon)
-                .padding()
+                .frame(
+                    width: AdaptiveLayout.scaled(52, compact: 44),
+                    height: AdaptiveLayout.scaled(52, compact: 44)
+                )
                 .foregroundColor(whichWin == tab ? activeColor : .white)
                 .background(Color.black)
                 .cornerRadius(10)

@@ -44,9 +44,12 @@ struct NutritionView: View {
         if buttonPressed {
             NavigationView {
                 ZStack {
+                    AppBackgroundView()
+
                     VStack(spacing: 18) {
                         Text("Add food")
                             .font(.title2.bold())
+                            .foregroundStyle(.white)
                             .frame(maxWidth: .infinity, alignment: .leading)
 
                         // ── NEW: Favorites shelf ─────────────────────────────
@@ -123,6 +126,7 @@ struct NutritionView: View {
                 HStack {
                     Text(viewModel.items.isEmpty ? "No food added yet" : "Today's foods")
                         .font(.title3.bold())
+                        .foregroundStyle(.white)
                     Spacer()
                     Button { buttonPressed = true } label: {
                         Label("Add", systemImage: "plus.circle.fill")
@@ -139,6 +143,7 @@ struct NutritionView: View {
                         systemImage: "fork.knife",
                         description: Text("Tap + to add using Smart, Manual, barcode, or camera.")
                     )
+                    .foregroundStyle(.white)
                 } else {
                     ScrollView {
                         VStack(spacing: 10) {
@@ -199,7 +204,11 @@ struct NutritionView: View {
             }
         }
         .padding()
-        .background(.thinMaterial)
+        .background(Color.white.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+        )
         .cornerRadius(14)
     }
 
@@ -215,6 +224,7 @@ struct NutritionView: View {
                 HStack(alignment: .top) {
                     Text(food.Name)
                         .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.primary)
                         .lineLimit(2)
                         .frame(maxWidth: 90, alignment: .leading)
 
@@ -297,11 +307,15 @@ struct NutritionView: View {
             }
             Text("Use Smart mode when you don't know exact macros. We'll estimate for you.")
                 .font(.footnote)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.75))
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding()
-        .background(.thinMaterial)
+        .background(Color.white.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+        )
         .cornerRadius(14)
     }
 
@@ -319,7 +333,11 @@ struct NutritionView: View {
             }
         }
         .padding()
-        .background(.thinMaterial)
+        .background(Color.white.opacity(0.1))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14)
+                .stroke(Color.white.opacity(0.14), lineWidth: 1)
+        )
         .cornerRadius(14)
     }
 
@@ -499,15 +517,17 @@ struct NutritionView: View {
         var body: some View {
             VStack(alignment: .leading, spacing: 10) {
                 HStack {
-                    Text(item.title).font(.headline)
+                    Text(item.title)
+                        .font(.headline)
+                        .foregroundStyle(.white)
                     Spacer()
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(item.isExpanded ? 180 : 0))
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.65))
                 }
 
                 if item.isExpanded {
-                    Text(item.description).font(.subheadline).foregroundStyle(.secondary)
+                    Text(item.description).font(.subheadline).foregroundStyle(.white.opacity(0.78))
                     HStack {
                         Button("Remove", action: onRemove)
                             .foregroundColor(.red)
@@ -532,7 +552,11 @@ struct NutritionView: View {
                 }
             }
             .padding()
-            .background(.thinMaterial)
+            .background(Color.white.opacity(0.1))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(Color.white.opacity(0.14), lineWidth: 1)
+            )
             .cornerRadius(12)
         }
     }

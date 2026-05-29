@@ -15,64 +15,72 @@ import SwiftUI
 struct Calories: View {
     var mainUser: User?
 
+    private let horizontalPadding: CGFloat = 18
+    private let columnSpacing: CGFloat = 18
+
+    private var nutritionColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: columnSpacing),
+            GridItem(.flexible(), spacing: columnSpacing)
+        ]
+    }
+
     var body: some View {
         NavigationStack {
             ZStack(alignment: .bottom) {
                 gymBackground
                 // ── Main content ──────────────────────────────────────
-                VStack {
+                VStack(spacing: AdaptiveLayout.isCompactPhone ? 12 : 18) {
                     Text("Todays Nutrition")
-                        .font(.largeTitle).bold().italic()
+                        .font(AdaptiveLayout.isCompactPhone ? .title : .largeTitle)
+                        .bold()
+                        .italic()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                         .shadow(color: .white, radius: 10)
                         .foregroundStyle(Color.white)
+                        .padding(.horizontal)
 
-                    ScrollView {
-                        VStack {
-                            HStack {
-                                Spacer()
-                                VStack(alignment: .center) {
-                                    CircularProgressBar(progress: HealthManager.shared.calories,
-                                                        goal: mainUser?.DailyCalories ?? 1)
-                                    Text("Your Calories goal: \(HealthManager.shared.calories) / \(mainUser?.DailyCalories ?? 1) 🔥")
-                                        .font(.title3).foregroundStyle(Color.white)
-                                        .shadow(color: .red, radius: 10)
-                                    Spacer()
-                                }.frame(width: 200, height: 300)
-                                Spacer()
-                                VStack(alignment: .center) {
-                                    CircularProgressBar(progress: HealthManager.shared.protein,
-                                                        goal: mainUser?.DailyProtein ?? 1)
-                                    Text("Your Protein goal: \(HealthManager.shared.protein) / \(mainUser?.DailyProtein ?? 1) 🍗")
-                                        .font(.title3).foregroundStyle(Color.white)
-                                        .shadow(color: .red, radius: 10)
-                                    Spacer()
-                                }.frame(width: 200, height: 300)
-                                Spacer()
-                            }
+                    GeometryReader { proxy in
+                        let metrics = nutritionMetrics(for: proxy.size)
 
-                            HStack {
-                                Spacer()
-                                VStack(alignment: .center) {
-                                    CircularProgressBar(progress: HealthManager.shared.carbs,
-                                                        goal: mainUser?.carbs ?? 1)
-                                    Text("Your Carbs goal: \(HealthManager.shared.carbs) / \(mainUser?.carbs ?? 1) 🥐")
-                                        .font(.title3).foregroundStyle(Color.white)
-                                        .shadow(color: .red, radius: 10)
-                                    Spacer()
-                                }.frame(width: 200, height: 300)
-                                Spacer()
-                                VStack(alignment: .center) {
-                                    CircularProgressBar(progress: HealthManager.shared.sugars,
-                                                        goal: mainUser?.sugars ?? 1)
-                                    Text("Your Sugar goal: \(HealthManager.shared.sugars) / \(mainUser?.sugars ?? 1) 🍭")
-                                        .font(.title3).foregroundStyle(Color.white)
-                                        .shadow(color: .red, radius: 10)
-                                    Spacer()
-                                }.frame(width: 200, height: 300)
-                                Spacer()
+                        ScrollView {
+                            LazyVGrid(columns: nutritionColumns, spacing: metrics.gridSpacing) {
+                                nutritionGoalCard(
+                                    title: "Calories",
+                                    value: HealthManager.shared.calories,
+                                    goal: mainUser?.DailyCalories ?? 1,
+                                    emoji: "🔥",
+                                    metrics: metrics
+                                )
+
+                                nutritionGoalCard(
+                                    title: "Protein",
+                                    value: HealthManager.shared.protein,
+                                    goal: mainUser?.DailyProtein ?? 1,
+                                    emoji: "🍗",
+                                    metrics: metrics
+                                )
+
+                                nutritionGoalCard(
+                                    title: "Carbs",
+                                    value: HealthManager.shared.carbs,
+                                    goal: mainUser?.carbs ?? 1,
+                                    emoji: "🥐",
+                                    metrics: metrics
+                                )
+
+                                nutritionGoalCard(
+                                    title: "Sugar",
+                                    value: HealthManager.shared.sugars,
+                                    goal: mainUser?.sugars ?? 1,
+                                    emoji: "🍭",
+                                    metrics: metrics
+                                )
                             }
+                            .padding(.horizontal, horizontalPadding)
+                            .padding(.bottom, 110)
                         }
-                        .padding()
                     }
                 }
 
@@ -103,14 +111,58 @@ struct Calories: View {
             }
         }
     }
+
     private var gymBackground: some View {
-        LinearGradient(
-            colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1),
-                     Color(red: 0.2, green: 0.03, blue: 0.03)],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
+        AppBackgroundView()
+    }
+
+    private struct NutritionMetrics {
+        let ringDiameter: CGFloat
+        let ringStroke: CGFloat
+        let gridSpacing: CGFloat
+        let cardMinHeight: CGFloat
+        let labelFont: Font
+        let percentFont: Font
+    }
+
+    private func nutritionMetrics(for size: CGSize) -> NutritionMetrics {
+        let columnWidth = (size.width - (horizontalPadding * 2) - columnSpacing) / 2
+        let ringDiameter = min(max(columnWidth * 0.92, 120), 178)
+        let ringStroke = min(max(ringDiameter * 0.14, 16), 24)
+        let isRoomy = size.width >= 410 && size.height >= 720
+
+        return NutritionMetrics(
+            ringDiameter: ringDiameter,
+            ringStroke: ringStroke,
+            gridSpacing: isRoomy ? 34 : 24,
+            cardMinHeight: ringDiameter + (isRoomy ? 118 : 104),
+            labelFont: isRoomy ? .title3 : .system(size: 18, weight: .regular, design: .rounded),
+            percentFont: isRoomy ? .largeTitle : .title
         )
-        .ignoresSafeArea()
+    }
+
+    private func nutritionGoalCard(title: String, value: Int, goal: Int, emoji: String, metrics: NutritionMetrics) -> some View {
+        VStack(spacing: AdaptiveLayout.isCompactPhone ? 10 : 14) {
+            CircularProgressBar(
+                progress: value,
+                goal: goal,
+                diameter: metrics.ringDiameter,
+                strokeWidth: metrics.ringStroke,
+                percentFont: metrics.percentFont
+            )
+
+            Text("Your \(title) goal:\n\(value) / \(goal) \(emoji)")
+                .font(metrics.labelFont)
+                .foregroundStyle(Color.white)
+                .multilineTextAlignment(.leading)
+                .lineLimit(2)
+                .minimumScaleFactor(0.72)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .shadow(color: .red, radius: 10)
+        }
+        .frame(maxWidth: .infinity)
+        .frame(minHeight: metrics.cardMinHeight, alignment: .top)
     }
 }
 
@@ -119,6 +171,9 @@ struct Calories: View {
 struct CircularProgressBar: View {
     var progress: Int
     var goal: Int
+    var diameter: CGFloat = 130
+    var strokeWidth: CGFloat = 20
+    var percentFont: Font = .title
     
     private var progressFraction: Double {
         guard goal > 0 else { return 0 }
@@ -133,26 +188,24 @@ struct CircularProgressBar: View {
     var body: some View {
         ZStack {
             Circle()
-                .stroke(lineWidth: 20.0)
-                .frame(width: 150, height: 150) // Adjust the frame size
+                .stroke(lineWidth: strokeWidth)
+                .frame(width: diameter, height: diameter)
                 .opacity(0.3)
                 .foregroundColor(Color.black)
             
             Circle()
                 .trim(from: 0.0, to: CGFloat(progressFraction))
-                .stroke(style: StrokeStyle(lineWidth: 20.0, lineCap: .round, lineJoin: .round))
-                .frame(width: 150, height: 150) // Adjust the frame size
+                .stroke(style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, lineJoin: .round))
+                .frame(width: diameter, height: diameter)
                 .foregroundColor(Color.red)
                 .rotationEffect(Angle(degrees: 270.0))
                 
             
             Text(String(format: "%d%%", progressPercent))
-                .font(.title)
+                .font(percentFont)
                 .foregroundStyle(Color.white)
                 .bold()
         }
-        .padding(40)
+        .padding(.vertical, AdaptiveLayout.isCompactPhone ? 10 : 16)
     }
 }
-
-

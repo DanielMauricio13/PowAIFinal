@@ -128,12 +128,7 @@ struct UpdateProfileMenuView: View {
     }
 
     private var gymBg: some View {
-        LinearGradient(
-            colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1),
-                     Color(red: 0.2, green: 0.03, blue: 0.03)],
-            startPoint: .topLeading, endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppBackgroundView()
     }
 }
 
@@ -319,12 +314,7 @@ struct UpdateEmailView: View {
     }
 
     private var gymBg: some View {
-        LinearGradient(
-            colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1),
-                     Color(red: 0.2, green: 0.03, blue: 0.03)],
-            startPoint: .topLeading, endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppBackgroundView()
     }
 }
 
@@ -817,12 +807,7 @@ struct UpdateFullProfileView: View {
     }
 
     private var gymBg: some View {
-        LinearGradient(
-            colors: [Color.black, Color(red: 0.08, green: 0.08, blue: 0.1),
-                     Color(red: 0.2, green: 0.03, blue: 0.03)],
-            startPoint: .topLeading, endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppBackgroundView()
     }
    
 }

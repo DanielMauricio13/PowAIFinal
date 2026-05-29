@@ -63,12 +63,7 @@ struct Terms_of_Use: View {
     var body: some View {
         ZStack {
             // MARK: - Background
-            LinearGradient(
-                colors: [Color.blue.opacity(0.7), Color.purple.opacity(0.7)],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppBackgroundView()
 
             Circle()
                 .frame(width: 300)

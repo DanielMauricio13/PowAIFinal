@@ -35,16 +35,7 @@ struct MainWindow2: View {
     }
 
     private var gymBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.06, green: 0.07, blue: 0.10),
-                Color(red: 0.15, green: 0.02, blue: 0.05),
-                Color(red: 0.48, green: 0.08, blue: 0.12)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppBackgroundView()
         .overlay(
             Circle()
                 .fill(Color.white.opacity(0.08))
@@ -61,8 +52,10 @@ struct MainWindow2: View {
                 .foregroundColor(.white.opacity(0.8))
 
             Text(mainUser?.firstName ?? "Athlete")
-                .font(.system(size: 42, weight: .black, design: .rounded))
+                .font(.system(size: AdaptiveLayout.scaled(42, compact: 34), weight: .black, design: .rounded))
                 .foregroundColor(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
 
             Text("Focused sessions. Clear progress. Let's train.")
                 .font(.subheadline)

@@ -59,7 +59,7 @@ struct recoverAccountS: View {
 
     var body: some View {
         ZStack {
-            LinearGradient(colors: [Color.cyan.opacity(0.7), Color.purple.opacity(0.7)], startPoint: .topLeading, endPoint: .bottomTrailing).ignoresSafeArea()
+            AppBackgroundView()
             Circle().frame(width: 300).foregroundStyle(Color.blue.opacity(0.3)).blur(radius: 10).offset(x: -100, y: -150).animation(.bouncy, value: 10)
             Circle().frame(width: 300).foregroundStyle(Color.purple.opacity(0.3)).blur(radius: 10).offset(x: 150, y: 250)
             RoundedRectangle(cornerRadius: 30, style: .continuous).frame(width: 500, height: 500).foregroundStyle(LinearGradient(colors: [Color.purple, .mint], startPoint: .top, endPoint: .bottom)).offset(x: 300, y: -200).blur(radius: 30).rotationEffect(.degrees(170))

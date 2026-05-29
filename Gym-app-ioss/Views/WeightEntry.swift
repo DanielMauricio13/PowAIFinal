@@ -62,7 +62,7 @@ actor WeightService {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.applyBearerToken()
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
 #if DEBUG
         print("weights JSON:", String(data: data, encoding: .utf8) ?? "<binary>")
 #endif
@@ -71,7 +71,18 @@ actor WeightService {
             throw NSError(domain: "WeightService", code: 0,
                           userInfo: [NSLocalizedDescriptionKey: reason])
         }
+        if let status = (response as? HTTPURLResponse)?.statusCode,
+           !(200..<300).contains(status) {
+            throw NSError(domain: "WeightService", code: status,
+                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(status)"])
+        }
+
+        let expectedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !expectedEmail.isEmpty else { return [] }
+
         return try JSONDecoder().decode([WeightEntry].self, from: data)
+            .filter { $0.email.lowercased() == expectedEmail }
+            .sorted { $0.date < $1.date }
     }
 
     private func isoString(_ date: Date) -> String {
@@ -291,16 +302,7 @@ struct WeightTrackerView: View {
     // MARK: Background
 
     private var gymBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.06, green: 0.07, blue: 0.10),
-                Color(red: 0.15, green: 0.02, blue: 0.05),
-                Color(red: 0.48, green: 0.08, blue: 0.12)
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppBackgroundView()
         .overlay(
             Circle()
                 .fill(Color.white.opacity(0.08))

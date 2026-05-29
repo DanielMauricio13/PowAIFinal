@@ -20,10 +20,13 @@ struct WorkOutWindow: View {
     @State private var showAlternateError = false
     @State private var alternateErrorMessage = ""
 
-    let columns: [GridItem] = [
-           GridItem(.fixed(160), spacing: 16),
-           GridItem(.fixed(160), spacing: 16)
-       ]
+    private var columns: [GridItem] {
+        [
+            GridItem(.adaptive(minimum: AdaptiveLayout.isCompactPhone ? 136 : 150), spacing: 12)
+        ]
+    }
+
+    private var titleSize: CGFloat { AdaptiveLayout.scaled(35, compact: 27) }
     var body: some View {
         ZStack{
 
@@ -32,11 +35,13 @@ struct WorkOutWindow: View {
                 StaringWorkWindow(todaysWork: todaysWork,exToday: $exToday ,cals: cals)
             }else{
                 
-                VStack{
+                VStack(spacing: AdaptiveLayout.scaled(8, compact: 6)) {
                     
                     HStack(alignment: .center) {
                         Text("Today is \(todaysWork?.muscle_group ?? "Failed to pull")")
-                            .font(.system(size: 35, weight: .bold,design: .rounded))
+                            .font(.system(size: titleSize, weight: .bold,design: .rounded))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.75)
                         Spacer()
                         Button {
                             showAlternatePrompt = true
@@ -52,9 +57,11 @@ struct WorkOutWindow: View {
                         
                     
                     
-                    HStack(alignment:.bottom ){
+                    HStack(alignment:.bottom ) {
                         Text("\n  Your excersises today are:").font(.title2).fontDesign(.rounded).bold().foregroundStyle(LinearGradient(colors: [Color.red.opacity(0.7),Color.purple.opacity(0.7), Color.white.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing))
-                        Spacer(minLength: 90)
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                        Spacer(minLength: 12)
                     }
                     ScrollView {
                                 if let exercises = todaysWork?.exercises {
@@ -71,7 +78,7 @@ struct WorkOutWindow: View {
                                                     .foregroundColor(.gray)
                                             }
                                             .padding()
-                                            .frame(width: 160, height: 120)
+                                            .frame(maxWidth: .infinity, minHeight: 120, alignment: .leading)
                                             .background(Color(.systemGray6))
                                             .cornerRadius(12)
                                             .shadow(color: Color.black.opacity(0.05), radius: 4, x: 0, y: 2)
@@ -83,25 +90,44 @@ struct WorkOutWindow: View {
                                         .padding()
                                 }
                             }
-                    Text("Burn approx \(cals) calories 🔥 in this workout!").font(.title3).bold().foregroundStyle(Color.orange).fontDesign(.rounded)
-                    Spacer(minLength: 40)
-                    HStack{
-                        Spacer()
+                    Text("Burn approx \(cals) calories 🔥 in this workout!")
+                        .font(.title3)
+                        .bold()
+                        .foregroundStyle(Color.orange)
+                        .fontDesign(.rounded)
+                        .multilineTextAlignment(.center)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.8)
+                        .padding(.horizontal)
+                    Spacer(minLength: AdaptiveLayout.scaled(40, compact: 16))
+                    HStack(spacing: 14) {
                         Button{
                             exToday = ""
                         }label: {
-                            Text("Go Back").bold().font(.title2).foregroundStyle(Color.white).background(Rectangle().frame(width: 90,height: 40).foregroundStyle(Color.gray.opacity(0.6)).clipShape(.buttonBorder))
+                            Text("Go Back")
+                                .bold()
+                                .font(.title3)
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(Color.gray.opacity(0.6))
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
-                        Spacer(minLength: 140)
                         Button{
                             begginButton = true
                         }label: {
-                            Text("Begin").bold().font(.title2).foregroundStyle(Color.white).background(Rectangle().frame(width: 90,height: 40).foregroundStyle(Color.accentColor).clipShape(.buttonBorder))
+                            Text("Begin")
+                                .bold()
+                                .font(.title3)
+                                .foregroundStyle(Color.white)
+                                .frame(maxWidth: .infinity, minHeight: 44)
+                                .background(Color.accentColor)
+                                .clipShape(RoundedRectangle(cornerRadius: 10))
                         }
-                        Spacer()
                     }
+                    .padding(.horizontal, 20)
                     Spacer(minLength: 20)
                 }
+                .padding(.horizontal, AdaptiveLayout.isCompactPhone ? 10 : 16)
             }
         }
         .onAppear{

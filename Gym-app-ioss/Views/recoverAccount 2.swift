@@ -55,21 +55,15 @@ struct recoverAccount: View {
     private var strengthColor: Color {
         [.clear, .red, .orange, .green, .green][min(passwordStrength, 4)]
     }
+    private var cardWidth: CGFloat { AdaptiveLayout.clampedWidth(350, horizontalPadding: 28) }
+    private var contentWidth: CGFloat { AdaptiveLayout.clampedWidth(300, horizontalPadding: 52) }
+    private var logoSize: CGFloat { AdaptiveLayout.scaled(38, compact: 32) }
 
     // MARK: - Body
     var body: some View {
         ZStack {
             // Background — matches LogInWindow exactly
-            LinearGradient(
-                colors: [
-                    Color(red: 0.05, green: 0.05, blue: 0.08),
-                    Color(red: 0.20, green: 0.03, blue: 0.05),
-                    Color(red: 0.55, green: 0.07, blue: 0.09)
-                ],
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
-            .ignoresSafeArea()
+            AppBackgroundView()
 
             Circle()
                 .frame(width: 300)
@@ -84,7 +78,10 @@ struct recoverAccount: View {
                 .offset(x: 150, y: 250)
 
             RoundedRectangle(cornerRadius: 30, style: .continuous)
-                .frame(width: 500, height: 500)
+                .frame(
+                    width: AdaptiveLayout.clampedWidth(500, horizontalPadding: -60),
+                    height: AdaptiveLayout.clampedWidth(500, horizontalPadding: -60)
+                )
                 .foregroundStyle(
                     LinearGradient(colors: [.red, .orange], startPoint: .top, endPoint: .bottom)
                 )
@@ -99,12 +96,12 @@ struct recoverAccount: View {
             // Card
             RoundedRectangle(cornerRadius: 20)
                 .fill(.ultraThinMaterial)
-                .frame(width: 350, height: cardHeight)
+                .frame(width: cardWidth, height: cardHeight)
 
             VStack(spacing: 0) {
                 // Logo
                 Text("Pow AI")
-                    .font(.system(size: 38, weight: .bold, design: .rounded))
+                    .font(.system(size: logoSize, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         LinearGradient(colors: [.orange, .red], startPoint: .topLeading, endPoint: .bottomTrailing)
                     )
@@ -142,7 +139,7 @@ struct recoverAccount: View {
                 ))
                 .animation(.spring(response: 0.38, dampingFraction: 0.82), value: step)
             }
-            .frame(width: 300)
+            .frame(width: contentWidth)
         }
         .navigationBarBackButtonHidden()
         .toolbar {
@@ -166,10 +163,10 @@ struct recoverAccount: View {
     }
     private var cardHeight: CGFloat {
         switch step {
-        case .email:       340
-        case .code:        380
-        case .newPassword: 420
-        case .success:     300
+        case .email:       AdaptiveLayout.scaled(340, compact: 330)
+        case .code:        AdaptiveLayout.scaled(380, compact: 370)
+        case .newPassword: AdaptiveLayout.scaled(420, compact: 408)
+        case .success:     AdaptiveLayout.scaled(300, compact: 290)
         }
     }
 
@@ -272,14 +269,14 @@ struct recoverAccount: View {
                             lineWidth: focusedDigit == i ? 1.5 : 0.5
                         )
                 )
-                .frame(width: 40, height: 48)
+                .frame(width: AdaptiveLayout.scaled(40, compact: 34), height: 48)
 
             TextField("", text: $codeDigits[i])
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.system(size: 20, weight: .semibold, design: .monospaced))
                 .foregroundColor(.white)
-                .frame(width: 40, height: 48)
+                .frame(width: AdaptiveLayout.scaled(40, compact: 34), height: 48)
                 .focused($focusedDigit, equals: i)
                 .onChange(of: codeDigits[i]) { _, newVal in
                     let filtered = newVal.filter { $0.isNumber }
@@ -403,7 +400,7 @@ struct recoverAccount: View {
         .foregroundColor(.white)
         .font(.headline)
         .padding()
-        .frame(width: 300, height: 50)
+        .frame(width: contentWidth, height: 50)
         .background(Color.black.opacity(0.05))
         .cornerRadius(10)
         .overlay(
@@ -426,7 +423,7 @@ struct recoverAccount: View {
                         .font(.headline)
                 }
             }
-            .frame(width: 300, height: 50)
+            .frame(width: contentWidth, height: 50)
             .background(
                 LinearGradient(colors: [.red, .orange], startPoint: .leading, endPoint: .trailing)
             )

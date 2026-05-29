@@ -63,17 +63,38 @@ struct DailyNutritionEntry: Identifiable, Codable {
         sugars   = try c.decode(Double.self, forKey: .sugars)
 
         if let seconds = try? c.decode(Double.self, forKey: .date) {
-            date = Date(timeIntervalSince1970: seconds)
+            date = DailyNutritionEntry.localNoonDate(fromUTCDate: Date(timeIntervalSince1970: seconds))
         } else if let raw = try? c.decode(String.self, forKey: .date) {
             let f = ISO8601DateFormatter()
             f.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-            if let d = f.date(from: raw) { date = d } else {
+            if let d = f.date(from: raw) {
+                date = DailyNutritionEntry.localNoonDate(fromUTCDate: d)
+            } else {
                 f.formatOptions = [.withInternetDateTime]
-                date = f.date(from: raw) ?? Date()
+                date = DailyNutritionEntry.localNoonDate(fromUTCDate: f.date(from: raw) ?? Date())
             }
         } else {
             date = Date()
         }
+    }
+
+    private static func localNoonDate(fromUTCDate date: Date) -> Date {
+        var utcCalendar = Calendar(identifier: .gregorian)
+        utcCalendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let components = utcCalendar.dateComponents([.year, .month, .day], from: date)
+
+        var localCalendar = Calendar.current
+        localCalendar.timeZone = TimeZone.current
+        return localCalendar.date(from: DateComponents(
+            calendar: localCalendar,
+            timeZone: TimeZone.current,
+            year: components.year,
+            month: components.month,
+            day: components.day,
+            hour: 12,
+            minute: 0,
+            second: 0
+        )) ?? date
     }
 }
 
@@ -94,13 +115,24 @@ actor NutritionService {
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.applyBearerToken()
-        let (data, _) = try await URLSession.shared.data(for: request)
+        let (data, response) = try await URLSession.shared.data(for: request)
         if let obj = try? JSONDecoder().decode([String: String].self, from: data),
            let reason = obj["reason"] {
             throw NSError(domain: "NutritionService", code: 0,
                           userInfo: [NSLocalizedDescriptionKey: reason])
         }
+        if let status = (response as? HTTPURLResponse)?.statusCode,
+           !(200..<300).contains(status) {
+            throw NSError(domain: "NutritionService", code: status,
+                          userInfo: [NSLocalizedDescriptionKey: "HTTP \(status)"])
+        }
+
+        let expectedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard !expectedEmail.isEmpty else { return [] }
+
         return try JSONDecoder().decode([DailyNutritionEntry].self, from: data)
+            .filter { $0.email.lowercased() == expectedEmail }
+            .sorted { $0.date < $1.date }
     }
 
     func addEntry(email: String, date: Date, protein: Double,
@@ -364,15 +396,7 @@ struct NutritionTrackerView: View {
     // MARK: Background
 
     private var gymBackground: some View {
-        LinearGradient(
-            colors: [
-                Color(red: 0.06, green: 0.07, blue: 0.10),
-                Color(red: 0.15, green: 0.02, blue: 0.05),
-                Color(red: 0.48, green: 0.08, blue: 0.12)
-            ],
-            startPoint: .topLeading, endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
+        AppBackgroundView()
         .overlay(
             Circle()
                 .fill(Color.white.opacity(0.08))
