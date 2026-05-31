@@ -198,7 +198,7 @@ struct FisrtWindow: View {
             Text(hiitError ?? "Something went wrong generating your HIIT workout.")
         }
         .sheet(isPresented: $showRoutineWindow) {
-            RoutineView {
+            RoutineView(mainUser: mainUser) {
                 showRoutineWindow = false
             }
         }
@@ -251,7 +251,7 @@ struct FisrtWindow: View {
                 "whereWork":     "gym",
                 "level":         level.lowercased(),
                 "numDays":       user.numDays ?? 4,
-                "numHours":      user.numHours ?? "1.5"   // numHours is String on User
+                "numHours":      WorkoutSessionDuration.normalizedHours(from: user.numHours)
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
@@ -275,7 +275,10 @@ struct FisrtWindow: View {
                             name: ex.name,
                             reps: ex.reps,
                             sets: ex.sets,
-                            calories_burned: ex.calories_burned
+                            calories_burned: ex.calories_burned,
+                            descriptionEng: ex.descriptionEng,
+                            descriptionEsp: ex.descriptionEsp,
+                            loggedSets: ex.loggedSets ?? []
                         )
                     }
                 )
@@ -477,7 +480,10 @@ private struct RoutineWorkoutDay: Codable, Identifiable {
                     name: exercise.name,
                     reps: exercise.reps,
                     sets: exercise.sets,
-                    calories_burned: exercise.calories_burned
+                    calories_burned: exercise.calories_burned,
+                    descriptionEng: exercise.descriptionEng,
+                    descriptionEsp: exercise.descriptionEsp,
+                    loggedSets: exercise.loggedSets ?? []
                 )
             }
         )
@@ -490,8 +496,11 @@ private struct RoutineExercise: Codable, Identifiable {
     var reps: String
     var sets: Int
     var calories_burned: Int
+    var descriptionEng: String? = nil
+    var descriptionEsp: String? = nil
     var weight: Double
     var unit: String
+    var loggedSets: [SetEntry]? = nil
 }
 
 @MainActor
@@ -544,7 +553,7 @@ private final class RoutineViewModel: ObservableObject {
         }
     }
 
-    func requestNewRoutine() async {
+    func requestNewRoutine(numHours: String? = nil) async {
         guard !isRequestingNewRoutine else { return }
 
         isRequestingNewRoutine = true
@@ -552,7 +561,11 @@ private final class RoutineViewModel: ObservableObject {
         defer { isRequestingNewRoutine = false }
 
         do {
-            let body = try JSONSerialization.data(withJSONObject: [:])
+            var payload: [String: Any] = [:]
+            if let numHours {
+                payload["numHours"] = WorkoutSessionDuration.normalizedHours(from: numHours)
+            }
+            let body = try JSONSerialization.data(withJSONObject: payload)
             let (data, response) = try await sendRoutineRequest(
                 path: "routine/request-new",
                 method: "POST",
@@ -605,6 +618,7 @@ private final class RoutineViewModel: ObservableObject {
 
 private struct RoutineView: View {
     @Environment(\.dismiss) private var dismiss
+    let mainUser: User?
     let onReturnHome: () -> Void
     @StateObject private var viewModel = RoutineViewModel()
     @State private var showRoutineDetails = false
@@ -727,7 +741,7 @@ private struct RoutineView: View {
                 .padding(.horizontal)
 
             Button {
-                Task { await viewModel.requestNewRoutine() }
+                Task { await requestNewRoutine() }
             } label: {
                 HStack {
                     if viewModel.isRequestingNewRoutine {
@@ -795,7 +809,7 @@ private struct RoutineView: View {
 
             Button {
                 Task {
-                    await viewModel.requestNewRoutine()
+                    await requestNewRoutine()
                     clampCurrentRoutineDay()
                 }
             } label: {
@@ -901,6 +915,12 @@ private struct RoutineView: View {
         let totalDays = viewModel.routineDays.count
         guard totalDays > 0 else { return }
         currentRoutineDay = min(max(currentRoutineDay, 1), totalDays)
+    }
+
+    private func requestNewRoutine() async {
+        await viewModel.requestNewRoutine(
+            numHours: WorkoutSessionDuration.normalizedHours(from: mainUser?.numHours)
+        )
     }
 }
 

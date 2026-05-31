@@ -11,12 +11,13 @@ import SwiftUI
 struct Gym_app_iossApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @StateObject private var healthManager = HealthManager.shared
+    @StateObject private var languageManager = AppLanguageManager.shared
 
     var body: some Scene {
         WindowGroup {
-            LogInWindow().environmentObject(healthManager)
+            LogInWindow()
+                .environmentObject(healthManager)
+                .environment(\.locale, languageManager.locale)
         }
     }
 }
-
-

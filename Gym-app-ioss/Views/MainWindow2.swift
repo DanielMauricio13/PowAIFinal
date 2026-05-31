@@ -10,12 +10,19 @@ import SwiftUI
 struct MainWindow2: View {
     var mainUser: User?
     var userFullWork: fullTraining?
+    var onUserUpdate: (User) -> Void = { _ in }
+    var onWorkoutUpdate: (fullTraining) -> Void = { _ in }
 
     @State private var buttonPressed: Bool = false
 
     var body: some View {
         if buttonPressed {
-            ExcerciseWindow(mainUser: mainUser, userFullWork: userFullWork)
+            ExcerciseWindow(
+                mainUser: mainUser,
+                onUserUpdate: onUserUpdate,
+                onWorkoutUpdate: onWorkoutUpdate,
+                userFullWork: userFullWork
+            )
         } else {
             ZStack {
                 gymBackground
@@ -94,7 +101,7 @@ struct MainWindow2: View {
             buttonPressed = true
         } label: {
             HStack(spacing: 12) {
-                Text("Start Workout")
+                Text("Let's Start!")
                     .font(.headline.weight(.bold))
 
                 Image(systemName: "arrow.right.circle.fill")

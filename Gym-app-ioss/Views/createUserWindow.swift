@@ -218,7 +218,7 @@ private struct ValidationLabel: View {
     let message: String
     init(_ message: String) { self.message = message }
     var body: some View {
-        Text(message)
+        Text(LocalizedStringKey(message))
             .font(.caption).bold()
             .foregroundStyle(Color.red)
             .fontDesign(.rounded)
@@ -268,7 +268,7 @@ private struct PasswordStrengthBar: View {
                 }
             }
             .frame(height: 6)
-            Text(label)
+            Text(LocalizedStringKey(label))
                 .font(.caption2).fontDesign(.rounded)
                 .foregroundStyle(color)
         }

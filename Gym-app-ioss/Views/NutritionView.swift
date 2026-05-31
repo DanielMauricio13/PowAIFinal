@@ -18,7 +18,7 @@ struct NutritionView: View {
     @State var tempFood: Food?
     @State var number: Int = 0
     @State var quantity: String = ""
-    @State var Calories: Int = 0
+    @State var caloriesInput: Int = 0
     @State var Sugar: Int = 0
     @State var Carbs: Int = 0
     @State var Protein: Int = 0
@@ -40,6 +40,7 @@ struct NutritionView: View {
     // ─────────────────────────────────────────────────────────────────────────
 
     var email: String
+    var mainUser: User? = nil
 
     var body: some View {
         if buttonPressed {
@@ -145,33 +146,39 @@ struct NutritionView: View {
                 }
                 .padding(.horizontal)
 
-                if viewModel.items.isEmpty {
-                    ContentUnavailableView(
-                        "Start logging meals",
-                        systemImage: "fork.knife",
-                        description: Text("Tap + to add using Smart, Manual, barcode, or camera.")
-                    )
-                    .foregroundStyle(.white)
-                } else {
-                    ScrollView {
-                        VStack(spacing: 10) {
-                            ForEach(viewModel.items) { item in
-                                ExpandableBoxView(
-                                    item: item,
-                                    persistenceManager: self.persistenceManager,
-                                    email: email,
-                                    onRemove: {
-                                        removeItem(named: item.title)
-                                    }
-                                )
-                                .onTapGesture { viewModel.toggleExpand(for: item) }
-                                .animation(.easeInOut, value: item.isExpanded)
+                Group {
+                    if viewModel.items.isEmpty {
+                        ContentUnavailableView(
+                            "Start logging meals",
+                            systemImage: "fork.knife",
+                            description: Text("Tap + to add using Smart, Manual, barcode, or camera.")
+                        )
+                        .foregroundStyle(.white)
+                    } else {
+                        ScrollView {
+                            VStack(spacing: 10) {
+                                ForEach(viewModel.items) { item in
+                                    ExpandableBoxView(
+                                        item: item,
+                                        persistenceManager: self.persistenceManager,
+                                        email: email,
+                                        onRemove: {
+                                            removeItem(named: item.title)
+                                        }
+                                    )
+                                    .onTapGesture { viewModel.toggleExpand(for: item) }
+                                    .animation(.easeInOut, value: item.isExpanded)
+                                }
                             }
+                            .padding(.horizontal)
                         }
-                        .padding(.horizontal)
                     }
                 }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+
+                compactNutritionGoalsFooter
             }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
             .onAppear {
                 reloadItems()
             }
@@ -184,6 +191,98 @@ struct NutritionView: View {
                 }
             }
         }
+    }
+
+    private var compactNutritionGoalsFooter: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Label("Daily goals", systemImage: "flame.fill")
+                    .font(.subheadline.weight(.heavy))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+
+                Spacer()
+
+                NavigationLink {
+                    NutritionTrackerView(
+                        email: mainUser?.email ?? "",
+                        user: mainUser ?? User(id: nil, firstName: "", lastName: "", membershipStatus: "trial")
+                    )
+                } label: {
+                    Label("Tracker", systemImage: "chart.line.uptrend.xyaxis")
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(
+                            LinearGradient(colors: [.red, .orange],
+                                           startPoint: .leading, endPoint: .trailing),
+                            in: Capsule()
+                        )
+                }
+            }
+
+            GeometryReader { proxy in
+                let spacing = proxy.size.width < 330 ? CGFloat(6) : CGFloat(10)
+                let ringWidth = max(CGFloat(58), (proxy.size.width - (spacing * 3)) / 4)
+                let ringDiameter = min(CGFloat(62), max(CGFloat(44), ringWidth - 16))
+
+                HStack(spacing: spacing) {
+                    CompactNutritionGoalRing(
+                        title: "Calories",
+                        value: HealthManager.shared.calories,
+                        goal: mainUser?.DailyCalories ?? 1,
+                        emoji: "🔥",
+                        color: .red,
+                        diameter: ringDiameter,
+                        width: ringWidth
+                    )
+
+                    CompactNutritionGoalRing(
+                        title: "Protein",
+                        value: HealthManager.shared.protein,
+                        goal: mainUser?.DailyProtein ?? 1,
+                        emoji: "🍗",
+                        color: .orange,
+                        diameter: ringDiameter,
+                        width: ringWidth
+                    )
+
+                    CompactNutritionGoalRing(
+                        title: "Carbs",
+                        value: HealthManager.shared.carbs,
+                        goal: mainUser?.carbs ?? 1,
+                        emoji: "🥐",
+                        color: .yellow,
+                        diameter: ringDiameter,
+                        width: ringWidth
+                    )
+
+                    CompactNutritionGoalRing(
+                        title: "Sugar",
+                        value: HealthManager.shared.sugars,
+                        goal: mainUser?.sugars ?? 1,
+                        emoji: "🍭",
+                        color: .pink,
+                        diameter: ringDiameter,
+                        width: ringWidth
+                    )
+                }
+                .frame(width: proxy.size.width, height: proxy.size.height, alignment: .center)
+            }
+            .frame(height: AdaptiveLayout.scaled(122, compact: 106))
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Color.black.opacity(0.26))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .padding(.horizontal)
+        .padding(.bottom, 4)
     }
 
     // MARK: - Favorites Shelf ─────────────────────────────────────────────────
@@ -339,7 +438,7 @@ struct NutritionView: View {
             TextField("Food name", text: $newItemName)
                 .textFieldStyle(.roundedBorder)
             HStack {
-                macroField("Calories", value: $Calories)
+                macroField("Calories", value: $caloriesInput)
                 macroField("Sugar", value: $Sugar)
             }
             HStack {
@@ -379,7 +478,7 @@ struct NutritionView: View {
 
             Button {
                 if entryMode == .manual {
-                    tempFood = Food(Name: newItemName, Calories: Calories, Sugars: Sugar, Carbohydrates: Carbs, Protein: Protein)
+                    tempFood = Food(Name: newItemName, Calories: caloriesInput, Sugars: Sugar, Carbohydrates: Carbs, Protein: Protein)
                     addItem()
                     HealthManager.shared.calories += tempFood?.Calories ?? 0
                     HealthManager.shared.sugars   += tempFood?.Sugars ?? 0
@@ -401,7 +500,7 @@ struct NutritionView: View {
 
     private func resetForm() {
         newItemName = ""; number = 0; quantity = ""
-        Calories = 0; Sugar = 0; Carbs = 0; Protein = 0
+        caloriesInput = 0; Sugar = 0; Carbs = 0; Protein = 0
     }
 
     private func addItem() {
@@ -590,6 +689,85 @@ struct NutritionView: View {
             )
             .cornerRadius(12)
         }
+    }
+}
+
+private struct CompactNutritionGoalRing: View {
+    let title: String
+    let value: Int
+    let goal: Int
+    let emoji: String
+    let color: Color
+    let diameter: CGFloat
+    let width: CGFloat
+
+    private var strokeWidth: CGFloat {
+        max(6, min(8, diameter * 0.13))
+    }
+
+    private var ringFrame: CGFloat {
+        diameter + strokeWidth + 4
+    }
+
+    private var percentFontSize: CGFloat {
+        max(10, min(13, diameter * 0.21))
+    }
+
+    private var titleFontSize: CGFloat {
+        max(9, min(11, width * 0.14))
+    }
+
+    private var valueFontSize: CGFloat {
+        max(8, min(10, width * 0.13))
+    }
+
+    private var progressFraction: CGFloat {
+        guard goal > 0 else { return 0 }
+        return min(CGFloat(value) / CGFloat(goal), 1)
+    }
+
+    private var progressPercent: Int {
+        guard goal > 0 else { return 0 }
+        return min(value * 100 / goal, 100)
+    }
+
+    var body: some View {
+        VStack(spacing: 4) {
+            ZStack {
+                Circle()
+                    .stroke(Color.white.opacity(0.14), lineWidth: strokeWidth)
+                    .frame(width: diameter, height: diameter)
+
+                Circle()
+                    .trim(from: 0, to: progressFraction)
+                    .stroke(
+                        color,
+                        style: StrokeStyle(lineWidth: strokeWidth, lineCap: .round, lineJoin: .round)
+                    )
+                    .frame(width: diameter, height: diameter)
+                    .rotationEffect(.degrees(-90))
+
+                Text("\(progressPercent)%")
+                    .font(.system(size: percentFontSize, weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
+            }
+            .frame(width: ringFrame, height: ringFrame)
+
+            Text("\(title) \(emoji)")
+                .font(.system(size: titleFontSize, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            Text("\(value)/\(goal)")
+                .font(.system(size: valueFontSize, weight: .semibold, design: .rounded))
+                .foregroundStyle(.white.opacity(0.72))
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(width: width)
     }
 }
 
@@ -1104,17 +1282,28 @@ private struct AddMealsIngredientsSheet: View {
                         .font(.headline)
                         .foregroundStyle(.white)
 
-                    TextEditor(text: $ingredientsText)
-                        .frame(minHeight: 150)
-                        .scrollContentBackground(.hidden)
-                        .padding(10)
-                        .background(Color.white.opacity(0.12))
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color.white.opacity(0.16), lineWidth: 1)
-                        )
-                        .cornerRadius(12)
-                        .foregroundStyle(.white)
+                    ZStack(alignment: .topLeading) {
+                        TextEditor(text: $ingredientsText)
+                            .frame(minHeight: 150)
+                            .scrollContentBackground(.hidden)
+                            .padding(10)
+                            .background(Color.white.opacity(0.12))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                            )
+                            .cornerRadius(12)
+                            .foregroundStyle(.white)
+
+                        if ingredientsText.isEmpty {
+                            Text("2 Chicken breast, rice,3 potatoes, broccoli...")
+                                .font(.body)
+                                .foregroundStyle(.white.opacity(0.45))
+                                .padding(.horizontal, 16)
+                                .padding(.vertical, 18)
+                                .allowsHitTesting(false)
+                        }
+                    }
 
                     Text("Separate ingredients with commas or new lines.")
                         .font(.footnote)

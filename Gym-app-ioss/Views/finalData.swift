@@ -307,7 +307,7 @@ struct finalData: View {
             "whereWork":     whereWork,
             "level":         level,
             "numDays":       numDays,
-            "numHours":      numHours
+            "numHours":      WorkoutSessionDuration.normalizedHours(from: numHours)
         ]
 
         request.httpBody = try JSONSerialization.data(withJSONObject: body)

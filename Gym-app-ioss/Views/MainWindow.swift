@@ -45,7 +45,16 @@ struct MainWindow: View {
 //                        }
 //                    }
                     if userFound {
-                        MainWindow2(mainUser: mainUser, userFullWork: self.userFullWork)
+                        MainWindow2(
+                            mainUser: mainUser,
+                            userFullWork: self.userFullWork,
+                            onUserUpdate: { updatedUser in
+                                mainUser = updatedUser
+                            },
+                            onWorkoutUpdate: { updatedWorkout in
+                                userFullWork = updatedWorkout
+                            }
+                        )
                     }else{
                         
                         LogInWindow()

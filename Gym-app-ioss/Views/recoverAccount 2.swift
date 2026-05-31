@@ -39,8 +39,15 @@ struct recoverAccount: View {
     @State private var passwordError = ""
     @State private var isResetting = false
 
+    init(initialEmail: String = "") {
+        _email = State(initialValue: initialEmail.trimmingCharacters(in: .whitespacesAndNewlines))
+    }
+
     // MARK: - Computed
     private var enteredCode: String { codeDigits.joined() }
+    private var recoveryEmail: String {
+        email.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+    }
     private var passwordStrength: Int {
         var s = 0
         if newPassword.count >= 8 { s += 1 }
@@ -208,7 +215,7 @@ struct recoverAccount: View {
                 Text("Check your inbox")
                     .font(.title3.weight(.semibold))
                     .foregroundColor(.white)
-                Text("Sent to \(email)")
+                Text("Sent to \(recoveryEmail)")
                     .font(.footnote)
                     .foregroundColor(.orange.opacity(0.85))
             }
@@ -447,11 +454,12 @@ struct recoverAccount: View {
     // MARK: - API calls
     private func handleSendCode() async {
         emailError = ""
-        let trimmed = email.trimmingCharacters(in: .whitespaces)
-        guard trimmed.contains("@"), trimmed.contains(".") else {
+        let normalizedEmail = recoveryEmail
+        guard normalizedEmail.contains("@"), normalizedEmail.contains(".") else {
             emailError = "Please enter a valid email address."
             return
         }
+        email = normalizedEmail
         isSending = true
         defer { isSending = false }
 
@@ -459,7 +467,7 @@ struct recoverAccount: View {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": trimmed])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": normalizedEmail])
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -494,7 +502,7 @@ struct recoverAccount: View {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": email, "code": enteredCode])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: ["email": recoveryEmail, "code": enteredCode])
 
         do {
             let (_, response) = try await URLSession.shared.data(for: request)
@@ -542,7 +550,7 @@ struct recoverAccount: View {
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.httpBody = try? JSONSerialization.data(withJSONObject: [
-            "email": email,
+            "email": recoveryEmail,
             "code": enteredCode,
             "newPassword": newPassword
         ])

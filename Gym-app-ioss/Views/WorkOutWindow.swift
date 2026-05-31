@@ -19,6 +19,7 @@ struct WorkOutWindow: View {
     @State private var isRequestingAlternate = false
     @State private var showAlternateError = false
     @State private var alternateErrorMessage = ""
+    var isHIITWorkout = false
 
     private var columns: [GridItem] {
         [
@@ -27,18 +28,29 @@ struct WorkOutWindow: View {
     }
 
     private var titleSize: CGFloat { AdaptiveLayout.scaled(35, compact: 27) }
+    private var muscleGroupTitle: String {
+        localizedFormat("Today is %@", localizedWorkoutText(todaysWork?.muscle_group ?? "Failed to pull"))
+    }
+
+    private var alternatePromptMessage: String {
+        localizedFormat(
+            "Ask Gemini for a different routine for %@.",
+            localizedWorkoutText(todaysWork?.muscle_group ?? "this muscle group")
+        )
+    }
+
     var body: some View {
         ZStack{
 
           
             if begginButton {
-                StaringWorkWindow(todaysWork: todaysWork,exToday: $exToday ,cals: cals)
+                StaringWorkWindow(todaysWork: todaysWork, exToday: $exToday, cals: cals, isHIITWorkout: isHIITWorkout)
             }else{
                 
                 VStack(spacing: AdaptiveLayout.scaled(8, compact: 6)) {
                     
                     HStack(alignment: .center) {
-                        Text("Today is \(todaysWork?.muscle_group ?? "Failed to pull")")
+                        Text(muscleGroupTitle)
                             .font(.system(size: titleSize, weight: .bold,design: .rounded))
                             .lineLimit(2)
                             .minimumScaleFactor(0.75)
@@ -58,9 +70,10 @@ struct WorkOutWindow: View {
                     
                     
                     HStack(alignment:.bottom ) {
-                        Text("\n  Your excersises today are:").font(.title2).fontDesign(.rounded).bold().foregroundStyle(LinearGradient(colors: [Color.red.opacity(0.7),Color.purple.opacity(0.7), Color.white.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing))
+                        Text("Your exercises today are:").font(.title2).fontDesign(.rounded).bold().foregroundStyle(LinearGradient(colors: [Color.red.opacity(0.7),Color.purple.opacity(0.7), Color.white.opacity(0.7)],startPoint: .topLeading,endPoint: .bottomTrailing))
                             .lineLimit(2)
                             .minimumScaleFactor(0.8)
+                            .padding(.top, 12)
                         Spacer(minLength: 12)
                     }
                     ScrollView {
@@ -69,11 +82,11 @@ struct WorkOutWindow: View {
                                         ForEach(exercises.indices, id: \.self) { i in
                                             let exercise = exercises[i]
                                             VStack(alignment: .leading, spacing: 8) {
-                                                Text(exercise.name)
+                                                Text(localizedWorkoutText(exercise.name))
                                                     .font(.headline)
-                                                Text("\(exercise.reps) reps x \(exercise.sets) sets")
+                                                Text(localizedFormat("%@ reps x %d sets", exercise.reps, exercise.sets))
                                                     .font(.subheadline)
-                                                Text("~ \(exercise.calories_burned) cal")
+                                                Text(localizedFormat("~ %d cal", exercise.calories_burned))
                                                     .font(.caption)
                                                     .foregroundColor(.gray)
                                             }
@@ -90,7 +103,7 @@ struct WorkOutWindow: View {
                                         .padding()
                                 }
                             }
-                    Text("Burn approx \(cals) calories 🔥 in this workout!")
+                    Text(localizedFormat("Burn approx %d calories 🔥 in this workout!", cals))
                         .font(.title3)
                         .bold()
                         .foregroundStyle(Color.orange)
@@ -144,7 +157,7 @@ struct WorkOutWindow: View {
                 Task { await requestAlternateWorkout() }
             }
         } message: {
-            Text("Ask Gemini for a different routine for \(todaysWork?.muscle_group ?? "this muscle group").")
+            Text(alternatePromptMessage)
         }
         .alert("Couldn’t update workout", isPresented: $showAlternateError) {
             Button("OK", role: .cancel) { }
@@ -165,12 +178,12 @@ struct WorkOutWindow: View {
     
     func requestAlternateWorkout() async {
         guard let todaysWork else {
-            alternateErrorMessage = "Missing today's workout details."
+            alternateErrorMessage = localizedText("Missing today's workout details.")
             showAlternateError = true
             return
         }
         guard !todaysWork.exercises.isEmpty else {
-            alternateErrorMessage = "There are no exercises to base a new routine on."
+            alternateErrorMessage = localizedText("There are no exercises to base a new routine on.")
             showAlternateError = true
             return
         }
@@ -189,13 +202,15 @@ struct WorkOutWindow: View {
             // Build existing exercises list for backend
             let existingExercises = todaysWork.exercises.map { ex -> [String: Any] in
                 ["name": ex.name, "reps": ex.reps,
-                 "sets": ex.sets, "calories_burned": ex.calories_burned]
+                 "sets": ex.sets, "calories_burned": ex.calories_burned,
+                 "descriptionEng": ex.descriptionEng ?? "",
+                 "descriptionEsp": ex.descriptionEsp ?? ""]
             }
 
             let body: [String: Any] = [
                 "day":               todaysWork.day,
                 "muscleGroup":       todaysWork.muscle_group,
-                "numHours":          mainUser?.numHours ?? "1-2",
+                "numHours":          WorkoutSessionDuration.normalizedHours(from: mainUser?.numHours),
                 "existingExercises": existingExercises
             ]
             request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -208,9 +223,22 @@ struct WorkOutWindow: View {
                 recalculateSummary()
             }
         } catch {
-            alternateErrorMessage = "Error: \(error.localizedDescription)"
+            alternateErrorMessage = localizedFormat("Error: %@", error.localizedDescription)
             showAlternateError = true
         }
+    }
+
+    private func localizedText(_ key: String) -> String {
+        AppLanguageManager.shared.localizedString(forKey: key)
+    }
+
+    private func localizedWorkoutText(_ key: String) -> String {
+        AppLanguageManager.shared.localizedString(forKey: key)
+    }
+
+    private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
+        let format = AppLanguageManager.shared.localizedString(forKey: key)
+        return String(format: format, locale: AppLanguageManager.shared.locale, arguments: arguments)
     }
 }
 

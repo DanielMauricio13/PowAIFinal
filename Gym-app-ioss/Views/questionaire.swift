@@ -105,7 +105,9 @@ struct questionaire: View {
             email: email,
             password: password,
             numDays: selectedNumDays,
-            numHours: selectedOption(at: 4, fallback: "1 – 1:30 hrs"),
+            numHours: WorkoutSessionDuration.normalizedHours(
+                from: selectedOption(at: 4, fallback: "1 – 1:30 hrs")
+            ),
             whereWork: selectedOption(at: 5, fallback: "Gym"),
             level: selectedOption(at: 6, fallback: "Intermediate")
         )
@@ -214,10 +216,10 @@ struct questionaire: View {
                             Text(item.emoji)
                                 .font(.system(size: 20))
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(item.name)
+                                Text(LocalizedStringKey(item.name))
                                     .font(.system(size: 13, weight: .bold, design: .rounded))
                                     .foregroundColor(.white)
-                                Text(item.desc)
+                                Text(LocalizedStringKey(item.desc))
                                     .font(.system(size: 12, weight: .regular, design: .rounded))
                                     .foregroundColor(.white.opacity(0.7))
                                     .fixedSize(horizontal: false, vertical: true)
@@ -239,7 +241,7 @@ struct questionaire: View {
             }
 
             // Question text
-            Text(questions[currentQuestionIndex].text)
+            Text(LocalizedStringKey(questions[currentQuestionIndex].text))
                 .font(.system(size: 22, weight: .bold, design: .rounded))
                 .foregroundColor(.white)
                 .multilineTextAlignment(.center)
@@ -296,7 +298,7 @@ struct questionaire: View {
         } label: {
             if compact {
                 // Number pill for day-picker
-                Text(option)
+                Text(LocalizedStringKey(option))
                     .font(.system(size: 18, weight: .bold, design: .rounded))
                     .foregroundColor(.white)
                     .frame(maxWidth: .infinity)
@@ -312,7 +314,7 @@ struct questionaire: View {
             } else {
                 // Full-width card row
                 HStack {
-                    Text(option)
+                    Text(LocalizedStringKey(option))
                         .font(.system(size: 16, weight: .semibold, design: .rounded))
                         .foregroundColor(.white)
                     Spacer()

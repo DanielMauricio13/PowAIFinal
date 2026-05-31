@@ -8,6 +8,8 @@ import RiveRuntime
 
 struct ExcerciseWindow: View {
     var mainUser: User?
+    var onUserUpdate: (User) -> Void = { _ in }
+    var onWorkoutUpdate: (fullTraining) -> Void = { _ in }
     @State var whichWin: Int = 0
     @State var caloriesToday: Int = 0
     var userFullWork: fullTraining?
@@ -54,7 +56,8 @@ struct ExcerciseWindow: View {
                             WorkOutWindow(
                                 mainUser: mainUser,
                                 userFullWork: activeWorkout,
-                                exToday: $exToday
+                                exToday: $exToday,
+                                isHIITWorkout: isHIITActive
                             )
                         } else if whichWin == 0 {
                             FisrtWindow(
@@ -70,10 +73,9 @@ struct ExcerciseWindow: View {
                                 viewModel: ListViewModel(items: []),
                                 viewModel2: ListViewModel(items: []),
                                 persistenceManager: $persistenceManager,
-                                email: mainUser?.email ?? ""
+                                email: mainUser?.email ?? "",
+                                mainUser: mainUser
                             )
-                        } else if whichWin == 2 {
-                            Calories(mainUser: mainUser)
                         } else if whichWin == 3 {
                             // ── Weight Progress tab ───────────────────────────
                             WeightTrackerView(email: mainUser?.email ?? "")
@@ -82,7 +84,9 @@ struct ExcerciseWindow: View {
                                 UserSettings(
                                     persistenceManager: $persistenceManager,
                                     LogOut: $LogOut,
-                                    mainUser: mainUser
+                                    mainUser: mainUser,
+                                    onUserUpdate: onUserUpdate,
+                                    onWorkoutUpdate: onWorkoutUpdate
                                 )
                             } else {
                                 Text("User data unavailable. Please sign in again.")
@@ -99,8 +103,6 @@ struct ExcerciseWindow: View {
                             tabButton(icon: "house",                     tab: 0, activeColor: .cyan)
                             Spacer()
                             tabButton(icon: "leaf",                      tab: 1, activeColor: .green)
-                            Spacer()
-                            tabButton(icon: "flame",                     tab: 2, activeColor: .orange)
                             Spacer()
                             tabButton(icon: "chart.line.uptrend.xyaxis", tab: 3, activeColor: .green)
                             Spacer()
@@ -125,11 +127,14 @@ struct ExcerciseWindow: View {
 
     // ── Pick the right workout for WorkOutWindow ──────────────────────────────
     private var activeWorkout: fullTraining? {
-        if let hiit = hiitWork,
-           hiit.userExcersises.workout_plan.contains(where: { $0.muscle_group == exToday }) {
+        if isHIITActive, let hiit = hiitWork {
             return hiit
         }
         return userFullWork
+    }
+
+    private var isHIITActive: Bool {
+        hiitWork?.userExcersises.workout_plan.contains(where: { $0.muscle_group == exToday }) == true
     }
 
     // ── Tab button helper ─────────────────────────────────────────────────────

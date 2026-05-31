@@ -170,7 +170,10 @@ struct UserSettings: View {
     @State var wantsDelete: Bool = false
     @State private var showUpdateProfile: Bool = false
     @State private var showAppAppearance: Bool = false
+    @State private var showLanguageSettings: Bool = false
     var mainUser: User
+    var onUserUpdate: (User) -> Void = { _ in }
+    var onWorkoutUpdate: (fullTraining) -> Void = { _ in }
     @State var userID: UUID = UUID()
 
     var body: some View {
@@ -193,10 +196,18 @@ struct UserSettings: View {
             userID = mainUser.id ?? UUID()
         }
         .sheet(isPresented: $showUpdateProfile) {
-            UpdateProfileMenuView(mainUser: mainUser, isPresented: $showUpdateProfile)
+            UpdateProfileMenuView(
+                mainUser: mainUser,
+                isPresented: $showUpdateProfile,
+                onUserUpdate: onUserUpdate,
+                onWorkoutUpdate: onWorkoutUpdate
+            )
         }
         .sheet(isPresented: $showAppAppearance) {
             AppAppearanceSettingsView(isPresented: $showAppAppearance)
+        }
+        .sheet(isPresented: $showLanguageSettings) {
+            LanguageSettingsView(isPresented: $showLanguageSettings)
         }
     }
 
@@ -248,6 +259,18 @@ struct UserSettings: View {
                 )
             ) {
                 showAppAppearance = true
+            }
+
+            actionButton(
+                title: "Language",
+                systemImage: "globe",
+                background: LinearGradient(
+                    colors: [Color.green.opacity(0.9), Color.cyan.opacity(0.8)],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            ) {
+                showLanguageSettings = true
             }
 
             actionButton(
@@ -344,7 +367,7 @@ struct UserSettings: View {
             HStack(spacing: 10) {
                 Image(systemName: systemImage)
                     .font(.headline)
-                Text(title)
+                Text(LocalizedStringKey(title))
                     .font(.headline.bold())
             }
             .foregroundStyle(Color.white)
@@ -415,7 +438,7 @@ struct AppAppearanceSettingsView: View {
 
                         Picker("Background", selection: $selectedMode) {
                             ForEach(AppBackgroundMode.allCases) { mode in
-                                Text(mode.rawValue).tag(mode)
+                                Text(LocalizedStringKey(mode.rawValue)).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
@@ -504,7 +527,7 @@ struct AppAppearanceSettingsView: View {
                         Text("PowAI")
                             .font(.title.bold())
                             .foregroundStyle(.white)
-                        Text(selectedMode.rawValue)
+                        Text(LocalizedStringKey(selectedMode.rawValue))
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.white.opacity(0.75))
                     }
@@ -541,5 +564,92 @@ struct AppAppearanceSettingsView: View {
         selectedMode = appearance.mode
         primaryColor = appearance.primaryColor.color
         secondaryColor = appearance.secondaryColor.color
+    }
+}
+
+struct LanguageSettingsView: View {
+    @Binding var isPresented: Bool
+    @ObservedObject private var languageManager = AppLanguageManager.shared
+    @State private var selectedLanguage: AppLanguage = AppLanguageManager.shared.selectedLanguage
+
+    var body: some View {
+        ZStack {
+            AppBackgroundView()
+
+            VStack(spacing: 24) {
+                VStack(spacing: 6) {
+                    Image(systemName: "globe")
+                        .font(.system(size: 44))
+                        .foregroundStyle(Color.green)
+                    Text("Language")
+                        .font(.largeTitle.bold())
+                        .fontDesign(.rounded)
+                        .foregroundStyle(.white)
+                    Text("Choose the language for the app")
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .multilineTextAlignment(.center)
+                }
+                .padding(.top, 30)
+
+                VStack(spacing: 12) {
+                    ForEach(AppLanguage.allCases) { language in
+                        Button {
+                            selectedLanguage = language
+                        } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: selectedLanguage == language ? "checkmark.circle.fill" : "circle")
+                                    .foregroundStyle(selectedLanguage == language ? Color.green : Color.white.opacity(0.45))
+                                Text(language.titleKey)
+                                    .font(.headline.weight(.semibold))
+                                    .foregroundStyle(.white)
+                                Spacer()
+                            }
+                            .padding(16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(Color.white.opacity(selectedLanguage == language ? 0.12 : 0.07))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(selectedLanguage == language ? Color.green.opacity(0.55) : Color.white.opacity(0.12), lineWidth: 1)
+                                    )
+                            )
+                        }
+                    }
+                }
+
+                Spacer()
+
+                Button {
+                    languageManager.apply(selectedLanguage)
+                    isPresented = false
+                } label: {
+                    Label("Save Language", systemImage: "checkmark.circle.fill")
+                        .font(.headline.bold())
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(
+                            LinearGradient(colors: [Color.green, Color.cyan],
+                                           startPoint: .topLeading,
+                                           endPoint: .bottomTrailing)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                }
+
+                Button { isPresented = false } label: {
+                    Text("Cancel")
+                        .font(.headline)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 48)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 34)
+        }
+        .onAppear {
+            selectedLanguage = languageManager.selectedLanguage
+        }
     }
 }

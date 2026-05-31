@@ -70,10 +70,18 @@ struct LogInWindow: View {
                         TextField("Email", text: $username).padding().frame(width: fieldWidth, height: 50).background(Color.black.opacity(0.05)).cornerRadius(10).border(.red, width: CGFloat(wrongUsername)).foregroundColor(.white).font(.headline)
                         SecureField("Password", text: $password).foregroundStyle(Color.white).padding().frame(width: fieldWidth, height: 50).background(Color.black.opacity(0.05)).cornerRadius(10).border(.red, width: CGFloat(wrongPassword)).accentColor(.white).foregroundColor(.white).font(.headline)
                         if wrongUsername == 1 {
-                            NavigationLink(destination: recoverAccount()) {
-                                Text("Wrong email or password! Recover?").underline().foregroundColor(.red)
-                            }.padding(.top)
+                            Text("Wrong email or password!")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundColor(.red)
+                                .padding(.top, 4)
                         }
+                        NavigationLink(destination: recoverAccount(initialEmail: username)) {
+                            Text("Forgot password?")
+                                .font(.footnote.weight(.semibold))
+                                .underline()
+                                .foregroundColor(.white.opacity(0.82))
+                        }
+                        .padding(.top, wrongUsername == 1 ? 2 : 8)
                         Button {
                             self.username = username.uppercased()
                             authenticateUser(username, password)

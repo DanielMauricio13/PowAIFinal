@@ -15,11 +15,13 @@ import SwiftUI
 struct UpdateProfileMenuView: View {
     var mainUser: User
     @Binding var isPresented: Bool
+    var onUserUpdate: (User) -> Void = { _ in }
+    var onWorkoutUpdate: (fullTraining) -> Void = { _ in }
 
     @State private var destination: UpdateDestination? = nil
 
     enum UpdateDestination: Identifiable {
-        case email, fullProfile
+        case email, fullProfile, macros
         var id: Self { self }
     }
 
@@ -57,6 +59,13 @@ struct UpdateProfileMenuView: View {
                         subtitle: "Edit your personal info & fitness goals",
                         accent: Color(red: 1, green: 0.45, blue: 0.1)
                     ) { destination = .fullProfile }
+
+                    menuCard(
+                        icon: "chart.pie.fill",
+                        title: "Change Macros",
+                        subtitle: "Update calories, protein, carbs, and sugar goals",
+                        accent: Color.green
+                    ) { destination = .macros }
                 }
 
                 Spacer()
@@ -84,10 +93,24 @@ struct UpdateProfileMenuView: View {
                     set: { if !$0 { destination = nil; isPresented = false } }
                 ))
             case .fullProfile:
-                UpdateFullProfileView(mainUser: mainUser, isPresented: Binding(
-                    get: { destination != nil },
-                    set: { if !$0 { destination = nil; isPresented = false } }
-                ))
+                UpdateFullProfileView(
+                    mainUser: mainUser,
+                    isPresented: Binding(
+                        get: { destination != nil },
+                        set: { if !$0 { destination = nil; isPresented = false } }
+                    ),
+                    onUserUpdate: onUserUpdate,
+                    onWorkoutUpdate: onWorkoutUpdate
+                )
+            case .macros:
+                UpdateMacrosView(
+                    mainUser: mainUser,
+                    isPresented: Binding(
+                        get: { destination != nil },
+                        set: { if !$0 { destination = nil; isPresented = false } }
+                    ),
+                    onUserUpdate: onUserUpdate
+                )
             }
         }
     }
@@ -105,10 +128,10 @@ struct UpdateProfileMenuView: View {
                         .foregroundStyle(accent)
                 }
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(title)
+                    Text(LocalizedStringKey(title))
                         .font(.headline.bold())
                         .foregroundStyle(.white)
-                    Text(subtitle)
+                    Text(LocalizedStringKey(subtitle))
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.55))
                 }
@@ -318,6 +341,291 @@ struct UpdateEmailView: View {
     }
 }
 
+// MARK: - Update Macros
+
+struct UpdateMacrosView: View {
+    var mainUser: User
+    @Binding var isPresented: Bool
+    var onUserUpdate: (User) -> Void
+
+    @State private var dailyCalories: String
+    @State private var dailyProtein: String
+    @State private var dailyCarbs: String
+    @State private var dailySugars: String
+    @State private var isLoading = false
+    @State private var showSuccess = false
+    @State private var errorMessage: String? = nil
+
+    private var caloriesValue: Int? { Int(dailyCalories.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    private var proteinValue: Int? { Int(dailyProtein.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    private var carbsValue: Int? { Int(dailyCarbs.trimmingCharacters(in: .whitespacesAndNewlines)) }
+    private var sugarsValue: Int? { Int(dailySugars.trimmingCharacters(in: .whitespacesAndNewlines)) }
+
+    private var canSave: Bool {
+        guard let caloriesValue, let proteinValue, let carbsValue, let sugarsValue else {
+            return false
+        }
+        return caloriesValue > 0 && proteinValue > 0 && carbsValue > 0 && sugarsValue >= 0
+    }
+
+    init(mainUser: User, isPresented: Binding<Bool>, onUserUpdate: @escaping (User) -> Void) {
+        self.mainUser = mainUser
+        self._isPresented = isPresented
+        self.onUserUpdate = onUserUpdate
+        _dailyCalories = State(initialValue: "\(mainUser.DailyCalories ?? 0)")
+        _dailyProtein = State(initialValue: "\(mainUser.DailyProtein ?? 0)")
+        _dailyCarbs = State(initialValue: "\(mainUser.carbs ?? 0)")
+        _dailySugars = State(initialValue: "\(mainUser.sugars ?? 0)")
+    }
+
+    var body: some View {
+        ZStack {
+            gymBg
+            ScrollView {
+                VStack(spacing: 24) {
+                    VStack(spacing: 8) {
+                        Image(systemName: "chart.pie.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(Color.green)
+                        Text("Change Macros")
+                            .font(.largeTitle.bold())
+                            .fontDesign(.rounded)
+                            .foregroundStyle(.white)
+                        Text("Set your daily nutrition goals")
+                            .font(.subheadline)
+                            .foregroundStyle(.white.opacity(0.6))
+                    }
+                    .padding(.top, 30)
+
+                    LazyVGrid(columns: [
+                        GridItem(.flexible(), spacing: 12),
+                        GridItem(.flexible(), spacing: 12)
+                    ], spacing: 12) {
+                        macroNumberField(
+                            label: "Calories",
+                            icon: "flame.fill",
+                            text: $dailyCalories,
+                            unit: "kcal",
+                            accent: .red
+                        )
+                        macroNumberField(
+                            label: "Protein",
+                            icon: "fork.knife",
+                            text: $dailyProtein,
+                            unit: "g",
+                            accent: .orange
+                        )
+                        macroNumberField(
+                            label: "Carbs",
+                            icon: "leaf.fill",
+                            text: $dailyCarbs,
+                            unit: "g",
+                            accent: .yellow
+                        )
+                        macroNumberField(
+                            label: "Sugars",
+                            icon: "circle.hexagongrid.fill",
+                            text: $dailySugars,
+                            unit: "g",
+                            accent: .pink
+                        )
+                    }
+
+                    if let err = errorMessage {
+                        HStack(spacing: 8) {
+                            Image(systemName: "exclamationmark.circle.fill")
+                                .foregroundStyle(Color.red)
+                            Text(err)
+                                .font(.footnote)
+                                .foregroundStyle(Color.red.opacity(0.9))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    if showSuccess {
+                        HStack(spacing: 8) {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundStyle(Color.green)
+                            Text("Macros updated successfully.")
+                                .font(.footnote)
+                                .foregroundStyle(Color.green.opacity(0.9))
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+
+                    Button {
+                        Task { await submitMacroUpdate() }
+                    } label: {
+                        HStack(spacing: 10) {
+                            if isLoading {
+                                ProgressView().tint(.white)
+                            } else {
+                                Image(systemName: "checkmark.circle.fill")
+                                Text("Save Macros")
+                                    .font(.headline.bold())
+                            }
+                        }
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 54)
+                        .background(
+                            LinearGradient(colors: [Color.green, Color.orange],
+                                           startPoint: .topLeading,
+                                           endPoint: .bottomTrailing)
+                        )
+                        .clipShape(RoundedRectangle(cornerRadius: 14))
+                        .shadow(color: Color.green.opacity(0.35), radius: 10, x: 0, y: 6)
+                        .opacity(canSave && !isLoading ? 1 : 0.5)
+                    }
+                    .disabled(!canSave || isLoading)
+
+                    Button { isPresented = false } label: {
+                        Text("Cancel")
+                            .font(.headline)
+                            .foregroundStyle(.white.opacity(0.5))
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 48)
+                            .background(Color.white.opacity(0.05))
+                            .clipShape(RoundedRectangle(cornerRadius: 14))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 40)
+            }
+        }
+    }
+
+    private func macroNumberField(
+        label: String,
+        icon: String,
+        text: Binding<String>,
+        unit: String,
+        accent: Color
+    ) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Label(label, systemImage: icon)
+                .font(.caption.bold())
+                .foregroundStyle(accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                TextField("0", text: text)
+                    .keyboardType(.numberPad)
+                    .font(.system(size: AdaptiveLayout.scaled(28, compact: 23), weight: .heavy, design: .rounded))
+                    .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.65)
+
+                Text(unit)
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.white.opacity(0.55))
+            }
+            .padding(14)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.white.opacity(0.07))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(accent.opacity(0.28), lineWidth: 1)
+                    )
+            )
+        }
+    }
+
+    private func submitMacroUpdate() async {
+        errorMessage = nil
+        showSuccess = false
+
+        guard let caloriesValue, let proteinValue, let carbsValue, let sugarsValue else {
+            errorMessage = "Please enter valid whole numbers."
+            return
+        }
+
+        guard canSave else {
+            errorMessage = "Calories, protein, and carbs must be greater than zero."
+            return
+        }
+
+        guard let url = URL(string: "\(Constants.baseURL)users/profile") else {
+            errorMessage = "Could not build request URL."
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            var request = URLRequest(url: url)
+            request.httpMethod = "PUT"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.applyBearerToken()
+            request.httpBody = try JSONSerialization.data(withJSONObject: buildPayload(
+                calories: caloriesValue,
+                protein: proteinValue,
+                carbs: carbsValue,
+                sugars: sugarsValue
+            ))
+
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+                errorMessage = "Server error. Please try again."
+                return
+            }
+
+            var updatedUser = mainUser
+            updatedUser.DailyCalories = caloriesValue
+            updatedUser.DailyProtein = proteinValue
+            updatedUser.carbs = carbsValue
+            updatedUser.sugars = sugarsValue
+
+            await MainActor.run {
+                showSuccess = true
+                onUserUpdate(updatedUser)
+            }
+
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                isPresented = false
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    private func buildPayload(calories: Int, protein: Int, carbs: Int, sugars: Int) -> [String: Any] {
+        let heightCm = mainUser.height ?? 170
+        let heightFt = mainUser.heightFt ?? Int((Double(heightCm) / 2.54).rounded()) / 12
+        let heightIn = mainUser.heightInc ?? Int((Double(heightCm) / 2.54).rounded()) % 12
+
+        return [
+            "firstName": mainUser.firstName,
+            "lastName": mainUser.lastName,
+            "age": mainUser.age ?? 25,
+            "gender": mainUser.gender ?? "Male",
+            "weight": Double(mainUser.weight ?? 70),
+            "weightUnit": "kg",
+            "height": Double(heightCm),
+            "heightUnit": "cm",
+            "heightFt": Double(heightFt),
+            "heightIn": Double(heightIn),
+            "goal": mainUser.goal ?? "Maintain weight",
+            "bodyStructure": mainUser.bodyStructure ?? "Mesomorph",
+            "whereWork": "Gym",
+            "level": "Intermediate",
+            "numDays": mainUser.numDays ?? 3,
+            "numHours": WorkoutSessionDuration.normalizedHours(from: mainUser.numHours),
+            "DailyCalories": calories,
+            "DailyProtein": protein,
+            "carbs": carbs,
+            "sugars": sugars
+        ]
+    }
+
+    private var gymBg: some View {
+        AppBackgroundView()
+    }
+}
+
 // MARK: - Double rounding helper
 
 private extension Double {
@@ -332,6 +640,8 @@ private extension Double {
 struct UpdateFullProfileView: View {
     var mainUser: User
     @Binding var isPresented: Bool
+    var onUserUpdate: (User) -> Void = { _ in }
+    var onWorkoutUpdate: (fullTraining) -> Void = { _ in }
 
     // Profile fields — pre-filled from mainUser
     @State private var firstName: String
@@ -407,9 +717,16 @@ struct UpdateFullProfileView: View {
         }
     }
 
-    init(mainUser: User, isPresented: Binding<Bool>) {
+    init(
+        mainUser: User,
+        isPresented: Binding<Bool>,
+        onUserUpdate: @escaping (User) -> Void = { _ in },
+        onWorkoutUpdate: @escaping (fullTraining) -> Void = { _ in }
+    ) {
         self.mainUser = mainUser
         self._isPresented = isPresented
+        self.onUserUpdate = onUserUpdate
+        self.onWorkoutUpdate = onWorkoutUpdate
         _firstName     = State(initialValue: mainUser.firstName )
         _lastName      = State(initialValue: mainUser.lastName )
         _age           = State(initialValue: mainUser.age ?? 25)
@@ -423,7 +740,7 @@ struct UpdateFullProfileView: View {
         _heightIn      = State(initialValue: mainUser.heightInc ?? 9)
         _heightUnit    = State(initialValue: "cm")
         _numDays       = State(initialValue: mainUser.numDays ?? 3)
-        _numHours      = State(initialValue: String(mainUser.numHours ?? "1"))
+        _numHours      = State(initialValue: WorkoutSessionDuration.pickerValue(from: mainUser.numHours))
         _whereWork     = State(initialValue: "Gym")
         _level         = State(initialValue: "Intermediate")
     }
@@ -599,8 +916,10 @@ struct UpdateFullProfileView: View {
                         }
                         profileField(label: "Hours / session", icon: "clock.fill") {
                             Picker("", selection: $numHours) {
-                                ForEach([0.5, 1.0, 1.5, 2.0, 2.5, 3.0], id: \.self) {
-                                    Text(String(format: "%.1f h", $0)).foregroundStyle(.white).tag($0)
+                                ForEach(WorkoutSessionDuration.profilePickerValues, id: \.self) { hours in
+                                    Text(WorkoutSessionDuration.displayText(for: hours))
+                                        .foregroundStyle(.white)
+                                        .tag(hours)
                                 }
                             }
                             .pickerStyle(.wheel)
@@ -742,7 +1061,7 @@ struct UpdateFullProfileView: View {
             "heightFt":      totalInches / 12,
             "heightIn":      totalInches % 12,
             "numDays":       numDays,
-            "numHours":      numHours,
+            "numHours":      WorkoutSessionDuration.normalizedHours(from: numHours),
             "whereWork":     whereWork,
             "level":         level
         ]
@@ -768,6 +1087,8 @@ struct UpdateFullProfileView: View {
                 errorMessage = "Server error. Please try again."
                 return
             }
+            let refreshedUser = try await fetchUpdatedUser()
+            onUserUpdate(refreshedUser)
             isPresented = false
         } catch {
             errorMessage = error.localizedDescription
@@ -775,7 +1096,6 @@ struct UpdateFullProfileView: View {
     }
 
     private func saveProfileAndRegenerate() async {
-      
         errorMessage = nil
         guard mainUser.id != nil,
               let url = URL(string: "\(Constants.baseURL)users/profile/regenerate-workout") else {
@@ -791,19 +1111,60 @@ struct UpdateFullProfileView: View {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.applyBearerToken()
             request.httpBody = try JSONSerialization.data(withJSONObject: buildPayload())
+
             let (_, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
                 errorMessage = "Server error. Please try again."
                 return
             }
-            
+
+            async let refreshedUser = fetchUpdatedUser()
+            async let refreshedWorkout = fetchUpdatedWorkout()
+            let (updatedUser, updatedWorkout) = try await (refreshedUser, refreshedWorkout)
+            onUserUpdate(updatedUser)
+            onWorkoutUpdate(updatedWorkout)
             isPresented = false
-            
-            
         } catch {
             errorMessage = error.localizedDescription
         }
         
+    }
+
+    private func fetchUpdatedUser() async throws -> User {
+        guard let url = URL(string: "\(Constants.baseURL)users/me") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.applyBearerToken()
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard (response as? HTTPURLResponse)?.statusCode == 200 else {
+            throw URLError(.badServerResponse)
+        }
+
+        let decoder = JSONDecoder()
+        decoder.dateDecodingStrategy = .iso8601
+        return try decoder.decode(User.self, from: data)
+    }
+
+    private func fetchUpdatedWorkout() async throws -> fullTraining {
+        guard let url = URL(string: "\(Constants.baseURL)\(EndPoints.training)userExcersises") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.applyBearerToken()
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse,
+              (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        return try JSONDecoder().decode(fullTraining.self, from: data)
     }
 
     private var gymBg: some View {

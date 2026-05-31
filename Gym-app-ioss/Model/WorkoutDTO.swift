@@ -25,4 +25,7 @@ struct ExcersiseDTO: Codable {
     var reps: String
     var sets: Int
     var calories_burned: Int
+    var descriptionEng: String? = nil
+    var descriptionEsp: String? = nil
+    var loggedSets: [SetEntry]? = nil
 }

@@ -65,6 +65,8 @@
 		43F816FC2FC4277300CDFAA5 /* DailyNutritionEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F816FB2FC4277300CDFAA5 /* DailyNutritionEntry.swift */; };
 		43F817062FC52F3100CDFAA5 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F817052FC52F3100CDFAA5 /* HealthKitManager.swift */; };
 		43F8170A2FC52F5900CDFAA5 /* HeartRateOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F817092FC52F5900CDFAA5 /* HeartRateOverlay.swift */; };
+		43F8170C2FD0000100CDFAA5 /* AppLanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F8170D2FD0000100CDFAA5 /* AppLanguageManager.swift */; };
+		43F8170E2FD0000100CDFAA5 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43F817112FD0000100CDFAA5 /* Localizable.strings */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -145,6 +147,9 @@
 		43F817052FC52F3100CDFAA5 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HealthKitManager.swift; sourceTree = "<group>"; };
 		43F817092FC52F5900CDFAA5 /* HeartRateOverlay.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeartRateOverlay.swift; sourceTree = "<group>"; };
 		43F8170B2FC5319000CDFAA5 /* Gym-app-ioss.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Gym-app-ioss.entitlements"; sourceTree = "<group>"; };
+		43F8170D2FD0000100CDFAA5 /* AppLanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguageManager.swift; sourceTree = "<group>"; };
+		43F8170F2FD0000100CDFAA5 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		43F817102FD0000100CDFAA5 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -231,6 +236,7 @@
 				43CDA00E2A8C479D000BCA3B /* Preview Content */,
 				43C27C0B2BF2DA0200A73F0F /* GenerativeAi-Info.plist */,
 				43C393AA2C20FB1A00060774 /* appDelegate.swift */,
+				43F817112FD0000100CDFAA5 /* Localizable.strings */,
 			);
 			path = "Gym-app-ioss";
 			sourceTree = "<group>";
@@ -269,6 +275,7 @@
 				4349A68A2C00CB0400684853 /* PersistanceFood.swift */,
 				4376F4082C02685C00937885 /* PersiatnceCalories.swift */,
 				43C393882C1B57B200060774 /* TimeTrackingAttributes.swift */,
+				43F8170D2FD0000100CDFAA5 /* AppLanguageManager.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -310,6 +317,18 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
+
+/* Begin PBXVariantGroup section */
+		43F817112FD0000100CDFAA5 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				43F8170F2FD0000100CDFAA5 /* en */,
+				43F817102FD0000100CDFAA5 /* es */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
 
 /* Begin PBXNativeTarget section */
 		43C3938D2C1F95EF00060774 /* PowAI_WidgetExtension */ = {
@@ -383,6 +402,7 @@
 			knownRegions = (
 				en,
 				Base,
+				es,
 			);
 			mainGroup = 43CD9FFC2A8C479C000BCA3B;
 			packageReferences = (
@@ -418,6 +438,7 @@
 				43C27C0C2BF2DA0200A73F0F /* GenerativeAi-Info.plist in Resources */,
 				43CDA0102A8C479D000BCA3B /* Preview Assets.xcassets in Resources */,
 				43CDA00D2A8C479D000BCA3B /* Assets.xcassets in Resources */,
+				43F8170E2FD0000100CDFAA5 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -442,6 +463,7 @@
 				43C27C0A2BF2D6DD00A73F0F /* geminii.swift in Sources */,
 				43CDA0272A8D85D8000BCA3B /* HttpClient.swift in Sources */,
 				43CDA0252A8D85A3000BCA3B /* ModalType.swift in Sources */,
+				43F8170C2FD0000100CDFAA5 /* AppLanguageManager.swift in Sources */,
 				4349A6892BFE606400684853 /* workoutVieModel.swift in Sources */,
 				43C393A72C1F9E7100060774 /* WorkOutWindow.swift in Sources */,
 				43CDA0192A8C49E4000BCA3B /* createUserWindow.swift in Sources */,
