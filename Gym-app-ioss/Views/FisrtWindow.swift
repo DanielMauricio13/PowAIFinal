@@ -1281,25 +1281,28 @@ private struct RoutineWorkoutWindow: View {
     var body: some View {
         ZStack {
             AppBackgroundView()
-
-            if showWorkout {
-                StaringWorkWindow(
-                    todaysWork: workoutPlan,
-                    exToday: $exToday,
-                    cals: totalCalories,
-                    onWorkoutFinished: advanceRoutineDay,
-                    routineDay: day.day,
-                    routineExerciseWeights: day.exercises.map { $0.weight },
-                    routineExerciseUnits: day.exercises.map { $0.unit },
-                    onRoutineHome: onReturnHome
-                )
-                .onChange(of: exToday) {
-                    if exToday.isEmpty {
-                        dismiss()
-                    }
+            workoutPreview
+        }
+        .fullScreenCover(isPresented: $showWorkout) {
+            StaringWorkWindow(
+                todaysWork: workoutPlan,
+                exToday: $exToday,
+                cals: totalCalories,
+                onWorkoutFinished: advanceRoutineDay,
+                routineDay: day.day,
+                routineExerciseWeights: day.exercises.map { $0.weight },
+                routineExerciseUnits: day.exercises.map { $0.unit },
+                onRoutineHome: {
+                    showWorkout = false
+                    onReturnHome()
+                    dismiss()
                 }
-            } else {
-                workoutPreview
+            )
+            .onChange(of: exToday) {
+                if exToday.isEmpty {
+                    showWorkout = false
+                    dismiss()
+                }
             }
         }
     }

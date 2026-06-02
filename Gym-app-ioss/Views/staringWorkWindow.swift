@@ -157,10 +157,22 @@ struct StaringWorkWindow: View {
                 .padding()
                 Spacer()
                 }
-                .padding()
-                .background(RoundedRectangle(cornerRadius: 28).fill(.ultraThinMaterial).opacity(0.95))
-                .overlay(RoundedRectangle(cornerRadius: 28).stroke(Color.white.opacity(0.2), lineWidth: 1))
-                .padding(.horizontal)
+                .padding(routineDay == nil ? 16 : 24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .background {
+                    if routineDay == nil {
+                        RoundedRectangle(cornerRadius: 28)
+                            .fill(.ultraThinMaterial)
+                            .opacity(0.95)
+                    }
+                }
+                .overlay {
+                    if routineDay == nil {
+                        RoundedRectangle(cornerRadius: 28)
+                            .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    }
+                }
+                .padding(.horizontal, routineDay == nil ? 16 : 0)
                 .onAppear {
                     self.timeRemaining = totalTime
                     self.timerIsRunning = true
@@ -756,6 +768,7 @@ struct StaringWorkWindow: View {
     }
 
     private func addExtraSet() {
+        resetHIITStopwatchAfterSet()
         set += 1
         excSer = (excSer ?? set) + 1
         finishedSet = true
@@ -763,6 +776,7 @@ struct StaringWorkWindow: View {
     }
 
     private func finishCurrentSet() {
+        resetHIITStopwatchAfterSet()
         set += 1
         if set > (excSer ?? 4) {
             index += 1
@@ -773,6 +787,12 @@ struct StaringWorkWindow: View {
             finishedSet = true
             finishedRecover = false
         }
+    }
+
+    private func resetHIITStopwatchAfterSet() {
+        guard isHIITWorkout else { return }
+        hiitElapsedSeconds = 0
+        hiitStopwatchRunning = true
     }
 
     private func handleRecoveryTimerTap() {

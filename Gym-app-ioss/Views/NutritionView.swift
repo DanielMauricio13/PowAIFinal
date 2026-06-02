@@ -131,18 +131,14 @@ struct NutritionView: View {
                         .foregroundStyle(.white)
                     Spacer()
                     Button { showMealsWindow = true } label: {
-                        Label("Meals", systemImage: "fork.knife.circle.fill")
-                            .font(.subheadline.weight(.semibold))
+                        nutritionHeaderActionLabel("Meals", systemImage: "plus.circle.fill")
                     }
-                    .buttonStyle(.borderedProminent)
-                    .controlSize(.small)
+                    .buttonStyle(.plain)
 
                     Button { buttonPressed = true } label: {
-                        Label("Add", systemImage: "plus.circle.fill")
-                            .labelStyle(.iconOnly)
-                            .font(.title)
-                            .foregroundColor(.accentColor)
+                        nutritionHeaderActionLabel("Food", systemImage: "plus.circle.fill")
                     }
+                    .buttonStyle(.plain)
                 }
                 .padding(.horizontal)
 
@@ -191,6 +187,22 @@ struct NutritionView: View {
                 }
             }
         }
+    }
+
+    private func nutritionHeaderActionLabel(_ title: LocalizedStringKey, systemImage: String) -> some View {
+        Label(title, systemImage: systemImage)
+            .font(.subheadline.weight(.bold))
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .frame(width: 112, height: 40)
+            .background(
+                LinearGradient(colors: [.red, .orange],
+                               startPoint: .leading,
+                               endPoint: .trailing),
+                in: Capsule()
+            )
+            .shadow(color: .orange.opacity(0.22), radius: 8, y: 4)
     }
 
     private var compactNutritionGoalsFooter: some View {
@@ -581,7 +593,8 @@ struct NutritionView: View {
     func analyzeFoodFromImage(_ image: UIImage) async {
         await MainActor.run { isAnalyzingImage = true }
         defer { Task { @MainActor in isAnalyzingImage = false } }
-        guard let imageData = image.jpegData(compressionQuality: 0.7) else {
+        let optimizedImage = image.resizedForFoodAnalysis(maxDimension: 1024)
+        guard let imageData = optimizedImage.jpegData(compressionQuality: 0.70) else {
             await MainActor.run { imageErrorMessage = "Could not process the photo."; showImageError = true }
             return
         }
@@ -796,6 +809,24 @@ struct CameraPickerView: UIViewControllerRepresentable {
     }
 }
 
+private extension UIImage {
+    func resizedForFoodAnalysis(maxDimension: CGFloat) -> UIImage {
+        let longestSide = max(size.width, size.height)
+        guard longestSide > maxDimension else { return self }
+
+        let scale = maxDimension / longestSide
+        let targetSize = CGSize(
+            width: size.width * scale,
+            height: size.height * scale
+        )
+
+        let renderer = UIGraphicsImageRenderer(size: targetSize)
+        return renderer.image { _ in
+            draw(in: CGRect(origin: .zero, size: targetSize))
+        }
+    }
+}
+
 private struct MealMacrosDTO: Codable {
     let calories: Int
     let protein: Int
@@ -813,6 +844,7 @@ private struct MealDTO: Identifiable, Codable {
     let estimatedTimeMinutes: Int
     let difficulty: String
     let mealType: String
+    let isEsp: Bool
 
     enum CodingKeys: String, CodingKey {
         case id
@@ -826,6 +858,8 @@ private struct MealDTO: Identifiable, Codable {
         case difficulty
         case mealType
         case mealTypeSnake = "meal_type"
+        case isEsp
+        case isEspSnake = "is_esp"
     }
 
     init(from decoder: Decoder) throws {
@@ -838,6 +872,7 @@ private struct MealDTO: Identifiable, Codable {
         estimatedTimeMinutes = try container.decodeFlexibleInt(.estimatedTimeMinutes, .estimatedTimeMinutesSnake)
         difficulty = try container.decode(String.self, forKey: .difficulty)
         mealType = try container.decodeFlexibleString(.mealType, .mealTypeSnake)
+        isEsp = try container.decodeFlexibleBool(.isEsp, .isEspSnake) ?? false
     }
 
     func encode(to encoder: Encoder) throws {
@@ -850,6 +885,7 @@ private struct MealDTO: Identifiable, Codable {
         try container.encode(estimatedTimeMinutes, forKey: .estimatedTimeMinutes)
         try container.encode(difficulty, forKey: .difficulty)
         try container.encode(mealType, forKey: .mealType)
+        try container.encode(isEsp, forKey: .isEsp)
     }
 }
 
@@ -867,16 +903,24 @@ private extension KeyedDecodingContainer where Key == MealDTO.CodingKeys {
         }
         return try decode(Int.self, forKey: fallback)
     }
+
+    func decodeFlexibleBool(_ primary: Key, _ fallback: Key) throws -> Bool? {
+        if let value = try decodeIfPresent(Bool.self, forKey: primary) {
+            return value
+        }
+        return try decodeIfPresent(Bool.self, forKey: fallback)
+    }
 }
 
 private struct CreateMealsRequest: Encodable {
     let ingredients: [String]
     let difficulty: String
     let mealType: String
+    let isEsp: Bool
 }
 
 private enum MealsAPI {
-    static func fetchMeals() async throws -> [MealDTO] {
+    static func fetchMeals(isEsp: Bool) async throws -> [MealDTO] {
         guard let url = URL(string: Constants.baseURL + "meals") else {
             throw URLError(.badURL)
         }
@@ -888,9 +932,10 @@ private enum MealsAPI {
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response)
         return try JSONDecoder().decode([MealDTO].self, from: data)
+            .filter { $0.isEsp == isEsp }
     }
 
-    static func createMeals(ingredients: [String], difficulty: String, mealType: String) async throws -> [MealDTO] {
+    static func createMeals(ingredients: [String], difficulty: String, mealType: String, isEsp: Bool) async throws -> [MealDTO] {
         guard let url = URL(string: Constants.baseURL + "meals") else {
             throw URLError(.badURL)
         }
@@ -902,12 +947,14 @@ private enum MealsAPI {
         request.httpBody = try JSONEncoder().encode(CreateMealsRequest(
             ingredients: ingredients,
             difficulty: difficulty.lowercased(),
-            mealType: mealType.lowercased()
+            mealType: mealType.lowercased(),
+            isEsp: isEsp
         ))
 
         let (data, response) = try await URLSession.shared.data(for: request)
         try validate(response)
         return try JSONDecoder().decode([MealDTO].self, from: data)
+            .filter { $0.isEsp == isEsp }
     }
 
     private static func validate(_ response: URLResponse) throws {
@@ -920,6 +967,7 @@ private enum MealsAPI {
 
 private struct MealsWindow: View {
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var languageManager = AppLanguageManager.shared
     @State private var meals: [MealDTO] = []
     @State private var isLoading = false
     @State private var errorMessage: String?
@@ -932,6 +980,10 @@ private struct MealsWindow: View {
 
     private let mealTypeOptions = ["All", "Breakfast", "Lunch", "Dinner"]
     private let difficultyOptions = ["All", "Easy", "Medium", "Hard"]
+
+    private var isSpanishMeals: Bool {
+        languageManager.prefersSpanish
+    }
 
     private var filteredMeals: [MealDTO] {
         meals.filter { meal in
@@ -1020,6 +1072,9 @@ private struct MealsWindow: View {
             .task {
                 await loadMeals()
             }
+            .onChange(of: languageManager.selectedLanguage) { _, _ in
+                Task { await loadMeals() }
+            }
             .sheet(isPresented: $showAddMeals) {
                 AddMealsIngredientsSheet { ingredients, difficulty, mealType in
                     try await createMeals(
@@ -1073,7 +1128,7 @@ private struct MealsWindow: View {
         defer { isLoading = false }
 
         do {
-            meals = try await MealsAPI.fetchMeals()
+            meals = try await MealsAPI.fetchMeals(isEsp: isSpanishMeals)
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -1088,7 +1143,8 @@ private struct MealsWindow: View {
             let newMeals = try await MealsAPI.createMeals(
                 ingredients: ingredients,
                 difficulty: difficulty,
-                mealType: mealType
+                mealType: mealType,
+                isEsp: isSpanishMeals
             )
             meals = newMeals + meals.filter { existing in
                 !newMeals.contains(where: { $0.id == existing.id })
@@ -1119,8 +1175,8 @@ private struct MealOptionCard: View {
                             .padding(.leading, 34)
 
                         HStack(spacing: 8) {
-                            MealBadge(text: meal.mealType.capitalized, systemImage: "clock")
-                            MealBadge(text: meal.difficulty.capitalized, systemImage: "gauge.with.dots.needle.33percent")
+                            MealBadge(text: localizedMealLabel(meal.mealType), systemImage: "clock")
+                            MealBadge(text: localizedMealLabel(meal.difficulty), systemImage: "gauge.with.dots.needle.33percent")
                             MealBadge(text: "\(meal.estimatedTimeMinutes)m", systemImage: "timer")
                         }
                     }
@@ -1175,6 +1231,10 @@ private struct MealOptionCard: View {
         )
         .cornerRadius(14)
     }
+
+    private func localizedMealLabel(_ value: String) -> String {
+        AppLanguageManager.shared.localizedString(forKey: value.capitalized)
+    }
 }
 
 private struct MealFilterMenu: View {
@@ -1190,9 +1250,13 @@ private struct MealFilterMenu: View {
                     selection = option
                 } label: {
                     if option == selection {
-                        Label(option, systemImage: "checkmark")
+                        Label {
+                            Text(LocalizedStringKey(option))
+                        } icon: {
+                            Image(systemName: "checkmark")
+                        }
                     } else {
-                        Text(option)
+                        Text(LocalizedStringKey(option))
                     }
                 }
             }
@@ -1200,10 +1264,10 @@ private struct MealFilterMenu: View {
             HStack(spacing: 8) {
                 Image(systemName: systemImage)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
+                    Text(LocalizedStringKey(title))
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.white.opacity(0.62))
-                    Text(selection)
+                    Text(LocalizedStringKey(selection))
                         .font(.footnote.weight(.bold))
                         .foregroundStyle(.white)
                         .lineLimit(1)

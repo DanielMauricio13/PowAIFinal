@@ -67,6 +67,7 @@
 		43F8170A2FC52F5900CDFAA5 /* HeartRateOverlay.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F817092FC52F5900CDFAA5 /* HeartRateOverlay.swift */; };
 		43F8170C2FD0000100CDFAA5 /* AppLanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F8170D2FD0000100CDFAA5 /* AppLanguageManager.swift */; };
 		43F8170E2FD0000100CDFAA5 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43F817112FD0000100CDFAA5 /* Localizable.strings */; };
+		43F817132FE0000100CDFAA5 /* LiftSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F817122FE0000100CDFAA5 /* LiftSummaryView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -150,6 +151,7 @@
 		43F8170D2FD0000100CDFAA5 /* AppLanguageManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLanguageManager.swift; sourceTree = "<group>"; };
 		43F8170F2FD0000100CDFAA5 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		43F817102FD0000100CDFAA5 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		43F817122FE0000100CDFAA5 /* LiftSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiftSummaryView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -296,6 +298,7 @@
 				4376F40F2C09E91100937885 /* staringWorkWindow.swift */,
 				43C27BF72BEC5CCA00A73F0F /* NutritionView.swift */,
 				43F816FB2FC4277300CDFAA5 /* DailyNutritionEntry.swift */,
+				43F817122FE0000100CDFAA5 /* LiftSummaryView.swift */,
 				43C27BFF2BF24DEC00A73F0F /* Calories.swift */,
 				43F816F72FC3CDD400CDFAA5 /* WeightEntry.swift */,
 				43C27BFB2BF246FE00A73F0F /* UserSettings.swift */,
@@ -317,18 +320,6 @@
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
-
-/* Begin PBXVariantGroup section */
-		43F817112FD0000100CDFAA5 /* Localizable.strings */ = {
-			isa = PBXVariantGroup;
-			children = (
-				43F8170F2FD0000100CDFAA5 /* en */,
-				43F817102FD0000100CDFAA5 /* es */,
-			);
-			name = Localizable.strings;
-			sourceTree = "<group>";
-		};
-/* End PBXVariantGroup section */
 
 /* Begin PBXNativeTarget section */
 		43C3938D2C1F95EF00060774 /* PowAI_WidgetExtension */ = {
@@ -484,6 +475,7 @@
 				43CDA0372AA56D74000BCA3B /* LogedInUser.swift in Sources */,
 				43C27BFA2BEC5EC600A73F0F /* Food.swift in Sources */,
 				43F816FC2FC4277300CDFAA5 /* DailyNutritionEntry.swift in Sources */,
+				43F817132FE0000100CDFAA5 /* LiftSummaryView.swift in Sources */,
 				43CDA01B2A8C654E000BCA3B /* questionaire.swift in Sources */,
 				43F817062FC52F3100CDFAA5 /* HealthKitManager.swift in Sources */,
 				43C27BFC2BF246FE00A73F0F /* UserSettings.swift in Sources */,
@@ -515,6 +507,18 @@
 		};
 /* End PBXTargetDependency section */
 
+/* Begin PBXVariantGroup section */
+		43F817112FD0000100CDFAA5 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				43F8170F2FD0000100CDFAA5 /* en */,
+				43F817102FD0000100CDFAA5 /* es */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+/* End PBXVariantGroup section */
+
 /* Begin XCBuildConfiguration section */
 		43C393A02C1F95F000060774 /* Debug */ = {
 			isa = XCBuildConfiguration;
@@ -523,7 +527,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -555,7 +559,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -708,7 +712,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;
@@ -751,7 +755,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 11;
+				CURRENT_PROJECT_VERSION = 12;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;

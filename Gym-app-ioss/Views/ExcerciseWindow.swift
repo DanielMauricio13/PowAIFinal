@@ -76,6 +76,8 @@ struct ExcerciseWindow: View {
                                 email: mainUser?.email ?? "",
                                 mainUser: mainUser
                             )
+                        } else if whichWin == 2 {
+                            LiftSummaryView(userFullWork: userFullWork)
                         } else if whichWin == 3 {
                             // ── Weight Progress tab ───────────────────────────
                             WeightTrackerView(email: mainUser?.email ?? "")
@@ -103,6 +105,8 @@ struct ExcerciseWindow: View {
                             tabButton(icon: "house",                     tab: 0, activeColor: .cyan)
                             Spacer()
                             tabButton(icon: "leaf",                      tab: 1, activeColor: .green)
+                            Spacer()
+                            tabButton(icon: "dumbbell.fill",             tab: 2, activeColor: .orange)
                             Spacer()
                             tabButton(icon: "chart.line.uptrend.xyaxis", tab: 3, activeColor: .green)
                             Spacer()

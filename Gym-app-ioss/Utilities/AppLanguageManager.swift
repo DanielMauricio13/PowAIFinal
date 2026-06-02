@@ -65,6 +65,18 @@ final class AppLanguageManager: ObservableObject {
         }
     }
 
+    var prefersSpanish: Bool {
+        let identifier: String
+        switch selectedLanguage {
+        case .system:
+            identifier = Locale.autoupdatingCurrent.identifier
+        default:
+            identifier = selectedLanguage.locale.identifier
+        }
+
+        return identifier.lowercased().hasPrefix("es")
+    }
+
     func localizedString(forKey key: String) -> String {
         guard let languageCode,
               let path = Bundle.main.path(forResource: languageCode, ofType: "lproj"),
