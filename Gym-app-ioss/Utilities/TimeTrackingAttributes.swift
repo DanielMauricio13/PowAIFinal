@@ -14,7 +14,13 @@ struct TimeTrackingAttributes: ActivityAttributes{
     public struct ContentState: Codable, Hashable{
         var startTime:Date
         var set: Int
-        var heartRate: Int?
+        var heartRate: Int? = nil
+        var dayPlanTitle: String? = nil
+        var dayPlanNextTitle: String? = nil
+        var dayPlanStatus: String? = nil
+        var dayPlanCategory: String? = nil
+        var dayPlanEndTime: Date? = nil
+        var dayPlanNextStartTime: Date? = nil
     }
     var Initial: Date
     

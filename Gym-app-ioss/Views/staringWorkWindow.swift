@@ -46,6 +46,7 @@ struct StaringWorkWindow: View {
     var onWorkoutFinished: (() -> Void)? = nil
     var routineDay: Int? = nil
     var isHIITWorkout = false
+    var isCustomWorkout = false
     var routineExerciseWeights: [Double] = []
     var routineExerciseUnits: [String] = []
     var onRoutineHome: (() -> Void)? = nil
@@ -82,14 +83,18 @@ struct StaringWorkWindow: View {
     var body: some View {
         ZStack {
             AppBackgroundView()
-            if routineDay != nil {
+            if shouldShowHomeButton {
                 VStack {
                     HStack {
                         Spacer()
 
                         Button {
-                            exToday = ""
-                            onRoutineHome?()
+                            if isCustomWorkout {
+                                onRoutineHome?()
+                            } else {
+                                exToday = ""
+                                onRoutineHome?()
+                            }
                         } label: {
                             Image(systemName: "house.fill")
                                 .font(.headline)
@@ -232,6 +237,10 @@ struct StaringWorkWindow: View {
         activeWorkout ?? todaysWork
     }
 
+    private var shouldShowHomeButton: Bool {
+        routineDay != nil || isCustomWorkout
+    }
+
     private var currentExercise: Excersise? {
         currentWorkout?.exercises[safe: index]
     }
@@ -319,7 +328,7 @@ struct StaringWorkWindow: View {
     }
 
     private var canAddExtraExercise: Bool {
-        routineDay == nil && !(currentWorkout?.exercises.isEmpty ?? true)
+        routineDay == nil && !isCustomWorkout && !(currentWorkout?.exercises.isEmpty ?? true)
     }
 
     private var exerciseWorkoutContent: some View {
@@ -465,7 +474,7 @@ struct StaringWorkWindow: View {
                 .buttonStyle(WorkoutChipButtonStyle(tint: .orange))
             }
 
-            if routineDay == nil {
+            if routineDay == nil && !isCustomWorkout {
                 Button {
                     Task { await replaceCurrentExercise() }
                 } label: {
@@ -1081,7 +1090,9 @@ struct StaringWorkWindow: View {
         let lookupKey = setWeightLookupKey(exerciseName: exercise.name, setNumber: set)
 
         do {
-            let path = routineDay == nil ? "training/set-weight" : "routine/set-weight"
+            let path = isCustomWorkout
+                ? "training/custom-set-weight"
+                : (routineDay == nil ? "training/set-weight" : "routine/set-weight")
             guard let url = URL(string: Constants.baseURL + path) else {
                 throw URLError(.badURL)
             }
@@ -1139,7 +1150,9 @@ struct StaringWorkWindow: View {
         defer { isSavingSetLog = false }
 
         do {
-            let path = routineDay == nil ? "training/current-set" : "routine/current-set"
+            let path = isCustomWorkout
+                ? "training/custom-current-set"
+                : (routineDay == nil ? "training/current-set" : "routine/current-set")
             guard let url = URL(string: Constants.baseURL + path) else {
                 throw URLError(.badURL)
             }
@@ -1150,7 +1163,7 @@ struct StaringWorkWindow: View {
             request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
             let now = Date()
-            let body: [String: Any] = [
+            var body: [String: Any] = [
                 "day": routineDay ?? workout.day,
                 "exerciseIndex": index,
                 "exerciseName": exercise.name,
@@ -1161,6 +1174,18 @@ struct StaringWorkWindow: View {
                 "completed": setLogCompleted,
                 "date": SetEntry.isoDateString(from: now)
             ]
+            if isCustomWorkout {
+                body["muscleGroup"] = workout.muscle_group
+                body["exercise"] = [
+                    "name": exercise.name,
+                    "reps": exercise.reps,
+                    "sets": exercise.sets,
+                    "calories_burned": exercise.calories_burned,
+                    "descriptionEng": exercise.descriptionEng ?? "",
+                    "descriptionEsp": exercise.descriptionEsp ?? "",
+                    "loggedSets": []
+                ]
+            }
             let bodyData = try JSONSerialization.data(withJSONObject: body)
             request.httpBody = bodyData
 

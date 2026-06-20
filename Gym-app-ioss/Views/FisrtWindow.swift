@@ -4,6 +4,7 @@
 //
 
 import SwiftUI
+import UIKit
 
 struct FisrtWindow: View {
     var mainUser: User?
@@ -20,6 +21,7 @@ struct FisrtWindow: View {
     @State private var hiitError: String? = nil
     @State private var showHIITError = false
     @State private var showRoutineWindow = false
+    @State private var showMakeYourOwnWindow = false
 
     var body: some View {
         ZStack {
@@ -76,6 +78,49 @@ struct FisrtWindow: View {
                                         .foregroundColor(.white)
 
                                     Text("Open your 30-day training plan")
+                                        .font(.caption)
+                                        .foregroundColor(.white.opacity(0.7))
+                                }
+
+                                Spacer()
+
+                                Image(systemName: "chevron.right")
+                                    .font(.headline)
+                                    .foregroundColor(.orange.opacity(0.9))
+                            }
+                            .padding()
+                            .background(Color.white.opacity(0.08))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .stroke(Color.orange.opacity(0.35), lineWidth: 1)
+                            )
+                            .cornerRadius(12)
+                            .shadow(color: .orange.opacity(0.12), radius: 8)
+                        }
+                        .buttonStyle(.plain)
+                        .padding(.horizontal)
+                        .padding(.bottom, 10)
+
+                        Button {
+                            showMakeYourOwnWindow = true
+                        } label: {
+                            HStack(spacing: 14) {
+                                ZStack {
+                                    Circle()
+                                        .fill(Color.orange.opacity(0.22))
+                                        .frame(width: 48, height: 48)
+
+                                    Image(systemName: "figure.strengthtraining.traditional")
+                                        .font(.title2)
+                                        .foregroundColor(.orange)
+                                }
+
+                                VStack(alignment: .leading, spacing: 4) {
+                                    Text("Make Your Own")
+                                        .font(.system(size: 20, weight: .bold, design: .rounded))
+                                        .foregroundColor(.white)
+
+                                    Text("Build a custom workout from all exercises")
                                         .font(.caption)
                                         .foregroundColor(.white.opacity(0.7))
                                 }
@@ -200,6 +245,11 @@ struct FisrtWindow: View {
         .sheet(isPresented: $showRoutineWindow) {
             RoutineView(mainUser: mainUser) {
                 showRoutineWindow = false
+            }
+        }
+        .sheet(isPresented: $showMakeYourOwnWindow) {
+            MakeYourOwnWorkoutView {
+                showMakeYourOwnWindow = false
             }
         }
     }
@@ -452,6 +502,671 @@ struct FisrtWindow: View {
             .cornerRadius(10)
             .shadow(color: .orange.opacity(0.1), radius: 6)
         }
+    }
+}
+
+private struct AllExerciseCatalogItem: Codable {
+    let id: UUID?
+    let exerciseName: String
+    let muscleCategory: String
+    let muscle: String
+    let expectedCaloriesBurned: Int
+    let descriptionEnglish: String
+    let descriptionSpanish: String
+
+    var stableID: String {
+        id?.uuidString ?? "\(selectionKey)-\(muscleCategory)"
+    }
+
+    var selectionKey: String {
+        exerciseName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+    }
+
+    var workoutExercise: Excersise {
+        Excersise(
+            name: exerciseName,
+            reps: "10-12",
+            sets: 3,
+            calories_burned: expectedCaloriesBurned,
+            descriptionEng: descriptionEnglish,
+            descriptionEsp: descriptionSpanish
+        )
+    }
+}
+
+private struct MakeYourOwnWorkoutSession: Identifiable {
+    let id = UUID()
+    let plan: workout_plans
+    let totalCalories: Int
+}
+
+private enum MakeYourOwnRoutineStore {
+    static let primaryKey = "all_muscle_custom_routine"
+    static let legacyTypoKey = "all_mucle_routine"
+
+    static func save(_ plan: workout_plans) {
+        guard let data = try? JSONEncoder().encode(plan) else { return }
+        UserDefaults.standard.set(data, forKey: primaryKey)
+        UserDefaults.standard.set(data, forKey: legacyTypoKey)
+    }
+}
+
+@MainActor
+private final class MakeYourOwnExerciseViewModel: ObservableObject {
+    static let categories = [
+        "Arms",
+        "Back",
+        "Calves",
+        "Chest",
+        "Core",
+        "Forearms and Grip",
+        "Full Body",
+        "Glutes",
+        "Legs",
+        "Lower Body",
+        "Lower Legs",
+        "Neck and Traps",
+        "Posterior Chain",
+        "Shoulders"
+    ]
+
+    @Published var selectedCategory = "Arms"
+    @Published var exercises: [AllExerciseCatalogItem] = []
+    @Published var selectedExercises: [AllExerciseCatalogItem] = []
+    @Published var searchText = ""
+    @Published var isLoading = false
+    @Published var message: String?
+    @Published var startingSession: MakeYourOwnWorkoutSession?
+
+    private var cachedExercises: [String: [AllExerciseCatalogItem]] = [:]
+    private let decoder = JSONDecoder()
+
+    var filteredExercises: [AllExerciseCatalogItem] {
+        let trimmedSearch = searchText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedSearch.isEmpty else { return exercises }
+
+        return exercises.filter { exercise in
+            exercise.exerciseName.localizedCaseInsensitiveContains(trimmedSearch)
+                || exercise.muscle.localizedCaseInsensitiveContains(trimmedSearch)
+        }
+    }
+
+    var totalCalories: Int {
+        selectedExercises.reduce(0) { $0 + $1.expectedCaloriesBurned }
+    }
+
+    func loadExercises(for category: String? = nil) async {
+        let categoryToLoad = category ?? selectedCategory
+        selectedCategory = categoryToLoad
+
+        if let cached = cachedExercises[categoryToLoad] {
+            exercises = cached
+            message = cached.isEmpty ? "No exercises found for \(categoryToLoad)." : nil
+            return
+        }
+
+        isLoading = true
+        message = nil
+        defer { isLoading = false }
+
+        do {
+            var components = URLComponents(string: Constants.baseURL + "all-exercises/category")
+            components?.queryItems = [
+                URLQueryItem(name: "muscleCategory", value: categoryToLoad)
+            ]
+
+            guard let url = components?.url else {
+                throw URLError(.badURL)
+            }
+
+            var request = URLRequest(url: url, timeoutInterval: 45)
+            request.httpMethod = HttpMethods.GET.rawValue
+            request.applyBearerToken()
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse else {
+                message = "Could not read the server response."
+                return
+            }
+
+            switch http.statusCode {
+            case 200..<300:
+                let decoded = try decoder.decode([AllExerciseCatalogItem].self, from: data)
+                cachedExercises[categoryToLoad] = decoded
+                exercises = decoded
+                message = decoded.isEmpty ? "No exercises found for \(categoryToLoad)." : nil
+            case 401:
+                exercises = []
+                message = "Please sign in again to load exercises."
+            default:
+                exercises = []
+                message = "Exercises failed to load. Status \(http.statusCode)."
+            }
+        } catch {
+            exercises = []
+            message = error.localizedDescription
+        }
+    }
+
+    func toggleSelection(_ exercise: AllExerciseCatalogItem) {
+        if let index = selectedExercises.firstIndex(where: { $0.selectionKey == exercise.selectionKey }) {
+            selectedExercises.remove(at: index)
+        } else {
+            selectedExercises.append(exercise)
+        }
+    }
+
+    func isSelected(_ exercise: AllExerciseCatalogItem) -> Bool {
+        selectedExercises.contains { $0.selectionKey == exercise.selectionKey }
+    }
+
+    func removeSelectedExercise(_ exercise: AllExerciseCatalogItem) {
+        selectedExercises.removeAll { $0.selectionKey == exercise.selectionKey }
+    }
+
+    func startWorkout() {
+        guard !selectedExercises.isEmpty else { return }
+
+        let plan = workout_plans(
+            day: 1,
+            muscle_group: "All Muscle",
+            exercises: selectedExercises.map(\.workoutExercise)
+        )
+        MakeYourOwnRoutineStore.save(plan)
+        startingSession = MakeYourOwnWorkoutSession(plan: plan, totalCalories: totalCalories)
+    }
+}
+
+private struct MakeYourOwnWorkoutView: View {
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var viewModel = MakeYourOwnExerciseViewModel()
+    let onReturnHome: () -> Void
+
+    private var exerciseGridColumns: [GridItem] {
+        [
+            GridItem(.flexible(), spacing: 12),
+            GridItem(.flexible(), spacing: 12)
+        ]
+    }
+
+    var body: some View {
+        ZStack {
+            AppBackgroundView()
+
+            VStack(spacing: 0) {
+                header
+
+                categoryScroller
+
+                searchField
+
+                exerciseList
+
+                readyBar
+            }
+        }
+        .task {
+            await viewModel.loadExercises()
+        }
+        .onChange(of: viewModel.selectedCategory) { _, newCategory in
+            Task { await viewModel.loadExercises(for: newCategory) }
+        }
+        .fullScreenCover(item: $viewModel.startingSession) { session in
+            MakeYourOwnWorkoutSessionView(session: session) {
+                viewModel.startingSession = nil
+                dismiss()
+                onReturnHome()
+            }
+        }
+    }
+
+    private var header: some View {
+        HStack(spacing: 14) {
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(width: 38, height: 38)
+                    .background(Color.white.opacity(0.12))
+                    .clipShape(Circle())
+            }
+            .buttonStyle(.plain)
+
+            VStack(alignment: .leading, spacing: 3) {
+                Text("Make Your Own")
+                    .font(.system(size: 28, weight: .heavy, design: .rounded))
+                    .foregroundStyle(LinearGradient(
+                        colors: [.white, .orange],
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    ))
+
+                Text("\(viewModel.selectedExercises.count) selected - ~\(viewModel.totalCalories) cal")
+                    .font(.subheadline)
+                    .foregroundColor(.white.opacity(0.7))
+            }
+
+            Spacer()
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 20)
+        .padding(.bottom, 12)
+    }
+
+    private var categoryScroller: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 10) {
+                ForEach(MakeYourOwnExerciseViewModel.categories, id: \.self) { category in
+                    Button {
+                        viewModel.selectedCategory = category
+                    } label: {
+                        Text(category)
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(viewModel.selectedCategory == category ? .white : .orange)
+                            .lineLimit(1)
+                            .padding(.horizontal, 14)
+                            .padding(.vertical, 10)
+                            .background(
+                                Capsule()
+                                    .fill(viewModel.selectedCategory == category ? Color.orange : Color.orange.opacity(0.13))
+                            )
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.orange.opacity(0.4), lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.horizontal, 18)
+            .padding(.vertical, 8)
+        }
+    }
+
+    private var searchField: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "magnifyingglass")
+                .foregroundColor(.orange)
+
+            TextField("Search exercises or muscles", text: $viewModel.searchText)
+                .textInputAutocapitalization(.words)
+                .foregroundColor(.white)
+
+            if !viewModel.searchText.isEmpty {
+                Button {
+                    viewModel.searchText = ""
+                } label: {
+                    Image(systemName: "xmark.circle.fill")
+                        .foregroundColor(.white.opacity(0.55))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(12)
+        .background(Color.white.opacity(0.08))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.13), lineWidth: 1)
+        )
+        .cornerRadius(10)
+        .padding(.horizontal, 18)
+        .padding(.bottom, 10)
+    }
+
+    private var exerciseList: some View {
+        Group {
+            if viewModel.isLoading {
+                VStack(spacing: 14) {
+                    Spacer()
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                        .scaleEffect(1.4)
+                    Text("Loading \(viewModel.selectedCategory)...")
+                        .font(.headline)
+                        .fontDesign(.rounded)
+                        .foregroundColor(.white.opacity(0.85))
+                    Spacer()
+                }
+            } else if let message = viewModel.message {
+                VStack(spacing: 14) {
+                    Spacer()
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 42))
+                        .foregroundColor(.orange)
+                    Text(message)
+                        .font(.headline)
+                        .multilineTextAlignment(.center)
+                        .foregroundColor(.white.opacity(0.86))
+                        .padding(.horizontal, 24)
+                    Spacer()
+                }
+            } else {
+                ScrollView {
+                    LazyVStack(spacing: 12) {
+                        selectedStrip
+
+                        LazyVGrid(columns: exerciseGridColumns, spacing: 12) {
+                            ForEach(viewModel.filteredExercises, id: \.stableID) { exercise in
+                                exerciseCard(exercise)
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 18)
+                    .padding(.bottom, 18)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    @ViewBuilder
+    private var selectedStrip: some View {
+        if !viewModel.selectedExercises.isEmpty {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 8) {
+                    ForEach(viewModel.selectedExercises, id: \.stableID) { exercise in
+                        Button {
+                            viewModel.removeSelectedExercise(exercise)
+                        } label: {
+                            HStack(spacing: 6) {
+                                Text(exercise.exerciseName)
+                                    .lineLimit(1)
+                                Image(systemName: "xmark")
+                            }
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 8)
+                            .background(Color.orange.opacity(0.65))
+                            .clipShape(Capsule())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
+        }
+    }
+
+    private func exerciseCard(_ exercise: AllExerciseCatalogItem) -> some View {
+        let isSelected = viewModel.isSelected(exercise)
+
+        return Button {
+            viewModel.toggleSelection(exercise)
+        } label: {
+            ZStack(alignment: .topTrailing) {
+                CachedExerciseImageView(exerciseName: exercise.exerciseName)
+                    .aspectRatio(1, contentMode: .fill)
+                    .frame(maxWidth: .infinity)
+                    .clipped()
+                    .overlay(
+                        LinearGradient(
+                            colors: [
+                                .black.opacity(0.05),
+                                .black.opacity(0.36),
+                                .black.opacity(0.88)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+
+                VStack(alignment: .leading, spacing: 5) {
+                    Spacer()
+
+                    Text(exercise.exerciseName)
+                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                        .lineLimit(2)
+                        .minimumScaleFactor(0.72)
+                        .fixedSize(horizontal: false, vertical: true)
+
+                    Text(exercise.muscle)
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundColor(.orange)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.78)
+
+                    Text("10-12 reps x 3 sets")
+                        .font(.caption)
+                        .fontWeight(.semibold)
+                        .foregroundColor(.white.opacity(0.86))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+
+                    Text("~\(exercise.expectedCaloriesBurned) cal")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white.opacity(0.58))
+                        .lineLimit(1)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                .padding(12)
+
+                Image(systemName: isSelected ? "checkmark" : "plus")
+                    .font(.headline)
+                    .foregroundColor(.white)
+                    .frame(width: 34, height: 34)
+                    .background(isSelected ? Color.green.opacity(0.94) : Color.orange.opacity(0.94))
+                    .clipShape(Circle())
+                    .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
+                    .padding(10)
+            }
+            .aspectRatio(1, contentMode: .fit)
+            .background(Color.white.opacity(0.08))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.orange.opacity(0.8) : Color.white.opacity(0.13), lineWidth: isSelected ? 2 : 1)
+            )
+            .clipShape(RoundedRectangle(cornerRadius: 12))
+            .shadow(color: isSelected ? Color.orange.opacity(0.24) : Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(isSelected ? "Remove \(exercise.exerciseName)" : "Add \(exercise.exerciseName)")
+    }
+
+    private var readyBar: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("\(viewModel.selectedExercises.count) exercises")
+                        .font(.headline)
+                        .fontWeight(.heavy)
+                        .fontDesign(.rounded)
+                        .foregroundColor(.white)
+
+                    Text("Saved locally when you start")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.6))
+                }
+
+                Spacer()
+
+                Button {
+                    viewModel.startWorkout()
+                } label: {
+                    Label("I'm ready!", systemImage: "play.fill")
+                        .font(.headline)
+                        .fontWeight(.bold)
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 13)
+                        .background(viewModel.selectedExercises.isEmpty ? Color.gray.opacity(0.55) : Color.orange)
+                        .cornerRadius(10)
+                }
+                .buttonStyle(.plain)
+                .disabled(viewModel.selectedExercises.isEmpty)
+            }
+        }
+        .padding(.horizontal, 18)
+        .padding(.top, 12)
+        .padding(.bottom, 18)
+        .background(Color.black.opacity(0.35))
+        .overlay(
+            Rectangle()
+                .fill(Color.white.opacity(0.1))
+                .frame(height: 1),
+            alignment: .top
+        )
+    }
+}
+
+private struct MakeYourOwnWorkoutSessionView: View {
+    let session: MakeYourOwnWorkoutSession
+    let onClose: () -> Void
+    @State private var exToday: String
+
+    init(session: MakeYourOwnWorkoutSession, onClose: @escaping () -> Void) {
+        self.session = session
+        self.onClose = onClose
+        self._exToday = State(initialValue: session.plan.muscle_group)
+    }
+
+    var body: some View {
+        StaringWorkWindow(
+            todaysWork: session.plan,
+            exToday: $exToday,
+            cals: session.totalCalories,
+            isCustomWorkout: true,
+            onRoutineHome: onClose
+        )
+        .onChange(of: exToday) {
+            if exToday.isEmpty {
+                onClose()
+            }
+        }
+    }
+}
+
+private struct CachedExerciseImageView: View {
+    let exerciseName: String
+    @StateObject private var loader = CatalogExerciseImageLoader()
+
+    var body: some View {
+        Group {
+            if let image = loader.image {
+                Image(uiImage: image)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                ZStack {
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.12), Color.orange.opacity(0.22)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+
+                    if loader.isLoading {
+                        ProgressView()
+                            .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                    } else {
+                        Image(systemName: "figure.strengthtraining.traditional")
+                            .font(.system(size: 34, weight: .bold))
+                            .foregroundColor(.white.opacity(0.68))
+                    }
+                }
+            }
+        }
+        .task(id: exerciseName) {
+            await loader.load(exerciseName: exerciseName)
+        }
+    }
+}
+
+@MainActor
+private final class CatalogExerciseImageLoader: ObservableObject {
+    @Published var image: UIImage?
+    @Published var isLoading = false
+
+    func load(exerciseName: String) async {
+        if let cachedImage = CatalogExerciseImageDiskCache.image(for: exerciseName) {
+            image = cachedImage
+            return
+        }
+
+        guard let url = CatalogExerciseImageDiskCache.remoteURL(for: exerciseName) else {
+            return
+        }
+
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            let (data, response) = try await URLSession.shared.data(from: url)
+            guard
+                let http = response as? HTTPURLResponse,
+                (200..<300).contains(http.statusCode),
+                let fetchedImage = UIImage(data: data)
+            else {
+                return
+            }
+
+            CatalogExerciseImageDiskCache.save(data, for: exerciseName)
+            image = fetchedImage
+        } catch {
+            image = nil
+        }
+    }
+}
+
+private enum CatalogExerciseImageDiskCache {
+    private static let directoryName = "all_exercise_images"
+
+    static func remoteURL(for exerciseName: String) -> URL? {
+        var components = URLComponents(string: Constants.baseURL + "images/imageName")
+        components?.queryItems = [
+            URLQueryItem(name: "name", value: "\(exerciseName).jpg")
+        ]
+        return components?.url
+    }
+
+    static func image(for exerciseName: String) -> UIImage? {
+        guard let url = fileURL(for: exerciseName) else { return nil }
+        return UIImage(contentsOfFile: url.path)
+    }
+
+    static func save(_ data: Data, for exerciseName: String) {
+        guard let url = fileURL(for: exerciseName) else { return }
+
+        do {
+            try FileManager.default.createDirectory(
+                at: url.deletingLastPathComponent(),
+                withIntermediateDirectories: true
+            )
+            try data.write(to: url, options: [.atomic])
+        } catch {
+            return
+        }
+    }
+
+    private static func fileURL(for exerciseName: String) -> URL? {
+        guard let cachesDirectory = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first else {
+            return nil
+        }
+
+        return cachesDirectory
+            .appendingPathComponent(directoryName, isDirectory: true)
+            .appendingPathComponent(cacheFileName(for: exerciseName))
+    }
+
+    private static func cacheFileName(for exerciseName: String) -> String {
+        let normalizedName = exerciseName
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .folding(options: [.diacriticInsensitive, .caseInsensitive], locale: .current)
+            .lowercased()
+
+        let safeName = normalizedName.unicodeScalars
+            .map { CharacterSet.alphanumerics.contains($0) ? String($0) : "_" }
+            .joined()
+
+        return "\(safeName).jpg"
     }
 }
 

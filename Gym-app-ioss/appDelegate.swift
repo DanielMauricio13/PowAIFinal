@@ -73,7 +73,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
     // Handle notification when app is in foreground
     func userNotificationCenter(_ center: UNUserNotificationCenter, willPresent notification: UNNotification, withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
+        if let alarmID = notification.request.content.userInfo["alarmID"] as? String {
+            NotificationCenter.default.post(name: .powAIAlarmNotificationTapped, object: alarmID)
+        }
         completionHandler([.list, .banner, .sound])
     }
-}
 
+    func userNotificationCenter(_ center: UNUserNotificationCenter, didReceive response: UNNotificationResponse, withCompletionHandler completionHandler: @escaping () -> Void) {
+        if let alarmID = response.notification.request.content.userInfo["alarmID"] as? String {
+            NotificationCenter.default.post(name: .powAIAlarmNotificationTapped, object: alarmID)
+        }
+        completionHandler()
+    }
+}

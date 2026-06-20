@@ -1,5 +1,14 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<dict>
+	<key>NSAlarmKitUsageDescription</key>
+	<string>PowAI uses alarms to ring when your phone is locked and require a challenge before dismissing.</string>
+	<key>NSCameraUsageDescription</key>
+	<string>PowAI uses the camera to scan QR codes and barcodes for alarm dismissal missions.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.</string>
+	<key>NSCalendarsUsageDescription</key>
+	<string>PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.</string>
+</dict>
 </plist>

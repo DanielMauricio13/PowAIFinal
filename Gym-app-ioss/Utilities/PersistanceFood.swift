@@ -68,6 +68,29 @@ class PersistenceManager {
         }
     }
 
+    @MainActor
+    func clearItems(byName name: String) {
+        if let savedItems = userDefaults.data(forKey: itemsKey) {
+            let decoder = JSONDecoder()
+
+            if var loadedItems = try? decoder.decode([Food].self, from: savedItems) {
+                let removedItems = loadedItems.filter { $0.Name == name }
+                guard !removedItems.isEmpty else { return }
+
+                loadedItems.removeAll { $0.Name == name }
+
+                for food in removedItems {
+                    HealthManager.shared.calories -= food.Calories
+                    HealthManager.shared.protein -= food.Protein
+                    HealthManager.shared.sugars -= food.Sugars
+                    HealthManager.shared.carbs -= food.Carbohydrates
+                }
+
+                saveItems(items: loadedItems)
+            }
+        }
+    }
+
     func clearItems() {
         userDefaults.removeObject(forKey: itemsKey)
         userDefaults.removeObject(forKey: dateKey)
@@ -127,4 +150,3 @@ class PersistenceManager {
         }
     }
 }
-

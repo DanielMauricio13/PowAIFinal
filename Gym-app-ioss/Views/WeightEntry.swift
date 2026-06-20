@@ -197,6 +197,7 @@ struct WeightTrackerView: View {
     @StateObject private var vm: WeightTrackerViewModel
     @State private var showAddSheet  = false
     @State private var entryToDelete: WeightEntry?
+    private let topContentInset: CGFloat
 
     // ── Unit toggle ────────────────────────────────────────────────────────────
     /// "lbs" or "kg". All stored values are in lbs; this is display-only.
@@ -237,8 +238,9 @@ struct WeightTrackerView: View {
     }
     // ──────────────────────────────────────────────────────────────────────────
 
-    init(email: String) {
+    init(email: String, topContentInset: CGFloat = 28) {
         _vm = StateObject(wrappedValue: WeightTrackerViewModel(email: email))
+        self.topContentInset = topContentInset
     }
 
     private let accentGradient = LinearGradient(
@@ -260,7 +262,7 @@ struct WeightTrackerView: View {
                     Color.clear.frame(height: 80)
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 28)
+                .padding(.top, topContentInset)
                 .padding(.bottom, 36)
             }
 

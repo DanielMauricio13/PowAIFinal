@@ -360,9 +360,11 @@ struct LiftSummaryView: View {
     @StateObject private var vm: LiftSummaryViewModel
     @ObservedObject private var languageManager = AppLanguageManager.shared
     @State private var pointToDelete: LiftSetPoint?
+    private let topContentInset: CGFloat
 
-    init(userFullWork: fullTraining?) {
+    init(userFullWork: fullTraining?, topContentInset: CGFloat = 28) {
         _vm = StateObject(wrappedValue: LiftSummaryViewModel(workout: userFullWork))
+        self.topContentInset = topContentInset
     }
 
     var body: some View {
@@ -380,7 +382,7 @@ struct LiftSummaryView: View {
                     Color.clear.frame(height: 84)
                 }
                 .padding(.horizontal, 24)
-                .padding(.top, 28)
+                .padding(.top, topContentInset)
                 .padding(.bottom, 36)
             }
         }

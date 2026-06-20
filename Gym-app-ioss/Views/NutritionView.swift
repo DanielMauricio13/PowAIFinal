@@ -8,6 +8,37 @@ struct NutritionView: View {
         var id: String { rawValue }
     }
 
+    private struct DailyFoodGroup {
+        let name: String
+        var count: Int = 0
+        var calories: Int = 0
+        var sugars: Int = 0
+        var carbs: Int = 0
+        var protein: Int = 0
+
+        mutating func add(_ food: Food) {
+            count += 1
+            calories += food.Calories
+            sugars += food.Sugars
+            carbs += food.Carbohydrates
+            protein += food.Protein
+        }
+
+        var description: String {
+            "Total for \(count) \(count == 1 ? "serving" : "servings"): \(calories) calories, \(protein)g protein, \(carbs)g carbs, \(sugars)g sugars"
+        }
+    }
+
+    struct FoodMacroEdit: Identifiable {
+        let id = UUID()
+        let name: String
+        let count: Int
+        var calories: Int
+        var sugars: Int
+        var carbs: Int
+        var protein: Int
+    }
+
     @State var buttonPressed = false
     @StateObject var viewModel: ListViewModel
     @StateObject var viewModel2: ListViewModel
@@ -27,6 +58,8 @@ struct NutritionView: View {
     @State private var showBarcodeError = false
     @State private var barcodeErrorMessage = ""
     @State private var entryMode: EntryMode = .ai
+    @State private var showDailyGoalsHelp = false
+    @State private var editingFoodMacros: FoodMacroEdit?
 
     @State private var showImagePicker = false
     @State private var capturedImage: UIImage? = nil
@@ -158,8 +191,17 @@ struct NutritionView: View {
                                         item: item,
                                         persistenceManager: self.persistenceManager,
                                         email: email,
+                                        onIncrement: {
+                                            incrementItem(named: item.title)
+                                        },
+                                        onDecrement: {
+                                            removeOneItem(named: item.title)
+                                        },
+                                        onEdit: {
+                                            beginEditingMacros(named: item.title)
+                                        },
                                         onRemove: {
-                                            removeItem(named: item.title)
+                                            removeAllItems(named: item.title)
                                         }
                                     )
                                     .onTapGesture { viewModel.toggleExpand(for: item) }
@@ -184,6 +226,11 @@ struct NutritionView: View {
             .sheet(isPresented: $showMealsWindow) {
                 MealsWindow { meal in
                     addMealToDailyNutrition(meal)
+                }
+            }
+            .sheet(item: $editingFoodMacros) { edit in
+                FoodMacroEditorView(edit: edit) { updatedEdit in
+                    applyMacroEdit(updatedEdit)
                 }
             }
         }
@@ -213,6 +260,16 @@ struct NutritionView: View {
                     .foregroundStyle(.white)
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
+
+                Button {
+                    showDailyGoalsHelp = true
+                } label: {
+                    Image(systemName: "questionmark.circle.fill")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.white.opacity(0.8))
+                        .accessibilityLabel("Daily goals info")
+                }
+                .buttonStyle(.plain)
 
                 Spacer()
 
@@ -295,6 +352,11 @@ struct NutritionView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .padding(.horizontal)
         .padding(.bottom, 4)
+        .alert("Daily goals", isPresented: $showDailyGoalsHelp) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text("AI estimates your daily goals from your age, height, weight, and fitness goal, then tracks today’s foods against those targets.")
+        }
     }
 
     // MARK: - Favorites Shelf ─────────────────────────────────────────────────
@@ -519,30 +581,118 @@ struct NutritionView: View {
         guard let food = tempFood else { return }
         items.append(food)
         persistenceManager.saveItems(items: items)
-        viewModel.items.append(ExcListItem(
-            title: food.Name,
-            description: "This food with this portion has approx: \(food.Calories) calories, \(food.Protein)g of protein, \(food.Carbohydrates)g carbs, \(food.Sugars)g sugars",
-            totalCalories: 0, duration: 0, NumExcersises: 0
-        ))
+        reloadItems()
     }
 
     private func reloadItems() {
         items = persistenceManager.loadItems()
-        viewModel.items = items.map { food in
+        let expandedNames = Set(viewModel.items.filter(\.isExpanded).map(\.title))
+        viewModel.items = groupedFoods(from: items).map { group in
             ExcListItem(
-                title: food.Name,
-                description: "This food with this portion has approx: \(food.Calories) calories, \(food.Protein)g of protein, \(food.Carbohydrates)g carbs, \(food.Sugars)g sugars",
-                totalCalories: 0,
+                title: group.name,
+                description: group.description,
+                totalCalories: group.calories,
                 duration: 0,
-                NumExcersises: 0
+                NumExcersises: group.count,
+                isExpanded: expandedNames.contains(group.name)
             )
         }
     }
 
-    private func removeItem(named name: String) {
+    private func incrementItem(named name: String) {
+        guard let food = persistenceManager.getItem(byName: name) else { return }
+        items.append(food)
+        persistenceManager.saveItems(items: items)
+        HealthManager.shared.calories += food.Calories
+        HealthManager.shared.sugars += food.Sugars
+        HealthManager.shared.protein += food.Protein
+        HealthManager.shared.carbs += food.Carbohydrates
+        reloadItems()
+    }
+
+    private func removeOneItem(named name: String) {
         persistenceManager.clearItem(byName: name)
         clampHealth()
         reloadItems()
+    }
+
+    private func removeAllItems(named name: String) {
+        persistenceManager.clearItems(byName: name)
+        clampHealth()
+        reloadItems()
+    }
+
+    private func beginEditingMacros(named name: String) {
+        guard let food = persistenceManager.getItem(byName: name) else { return }
+        let count = items.filter { normalizedFoodName($0.Name) == normalizedFoodName(name) }.count
+        editingFoodMacros = FoodMacroEdit(
+            name: food.Name,
+            count: max(count, 1),
+            calories: food.Calories,
+            sugars: food.Sugars,
+            carbs: food.Carbohydrates,
+            protein: food.Protein
+        )
+    }
+
+    private func applyMacroEdit(_ edit: FoodMacroEdit) {
+        let targetName = normalizedFoodName(edit.name)
+        var oldCalories = 0
+        var oldSugars = 0
+        var oldCarbs = 0
+        var oldProtein = 0
+        var editedCount = 0
+
+        items = items.map { food in
+            guard normalizedFoodName(food.Name) == targetName else { return food }
+
+            editedCount += 1
+            oldCalories += food.Calories
+            oldSugars += food.Sugars
+            oldCarbs += food.Carbohydrates
+            oldProtein += food.Protein
+
+            return Food(
+                id: food.id,
+                Name: food.Name,
+                Calories: max(0, edit.calories),
+                Sugars: max(0, edit.sugars),
+                Carbohydrates: max(0, edit.carbs),
+                Protein: max(0, edit.protein)
+            )
+        }
+
+        guard editedCount > 0 else { return }
+
+        HealthManager.shared.calories += (max(0, edit.calories) * editedCount) - oldCalories
+        HealthManager.shared.sugars += (max(0, edit.sugars) * editedCount) - oldSugars
+        HealthManager.shared.carbs += (max(0, edit.carbs) * editedCount) - oldCarbs
+        HealthManager.shared.protein += (max(0, edit.protein) * editedCount) - oldProtein
+
+        persistenceManager.saveItems(items: items)
+        clampHealth()
+        reloadItems()
+        editingFoodMacros = nil
+    }
+
+    private func normalizedFoodName(_ name: String) -> String {
+        name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+    }
+
+    private func groupedFoods(from foods: [Food]) -> [DailyFoodGroup] {
+        var groupsByName: [String: DailyFoodGroup] = [:]
+        var order: [String] = []
+
+        for food in foods {
+            let key = food.Name.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if groupsByName[key] == nil {
+                order.append(key)
+                groupsByName[key] = DailyFoodGroup(name: food.Name)
+            }
+            groupsByName[key]?.add(food)
+        }
+
+        return order.compactMap { groupsByName[$0] }
     }
 
     private func addMealToDailyNutrition(_ meal: MealDTO) {
@@ -562,7 +712,7 @@ struct NutritionView: View {
     }
 
     func deleteItems(at offsets: IndexSet) { items.remove(atOffsets: offsets); clampHealth(); persistenceManager.saveItems(items: items) }
-    func deleteItemss(name: String) { removeItem(named: name) }
+    func deleteItemss(name: String) { removeOneItem(named: name) }
     private func clampHealth() {
         if HealthManager.shared.calories < 0 { HealthManager.shared.calories = 0 }
         if HealthManager.shared.protein  < 0 { HealthManager.shared.protein  = 0 }
@@ -646,13 +796,27 @@ struct NutritionView: View {
         var item: ExcListItem
         let persistenceManager: PersistenceManager
         let email: String
+        let onIncrement: () -> Void
+        let onDecrement: () -> Void
+        let onEdit: () -> Void
         let onRemove: () -> Void
         @State private var isSaved: Bool
 
-        init(item: ExcListItem, persistenceManager: PersistenceManager, email: String, onRemove: @escaping () -> Void) {
+        init(
+            item: ExcListItem,
+            persistenceManager: PersistenceManager,
+            email: String,
+            onIncrement: @escaping () -> Void,
+            onDecrement: @escaping () -> Void,
+            onEdit: @escaping () -> Void,
+            onRemove: @escaping () -> Void
+        ) {
             self.item = item
             self.persistenceManager = persistenceManager
             self.email = email
+            self.onIncrement = onIncrement
+            self.onDecrement = onDecrement
+            self.onEdit = onEdit
             self.onRemove = onRemove
             _isSaved = State(initialValue: persistenceManager.loadFavorites().contains(where: { $0.Name == item.title }))
         }
@@ -663,6 +827,18 @@ struct NutritionView: View {
                     Text(item.title)
                         .font(.headline)
                         .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+
+                    if item.NumExcersises > 1 {
+                        Text("x\(item.NumExcersises)")
+                            .font(.caption.weight(.heavy))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(Color.orange.opacity(0.85), in: Capsule())
+                    }
+
                     Spacer()
                     Image(systemName: "chevron.down")
                         .rotationEffect(.degrees(item.isExpanded ? 180 : 0))
@@ -671,10 +847,40 @@ struct NutritionView: View {
 
                 if item.isExpanded {
                     Text(item.description).font(.subheadline).foregroundStyle(.white.opacity(0.78))
-                    HStack {
-                        Button("Remove", action: onRemove)
-                            .foregroundColor(.red)
+
+                    HStack(spacing: 10) {
+                        Button(action: onDecrement) {
+                            Image(systemName: "minus")
+                                .font(.caption.weight(.heavy))
+                                .frame(width: 32, height: 32)
+                                .background(Color.white.opacity(0.12), in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.white)
+
+                        Text("\(item.NumExcersises)")
+                            .font(.headline.weight(.heavy))
+                            .foregroundStyle(.white)
+                            .frame(minWidth: 24)
+
+                        Button(action: onIncrement) {
+                            Image(systemName: "plus")
+                                .font(.caption.weight(.heavy))
+                                .frame(width: 32, height: 32)
+                                .background(Color.orange, in: Circle())
+                        }
+                        .buttonStyle(.plain)
+                        .foregroundStyle(.white)
+
                         Spacer()
+
+                        Button(action: onEdit) {
+                            Label("Edit", systemImage: "slider.horizontal.3")
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.88))
+                        }
+                        .buttonStyle(.plain)
+
                         Button {
                             if let food = persistenceManager.getItem(byName: item.title) {
                                 if isSaved {
@@ -692,6 +898,12 @@ struct NutritionView: View {
                                 .foregroundStyle(.yellow)
                         }
                     }
+
+                    Button(role: .destructive, action: onRemove) {
+                        Label("Remove all", systemImage: "trash")
+                            .font(.subheadline.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding()
@@ -701,6 +913,99 @@ struct NutritionView: View {
                     .stroke(Color.white.opacity(0.14), lineWidth: 1)
             )
             .cornerRadius(12)
+        }
+    }
+}
+
+private struct FoodMacroEditorView: View {
+    let edit: NutritionView.FoodMacroEdit
+    let onSave: (NutritionView.FoodMacroEdit) -> Void
+    @Environment(\.dismiss) private var dismiss
+    @State private var calories: Int
+    @State private var protein: Int
+    @State private var carbs: Int
+    @State private var sugars: Int
+
+    init(edit: NutritionView.FoodMacroEdit, onSave: @escaping (NutritionView.FoodMacroEdit) -> Void) {
+        self.edit = edit
+        self.onSave = onSave
+        _calories = State(initialValue: edit.calories)
+        _protein = State(initialValue: edit.protein)
+        _carbs = State(initialValue: edit.carbs)
+        _sugars = State(initialValue: edit.sugars)
+    }
+
+    var body: some View {
+        NavigationStack {
+            Form {
+                Section {
+                    VStack(alignment: .leading, spacing: 6) {
+                        Text(edit.name)
+                            .font(.headline)
+                        Text("Values are per serving. Saving applies them to all \(edit.count) \(edit.count == 1 ? "serving" : "servings") in today's foods.")
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
+                }
+
+                Section("Per serving") {
+                    macroStepper("Calories", value: $calories, unit: "kcal")
+                    macroStepper("Protein", value: $protein, unit: "g")
+                    macroStepper("Carbs", value: $carbs, unit: "g")
+                    macroStepper("Sugar", value: $sugars, unit: "g")
+                }
+
+                Section("Stack total") {
+                    macroTotal("Calories", value: calories * edit.count, unit: "kcal")
+                    macroTotal("Protein", value: protein * edit.count, unit: "g")
+                    macroTotal("Carbs", value: carbs * edit.count, unit: "g")
+                    macroTotal("Sugar", value: sugars * edit.count, unit: "g")
+                }
+            }
+            .navigationTitle("Edit macros")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") { dismiss() }
+                }
+
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") {
+                        onSave(
+                            NutritionView.FoodMacroEdit(
+                                name: edit.name,
+                                count: edit.count,
+                                calories: max(0, calories),
+                                sugars: max(0, sugars),
+                                carbs: max(0, carbs),
+                                protein: max(0, protein)
+                            )
+                        )
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+
+    private func macroStepper(_ title: String, value: Binding<Int>, unit: String) -> some View {
+        Stepper(value: value, in: 0...5000) {
+            HStack {
+                Text(title)
+                Spacer()
+                Text("\(value.wrappedValue) \(unit)")
+                    .foregroundStyle(.secondary)
+            }
+        }
+    }
+
+    private func macroTotal(_ title: String, value: Int, unit: String) -> some View {
+        HStack {
+            Text(title)
+            Spacer()
+            Text("\(value) \(unit)")
+                .foregroundStyle(.secondary)
         }
     }
 }
