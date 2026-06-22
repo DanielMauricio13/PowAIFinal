@@ -25,3 +25,8 @@ struct TimeTrackingAttributes: ActivityAttributes{
     var Initial: Date
     
 }
+
+enum LiveActivityRelevance {
+    static let workout: Double = 100
+    static let dayPlan: Double = 10
+}

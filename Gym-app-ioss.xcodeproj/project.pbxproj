@@ -21,6 +21,8 @@
 		43A1B0252FE9100100A1B025 /* powai_rekordbox_noise.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0242FE9100100A1B024 /* powai_rekordbox_noise.wav */; };
 		43A1B0272FE9100100A1B027 /* powai_rekordbox_sinewave.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0262FE9100100A1B026 /* powai_rekordbox_sinewave.wav */; };
 		43B1943F2AC760F5002CF64D /* MainWindow2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B1943E2AC760F5002CF64D /* MainWindow2.swift */; };
+		43BEEF012FEA000100000001 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43BEEF042FEA000100000001 /* Localizable.strings */; };
+		43BEEF052FEA000100000001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43BEEF082FEA000100000001 /* InfoPlist.strings */; };
 		43C27BF62BEC3DAE00A73F0F /* ExcerciseWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27BF52BEC3DAE00A73F0F /* ExcerciseWindow.swift */; };
 		43C27BF82BEC5CCA00A73F0F /* NutritionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27BF72BEC5CCA00A73F0F /* NutritionView.swift */; };
 		43C27BFA2BEC5EC600A73F0F /* Food.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27BF92BEC5EC600A73F0F /* Food.swift */; };
@@ -77,6 +79,7 @@
 		43F8170C2FD0000100CDFAA5 /* AppLanguageManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F8170D2FD0000100CDFAA5 /* AppLanguageManager.swift */; };
 		43F8170E2FD0000100CDFAA5 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43F817112FD0000100CDFAA5 /* Localizable.strings */; };
 		43F817132FE0000100CDFAA5 /* LiftSummaryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F817122FE0000100CDFAA5 /* LiftSummaryView.swift */; };
+		43F900012FEF000100000001 /* PushNotificationRegistrar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43F900002FEF000100000001 /* PushNotificationRegistrar.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -107,6 +110,7 @@
 		433F834C2FC6F30200B7DC83 /* AuthSession 2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "AuthSession 2.swift"; sourceTree = "<group>"; };
 		4349A6882BFE606400684853 /* workoutVieModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = workoutVieModel.swift; sourceTree = "<group>"; };
 		4349A68A2C00CB0400684853 /* PersistanceFood.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistanceFood.swift; sourceTree = "<group>"; };
+		436EEE0C2FE976E2001C831D /* PowAI_WidgetExtension.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = PowAI_WidgetExtension.entitlements; sourceTree = "<group>"; };
 		4376F4082C02685C00937885 /* PersiatnceCalories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersiatnceCalories.swift; sourceTree = "<group>"; };
 		4376F40A2C03F49300937885 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4376F40D2C093E5A00937885 /* WorkOutWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkOutWindow.swift; sourceTree = "<group>"; };
@@ -121,6 +125,10 @@
 		43A1B0242FE9100100A1B024 /* powai_rekordbox_noise.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_rekordbox_noise.wav; sourceTree = "<group>"; };
 		43A1B0262FE9100100A1B026 /* powai_rekordbox_sinewave.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_rekordbox_sinewave.wav; sourceTree = "<group>"; };
 		43B1943E2AC760F5002CF64D /* MainWindow2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow2.swift; sourceTree = "<group>"; };
+		43BEEF022FEA000100000001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
+		43BEEF032FEA000100000001 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
+		43BEEF062FEA000100000001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/InfoPlist.strings; sourceTree = "<group>"; };
+		43BEEF072FEA000100000001 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/InfoPlist.strings; sourceTree = "<group>"; };
 		43C27BF52BEC3DAE00A73F0F /* ExcerciseWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExcerciseWindow.swift; sourceTree = "<group>"; };
 		43C27BF72BEC5CCA00A73F0F /* NutritionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NutritionView.swift; sourceTree = "<group>"; };
 		43C27BF92BEC5EC600A73F0F /* Food.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Food.swift; sourceTree = "<group>"; };
@@ -170,6 +178,7 @@
 		43F8170F2FD0000100CDFAA5 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		43F817102FD0000100CDFAA5 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
 		43F817122FE0000100CDFAA5 /* LiftSummaryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LiftSummaryView.swift; sourceTree = "<group>"; };
+		43F900002FEF000100000001 /* PushNotificationRegistrar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PushNotificationRegistrar.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -233,6 +242,7 @@
 				43C393972C1F95EF00060774 /* PowAI_Widget.swift */,
 				43C393992C1F95F000060774 /* Assets.xcassets */,
 				43C3939B2C1F95F000060774 /* Info.plist */,
+				43BEEF042FEA000100000001 /* Localizable.strings */,
 			);
 			path = PowAI_Widget;
 			sourceTree = "<group>";
@@ -240,6 +250,7 @@
 		43CD9FFC2A8C479C000BCA3B = {
 			isa = PBXGroup;
 			children = (
+				436EEE0C2FE976E2001C831D /* PowAI_WidgetExtension.entitlements */,
 				43CDA0072A8C479C000BCA3B /* Gym-app-ioss */,
 				43C393942C1F95EF00060774 /* PowAI_Widget */,
 				43C3938F2C1F95EF00060774 /* Frameworks */,
@@ -273,6 +284,7 @@
 				43C27C0B2BF2DA0200A73F0F /* GenerativeAi-Info.plist */,
 				43C393AA2C20FB1A00060774 /* appDelegate.swift */,
 				43F817112FD0000100CDFAA5 /* Localizable.strings */,
+				43BEEF082FEA000100000001 /* InfoPlist.strings */,
 			);
 			path = "Gym-app-ioss";
 			sourceTree = "<group>";
@@ -312,6 +324,7 @@
 				4376F4082C02685C00937885 /* PersiatnceCalories.swift */,
 				43C393882C1B57B200060774 /* TimeTrackingAttributes.swift */,
 				43F8170D2FD0000100CDFAA5 /* AppLanguageManager.swift */,
+				43F900002FEF000100000001 /* PushNotificationRegistrar.swift */,
 			);
 			path = Utilities;
 			sourceTree = "<group>";
@@ -454,6 +467,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				43C3939A2C1F95F000060774 /* Assets.xcassets in Resources */,
+				43BEEF012FEA000100000001 /* Localizable.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -473,6 +487,7 @@
 				43A1B0252FE9100100A1B025 /* powai_rekordbox_noise.wav in Resources */,
 				43A1B0272FE9100100A1B027 /* powai_rekordbox_sinewave.wav in Resources */,
 				43F8170E2FD0000100CDFAA5 /* Localizable.strings in Resources */,
+				43BEEF052FEA000100000001 /* InfoPlist.strings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -505,6 +520,7 @@
 				43C27BF82BEC5CCA00A73F0F /* NutritionView.swift in Sources */,
 				43C393AB2C20FB1A00060774 /* appDelegate.swift in Sources */,
 				433F834D2FC6F30200B7DC83 /* AuthSession 2.swift in Sources */,
+				43F900012FEF000100000001 /* PushNotificationRegistrar.swift in Sources */,
 				43C393892C1B57B200060774 /* TimeTrackingAttributes.swift in Sources */,
 				43B1943F2AC760F5002CF64D /* MainWindow2.swift in Sources */,
 				4349A68B2C00CB0400684853 /* PersistanceFood.swift in Sources */,
@@ -552,6 +568,24 @@
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
+		43BEEF042FEA000100000001 /* Localizable.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				43BEEF022FEA000100000001 /* en */,
+				43BEEF032FEA000100000001 /* es */,
+			);
+			name = Localizable.strings;
+			sourceTree = "<group>";
+		};
+		43BEEF082FEA000100000001 /* InfoPlist.strings */ = {
+			isa = PBXVariantGroup;
+			children = (
+				43BEEF062FEA000100000001 /* en */,
+				43BEEF072FEA000100000001 /* es */,
+			);
+			name = InfoPlist.strings;
+			sourceTree = "<group>";
+		};
 		43F817112FD0000100CDFAA5 /* Localizable.strings */ = {
 			isa = PBXVariantGroup;
 			children = (
@@ -570,8 +604,9 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PowAI_WidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -602,8 +637,9 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
+				CODE_SIGN_ENTITLEMENTS = PowAI_WidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -756,7 +792,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;
@@ -799,7 +835,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 14;
+				CURRENT_PROJECT_VERSION = 15;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;

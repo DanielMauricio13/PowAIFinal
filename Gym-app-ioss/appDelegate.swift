@@ -19,6 +19,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         
         UNUserNotificationCenter.current().delegate = self
         requestNotificationPermission()
+        PushNotificationRegistrar.uploadStoredDeviceTokenIfPossible()
 
 //        NotificationCenter.default.addObserver(
 //                   self,
@@ -68,7 +69,18 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
             if let error = error {
                 print("Failed to request notification permission: \(error)")
             }
+            if granted {
+                PushNotificationRegistrar.registerForRemoteNotifications()
+            }
         }
+    }
+
+    func application(_ application: UIApplication, didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data) {
+        PushNotificationRegistrar.saveDeviceToken(deviceToken)
+    }
+
+    func application(_ application: UIApplication, didFailToRegisterForRemoteNotificationsWithError error: Error) {
+        print("Failed to register for remote notifications: \(error)")
     }
 
     // Handle notification when app is in foreground

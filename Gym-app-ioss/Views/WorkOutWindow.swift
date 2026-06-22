@@ -19,6 +19,8 @@ struct WorkOutWindow: View {
     @State private var isRequestingAlternate = false
     @State private var showAlternateError = false
     @State private var alternateErrorMessage = ""
+    @State private var showingSharePicker = false
+    @State private var showingFriendRoutinePicker = false
     var isHIITWorkout = false
 
     private var columns: [GridItem] {
@@ -65,6 +67,32 @@ struct WorkOutWindow: View {
                                 .padding(.trailing, 8)
                         }
                         .disabled(isRequestingAlternate || todaysWork?.exercises.isEmpty != false)
+
+                        Menu {
+                            Button {
+                                showingSharePicker = true
+                            } label: {
+                                Label(
+                                    AppLanguageManager.shared.localizedString(forKey: "Share today’s routine"),
+                                    systemImage: "paperplane.fill"
+                                )
+                            }
+
+                            Button {
+                                showingFriendRoutinePicker = true
+                            } label: {
+                                Label(
+                                    AppLanguageManager.shared.localizedString(forKey: "Use friend’s routine"),
+                                    systemImage: "person.2.fill"
+                                )
+                            }
+                        } label: {
+                            Image(systemName: "person.crop.circle.badge.plus")
+                                .resizable()
+                                .frame(width: 34, height: 34)
+                                .foregroundStyle(Color.accentColor)
+                        }
+                        .disabled(todaysWork == nil)
                     }
                         
                     
@@ -164,6 +192,22 @@ struct WorkOutWindow: View {
         } message: {
             Text(alternateErrorMessage)
         }
+        .sheet(isPresented: $showingSharePicker) {
+            if let day = todaysWork?.day {
+                FriendSharePickerView(
+                    title: AppLanguageManager.shared.localizedString(forKey: "Share today’s routine"),
+                    target: .workoutDay(day)
+                )
+            }
+        }
+        .sheet(isPresented: $showingFriendRoutinePicker) {
+            FriendWorkoutShareSheet(targetDay: todaysWork?.day ?? 1) { updatedPlan in
+                todaysWork = updatedPlan
+                exToday = updatedPlan.muscle_group
+                recalculateSummary()
+                showingFriendRoutinePicker = false
+            }
+        }
     }
     
     func recalculateSummary() {
@@ -239,6 +283,131 @@ struct WorkOutWindow: View {
     private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {
         let format = AppLanguageManager.shared.localizedString(forKey: key)
         return String(format: format, locale: AppLanguageManager.shared.locale, arguments: arguments)
+    }
+}
+
+private struct FriendWorkoutShareSheet: View {
+    let targetDay: Int
+    let onUse: (workout_plans) -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var shares: [SharedFriendItemDTO] = []
+    @State private var isLoading = false
+    @State private var message: String?
+
+    private var workoutShares: [SharedFriendItemDTO] {
+        shares.filter { $0.status == "pending" && $0.type == "workout_day" }
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppBackgroundView()
+
+                Group {
+                    if isLoading && shares.isEmpty {
+                        ProgressView()
+                            .scaleEffect(1.2)
+                    } else if workoutShares.isEmpty {
+                        VStack(spacing: 14) {
+                            Image(systemName: "person.2.slash")
+                                .font(.system(size: 42, weight: .light))
+                                .foregroundStyle(.secondary)
+                            Text(AppLanguageManager.shared.localizedString(forKey: "No friend routines waiting."))
+                                .font(.headline)
+                                .multilineTextAlignment(.center)
+                            Text(AppLanguageManager.shared.localizedString(forKey: "Ask a friend to share today’s routine with you."))
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                                .multilineTextAlignment(.center)
+                        }
+                        .padding()
+                    } else {
+                        List {
+                            ForEach(workoutShares, id: \.stableID) { share in
+                                Button {
+                                    Task { await use(share) }
+                                } label: {
+                                    VStack(alignment: .leading, spacing: 5) {
+                                        Text(share.title)
+                                            .font(.headline.weight(.bold))
+                                        Text(share.sender.displayName)
+                                            .font(.subheadline)
+                                            .foregroundStyle(.secondary)
+                                        Text(AppLanguageManager.shared.localizedString(forKey: "Tap to use this as today’s routine."))
+                                            .font(.caption.weight(.semibold))
+                                            .foregroundStyle(Color.accentColor)
+                                    }
+                                    .padding(.vertical, 6)
+                                }
+                            }
+                        }
+                        .scrollContentBackground(.hidden)
+                    }
+                }
+            }
+            .navigationTitle(AppLanguageManager.shared.localizedString(forKey: "Use friend’s routine"))
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(AppLanguageManager.shared.localizedString(forKey: "Close")) {
+                        dismiss()
+                    }
+                }
+            }
+            .task { await load() }
+            .alert(AppLanguageManager.shared.localizedString(forKey: "Friends"), isPresented: Binding(
+                get: { message != nil },
+                set: { if !$0 { message = nil } }
+            )) {
+                Button(AppLanguageManager.shared.localizedString(forKey: "OK"), role: .cancel) {}
+            } message: {
+                Text(message ?? "")
+            }
+        }
+    }
+
+    @MainActor
+    private func load() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            shares = try await FriendshipAPI.fetchShares()
+        } catch {
+            message = AppLanguageManager.shared.localizedString(forKey: "Could not load shared routines.")
+        }
+    }
+
+    @MainActor
+    private func use(_ share: SharedFriendItemDTO) async {
+        guard let shareID = share.id else { return }
+        isLoading = true
+        defer { isLoading = false }
+
+        do {
+            _ = try await FriendshipAPI.acceptShare(id: shareID, targetDay: targetDay)
+            let training = try await fetchUpdatedTraining()
+            guard let plan = training.userExcersises.workout_plan.first(where: { $0.day == targetDay }) else {
+                message = AppLanguageManager.shared.localizedString(forKey: "Friend routine was added, but could not be opened.")
+                return
+            }
+            onUse(plan)
+        } catch {
+            message = AppLanguageManager.shared.localizedString(forKey: "Could not use friend’s routine.")
+        }
+    }
+
+    private func fetchUpdatedTraining() async throws -> fullTraining {
+        guard let url = URL(string: Constants.baseURL + "training/userExcersises") else {
+            throw URLError(.badURL)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.applyBearerToken()
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(fullTraining.self, from: data)
     }
 }
 

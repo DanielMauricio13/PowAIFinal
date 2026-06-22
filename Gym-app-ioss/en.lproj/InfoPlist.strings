@@ -1,0 +1,4 @@
+"NSAlarmKitUsageDescription" = "PowAI uses alarms to ring when your phone is locked and require a challenge before dismissing.";
+"NSCalendarsFullAccessUsageDescription" = "PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.";
+"NSCalendarsUsageDescription" = "PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.";
+"NSCameraUsageDescription" = "PowAI uses the camera to scan QR codes and barcodes for alarm dismissal missions.";

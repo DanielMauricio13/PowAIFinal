@@ -134,8 +134,10 @@ struct LogInWindow: View {
                                         if let response = try? JSONDecoder().decode([String: String].self, from: data),
                                            let token = response["token"] ?? response["jwt"] {
                                             AuthSession.saveToken(token)
+                                            PushNotificationRegistrar.uploadStoredDeviceTokenIfPossible()
                                         } else if let token = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty {
                                             AuthSession.saveToken(token)
+                                            PushNotificationRegistrar.uploadStoredDeviceTokenIfPossible()
                                         }
                                     }
 

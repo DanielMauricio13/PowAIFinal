@@ -45,6 +45,7 @@ struct StaringWorkWindow: View {
     @State var finishedRecover = false
     var onWorkoutFinished: (() -> Void)? = nil
     var routineDay: Int? = nil
+    var challengeID: UUID? = nil
     var isHIITWorkout = false
     var isCustomWorkout = false
     var routineExerciseWeights: [Double] = []
@@ -74,6 +75,8 @@ struct StaringWorkWindow: View {
     @State private var showReplaceExerciseError = false
     @State private var hiitElapsedSeconds = 0
     @State private var hiitStopwatchRunning = false
+    @State private var workoutStartedAt = Date()
+    @State private var didPostWorkoutCompletion = false
     
     @State var activity: Activity<TimeTrackingAttributes>? = nil
     @State var isTrackingTime: Bool = false
@@ -134,7 +137,11 @@ struct StaringWorkWindow: View {
                           )
                           Task {
                               await activity.update(
-                                  ActivityContent(state: updatedState, staleDate: nil)
+                                  ActivityContent(
+                                      state: updatedState,
+                                      staleDate: nil,
+                                      relevanceScore: LiveActivityRelevance.workout
+                                  )
                               )
                           }
                       }
@@ -191,6 +198,8 @@ struct StaringWorkWindow: View {
         }
         .onAppear {
             activeWorkout = todaysWork
+            workoutStartedAt = Date()
+            didPostWorkoutCompletion = false
             syncRoutineWeights()
             if isHIITWorkout {
                 hiitElapsedSeconds = 0
@@ -306,6 +315,7 @@ struct StaringWorkWindow: View {
                 }
 
                 Button {
+                    Task { await shareWorkoutCompletionIfNeeded() }
                     onWorkoutFinished?()
                     exToday = ""
                 } label: {
@@ -815,8 +825,13 @@ struct StaringWorkWindow: View {
                 set: set - 1,
                 heartRate: hkManager.latestBPM
             )
-            let content = ActivityContent(state: state, staleDate: nil)
+            let content = ActivityContent(
+                state: state,
+                staleDate: nil,
+                relevanceScore: LiveActivityRelevance.workout
+            )
             activity = try? Activity<TimeTrackingAttributes>.request(attributes: attributes, content: content, pushType: nil)
+            LiveActivityManager.shared.prioritizeWorkoutOverDayPlan()
 
             scheduleRecoveryNotification(
                 identifier: "timerNotification",
@@ -837,7 +852,11 @@ struct StaringWorkWindow: View {
                 set: set - 1,
                 heartRate: hkManager.latestBPM
             )
-            let finalContent = ActivityContent(state: finalContentState, staleDate: nil)
+            let finalContent = ActivityContent(
+                state: finalContentState,
+                staleDate: nil,
+                relevanceScore: LiveActivityRelevance.workout
+            )
 
             Task {
                 await activity?.end(finalContent, dismissalPolicy: .immediate)
@@ -1027,7 +1046,7 @@ struct StaringWorkWindow: View {
     }
 
     private func setWeightLookupKey(exerciseName: String, setNumber: Int) -> String {
-        let source = routineDay == nil ? "training" : "routine"
+        let source = challengeID == nil ? (routineDay == nil ? "training" : "routine") : "challenge"
         let normalizedName = exerciseName
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
@@ -1152,7 +1171,7 @@ struct StaringWorkWindow: View {
         do {
             let path = isCustomWorkout
                 ? "training/custom-current-set"
-                : (routineDay == nil ? "training/current-set" : "routine/current-set")
+                : challengeSetLogPath ?? (routineDay == nil ? "training/current-set" : "routine/current-set")
             guard let url = URL(string: Constants.baseURL + path) else {
                 throw URLError(.badURL)
             }
@@ -1401,6 +1420,44 @@ struct StaringWorkWindow: View {
     private func presentReplaceExerciseError(_ message: String) {
         replaceExerciseError = message
         showReplaceExerciseError = true
+    }
+
+    @MainActor
+    private func shareWorkoutCompletionIfNeeded() async {
+        guard !didPostWorkoutCompletion else { return }
+        didPostWorkoutCompletion = true
+
+        let group = (currentWorkout?.muscle_group ?? exToday).trimmingCharacters(in: .whitespacesAndNewlines)
+        let duration = isHIITWorkout ? hiitElapsedSeconds : max(0, Int(Date().timeIntervalSince(workoutStartedAt)))
+        let payload = WorkoutCompletionPayload(
+            workoutType: socialWorkoutType,
+            title: group.isEmpty ? "Workout" : group,
+            muscleGroup: group.isEmpty ? nil : group,
+            durationSeconds: duration,
+            calories: displayedCalories,
+            completedDate: FriendshipAPI.localDayFormatter.string(from: Date()),
+            challengeID: challengeID,
+            challengeDay: challengeID == nil ? nil : routineDay
+        )
+
+        do {
+            _ = try await FriendshipAPI.postWorkoutCompletion(payload)
+        } catch {
+            print("Could not share workout completion: \(error)")
+        }
+    }
+
+    private var socialWorkoutType: String {
+        if isHIITWorkout { return "hiit" }
+        if challengeID != nil { return "challenge" }
+        if isCustomWorkout { return "custom" }
+        if routineDay != nil { return "routine" }
+        return "training"
+    }
+
+    private var challengeSetLogPath: String? {
+        guard let challengeID else { return nil }
+        return "friends/challenges/\(challengeID.uuidString)/set-log"
     }
 
     private func localizedFormat(_ key: String, _ arguments: CVarArg...) -> String {

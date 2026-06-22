@@ -8,6 +8,10 @@ import WidgetKit
 import SwiftUI
 import ActivityKit
 
+private func widgetLocalized(_ key: String) -> String {
+    Bundle.main.localizedString(forKey: key, value: key, table: nil)
+}
+
 
 
 
@@ -22,30 +26,32 @@ struct PowAI_Widget: Widget {
             }
         } dynamicIsland: { context in
             DynamicIsland {
-                DynamicIslandExpandedRegion(.trailing) {
-                    if context.state.dayPlanTitle != nil {
-                        DayPlanIslandCountdownView(context: context)
-                    } else {
-                        HStack {
-                            Text(context.state.startTime, style: .timer)
-                                .bold()
-                                .font(.title2)
-                                .foregroundColor(.red)
-                        }
-                    }
-                }
-                DynamicIslandExpandedRegion(.center){
-                    if context.state.dayPlanTitle != nil {
-                        DayPlanIslandCenterView(context: context)
-                    } else {
-                        Text("Time So far:").bold().font(.title2)
-                    }
-                }
                 DynamicIslandExpandedRegion(.leading){
                     if context.state.dayPlanTitle != nil {
                         DayPlanIslandStatusView(context: context)
                     } else {
-                        Text("Resting...").font(.title)
+                        TimerIslandStatusView(context: context)
+                    }
+                }
+                DynamicIslandExpandedRegion(.center){
+                    if context.state.dayPlanTitle != nil {
+                        DayPlanIslandTitleView(context: context)
+                    } else {
+                        TimerIslandTitleView(context: context)
+                    }
+                }
+                DynamicIslandExpandedRegion(.trailing) {
+                    if context.state.dayPlanTitle != nil {
+                        DayPlanIslandCountdownView(context: context)
+                    } else {
+                        TimerIslandCountdownView(context: context)
+                    }
+                }
+                DynamicIslandExpandedRegion(.bottom) {
+                    if context.state.dayPlanTitle != nil {
+                        DayPlanIslandNextView(context: context)
+                    } else {
+                        TimerIslandMetricsView(context: context)
                     }
                 }
             } compactLeading: {
@@ -62,10 +68,17 @@ struct PowAI_Widget: Widget {
             } compactTrailing: {
                 if let endTime = context.state.dayPlanEndTime {
                     Text(endTime, style: .timer)
-                        .frame(width: 48)
+                        .font(.caption2.weight(.black))
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.55)
+                        .frame(width: 56, alignment: .trailing)
                         .foregroundStyle(.cyan)
                 } else {
                     Text("Set \(context.state.set)")
+                        .font(.caption2.weight(.bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
             } minimal: {
                 if let endTime = context.state.dayPlanEndTime {
@@ -107,11 +120,11 @@ struct DayPlanLockScreenView: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Label(context.state.dayPlanStatus ?? "Now", systemImage: "calendar.badge.clock")
+                    Label(context.state.dayPlanStatus ?? widgetLocalized("Now"), systemImage: "calendar.badge.clock")
                         .font(.caption.weight(.black))
                         .foregroundStyle(.cyan)
 
-                    Text(context.state.dayPlanTitle ?? "Day Plan")
+                    Text(context.state.dayPlanTitle ?? widgetLocalized("Day Plan"))
                         .font(.title3.weight(.black))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
@@ -120,7 +133,7 @@ struct DayPlanLockScreenView: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text("LEFT")
+                    Text(widgetLocalized("LEFT"))
                         .font(.caption2.weight(.black))
                         .foregroundStyle(.secondary)
                     Text(endTime, style: .timer)
@@ -137,11 +150,11 @@ struct DayPlanLockScreenView: View {
                     .foregroundStyle(.secondary)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(spacing: 6) {
-                        Text("NEXT")
+                        Text(widgetLocalized("NEXT"))
                             .font(.caption2.weight(.black))
                             .foregroundStyle(.secondary)
                         if let nextStartTime {
-                            Text("IN")
+                            Text(widgetLocalized("IN"))
                                 .font(.caption2.weight(.black))
                                 .foregroundStyle(.secondary)
                             Text(nextStartTime, style: .timer)
@@ -150,14 +163,14 @@ struct DayPlanLockScreenView: View {
                                 .monospacedDigit()
                         }
                     }
-                    Text(context.state.dayPlanNextTitle ?? "No next activity")
+                    Text(context.state.dayPlanNextTitle ?? widgetLocalized("No next activity"))
                         .font(.subheadline.weight(.bold))
                         .lineLimit(1)
                 }
 
                 Spacer()
 
-                Text(context.state.dayPlanCategory ?? "Plan")
+                Text(context.state.dayPlanCategory ?? widgetLocalized("Plan"))
                     .font(.caption.weight(.bold))
                     .padding(.horizontal, 8)
                     .padding(.vertical, 5)
@@ -173,38 +186,67 @@ struct DayPlanIslandStatusView: View {
     let context: ActivityViewContext<TimeTrackingAttributes>
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(context.state.dayPlanStatus ?? "Now")
+        HStack(spacing: 5) {
+            Image(systemName: "calendar.badge.clock")
                 .font(.caption.weight(.black))
                 .foregroundStyle(.cyan)
-            Text(context.state.dayPlanCategory ?? "Plan")
-                .font(.caption2.weight(.semibold))
-                .foregroundStyle(.secondary)
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(context.state.dayPlanStatus ?? widgetLocalized("Now"))
+                    .font(.caption2.weight(.black))
+                    .foregroundStyle(.cyan)
+                    .lineLimit(1)
+                Text(context.state.dayPlanCategory ?? widgetLocalized("Plan"))
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+            }
         }
+        .frame(maxWidth: 86, alignment: .leading)
     }
 }
 
-struct DayPlanIslandCenterView: View {
+struct DayPlanIslandTitleView: View {
     let context: ActivityViewContext<TimeTrackingAttributes>
 
     var body: some View {
-        VStack(spacing: 2) {
-            Text(context.state.dayPlanTitle ?? "Day Plan")
-                .font(.headline.weight(.black))
-                .lineLimit(1)
-            HStack(spacing: 4) {
-                Text("Next: \(context.state.dayPlanNextTitle ?? "None")")
-                    .lineLimit(1)
-                if let nextStartTime = context.state.dayPlanNextStartTime {
-                    Text("in")
-                    Text(nextStartTime, style: .timer)
-                        .monospacedDigit()
-                }
-            }
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
+        Text(context.state.dayPlanTitle ?? widgetLocalized("Day Plan"))
+            .font(.headline.weight(.black))
+            .multilineTextAlignment(.center)
             .lineLimit(1)
+            .minimumScaleFactor(0.72)
+            .frame(maxWidth: 140)
+    }
+}
+
+struct DayPlanIslandNextView: View {
+    let context: ActivityViewContext<TimeTrackingAttributes>
+
+    var body: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "arrow.right.circle.fill")
+                .font(.caption.weight(.black))
+                .foregroundStyle(.secondary)
+
+            Text("\(widgetLocalized("Next:")) \(context.state.dayPlanNextTitle ?? widgetLocalized("None"))")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+
+            if let nextStartTime = context.state.dayPlanNextStartTime {
+                Text(widgetLocalized("in"))
+                    .font(.caption2.weight(.bold))
+                    .foregroundStyle(.secondary)
+                Text(nextStartTime, style: .timer)
+                    .font(.caption.weight(.black))
+                    .foregroundStyle(.cyan)
+                    .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
@@ -213,16 +255,89 @@ struct DayPlanIslandCountdownView: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 2) {
-            Text("LEFT")
+            Text(widgetLocalized("LEFT"))
                 .font(.caption2.weight(.black))
                 .foregroundStyle(.secondary)
             if let endTime = context.state.dayPlanEndTime {
                 Text(endTime, style: .timer)
-                    .font(.headline.weight(.black))
+                    .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(.cyan)
                     .monospacedDigit()
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .frame(width: 66, alignment: .trailing)
             }
         }
+        .frame(width: 70, alignment: .trailing)
+    }
+}
+
+struct TimerIslandStatusView: View {
+    let context: ActivityViewContext<TimeTrackingAttributes>
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: "timer")
+                .font(.caption.weight(.black))
+                .foregroundStyle(.red)
+            Text("Rest")
+                .font(.caption.weight(.black))
+                .foregroundStyle(.red)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: 78, alignment: .leading)
+    }
+}
+
+struct TimerIslandTitleView: View {
+    let context: ActivityViewContext<TimeTrackingAttributes>
+
+    var body: some View {
+        Text("Recovery")
+            .font(.headline.weight(.black))
+            .lineLimit(1)
+            .minimumScaleFactor(0.75)
+    }
+}
+
+struct TimerIslandCountdownView: View {
+    let context: ActivityViewContext<TimeTrackingAttributes>
+
+    var body: some View {
+        VStack(alignment: .trailing, spacing: 2) {
+            Text("ELAPSED")
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.secondary)
+            Text(context.state.startTime, style: .timer)
+                .font(.system(size: 15, weight: .black, design: .rounded))
+                .foregroundStyle(.red)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.55)
+                .frame(width: 66, alignment: .trailing)
+        }
+        .frame(width: 70, alignment: .trailing)
+    }
+}
+
+struct TimerIslandMetricsView: View {
+    let context: ActivityViewContext<TimeTrackingAttributes>
+
+    var body: some View {
+        HStack(spacing: 14) {
+            Label("Set \(context.state.set)", systemImage: "number.circle.fill")
+                .font(.caption.weight(.bold))
+                .foregroundStyle(.secondary)
+
+            if let bpm = context.state.heartRate {
+                Label("\(bpm) BPM", systemImage: "heart.fill")
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(.green)
+            }
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

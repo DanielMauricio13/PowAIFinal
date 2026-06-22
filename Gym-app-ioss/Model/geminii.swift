@@ -13,19 +13,44 @@ class LiveActivityManager {
     func startLiveActivity(set: Int) {
         let attriutes = TimeTrackingAttributes(Initial: Date())
         let state = TimeTrackingAttributes.ContentState(startTime: .now, set: set - 1)
-        let contrent = ActivityContent(state: state, staleDate: nil)
+        let contrent = ActivityContent(
+            state: state,
+            staleDate: nil,
+            relevanceScore: LiveActivityRelevance.workout
+        )
         
         liveActivity = try?  Activity<TimeTrackingAttributes>.request(attributes: attriutes, content: contrent, pushType: nil)
+        prioritizeWorkoutOverDayPlan()
     }
     
     func endLiveActivity(set:Int)  {
         let finalContentState = TimeTrackingAttributes.ContentState(startTime: .now, set: 1 )
-        let finalContent = ActivityContent(state: finalContentState, staleDate: nil)
+        let finalContent = ActivityContent(
+            state: finalContentState,
+            staleDate: nil,
+            relevanceScore: LiveActivityRelevance.workout
+        )
         
         Task {
             await liveActivity?.end(finalContent, dismissalPolicy: .immediate)
           
            // cancelNotification()
+        }
+    }
+
+    func prioritizeWorkoutOverDayPlan() {
+        let activities = Activity<TimeTrackingAttributes>.activities
+        Task {
+            for activity in activities {
+                let state = activity.content.state
+                let isDayPlan = state.dayPlanTitle != nil
+                let content = ActivityContent(
+                    state: state,
+                    staleDate: isDayPlan ? state.dayPlanEndTime : nil,
+                    relevanceScore: isDayPlan ? LiveActivityRelevance.dayPlan : LiveActivityRelevance.workout
+                )
+                await activity.update(content)
+            }
         }
     }
 
@@ -39,7 +64,8 @@ class LiveActivityManager {
 
         let content = ActivityContent(
             state: state,
-            staleDate: state.dayPlanEndTime
+            staleDate: state.dayPlanEndTime,
+            relevanceScore: LiveActivityRelevance.dayPlan
         )
 
         if let activity = activeDayPlanActivity() {
@@ -119,9 +145,9 @@ class LiveActivityManager {
                 set: 0,
                 heartRate: nil,
                 dayPlanTitle: current.title,
-                dayPlanNextTitle: next?.title ?? "No more blocks",
-                dayPlanStatus: "Now",
-                dayPlanCategory: current.categoryOption.title,
+                dayPlanNextTitle: next?.title ?? AppLanguageManager.shared.localizedString(forKey: "No more blocks"),
+                dayPlanStatus: AppLanguageManager.shared.localizedString(forKey: "Now"),
+                dayPlanCategory: current.categoryOption.localizedTitle,
                 dayPlanEndTime: end,
                 dayPlanNextStartTime: next.flatMap(blockStart)
             )
@@ -138,10 +164,10 @@ class LiveActivityManager {
             startTime: now,
             set: 0,
             heartRate: nil,
-            dayPlanTitle: "Open time",
+            dayPlanTitle: AppLanguageManager.shared.localizedString(forKey: "Open time"),
             dayPlanNextTitle: next.title,
-            dayPlanStatus: "Next",
-            dayPlanCategory: next.categoryOption.title,
+            dayPlanStatus: AppLanguageManager.shared.localizedString(forKey: "Next"),
+            dayPlanCategory: next.categoryOption.localizedTitle,
             dayPlanEndTime: start,
             dayPlanNextStartTime: start
         )

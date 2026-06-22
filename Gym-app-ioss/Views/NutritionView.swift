@@ -1,6 +1,14 @@
 import SwiftUI
 import RiveRuntime
 
+private func nutritionLocalized(_ key: String) -> String {
+    AppLanguageManager.shared.localizedString(forKey: key)
+}
+
+private func nutritionLocalizedFormat(_ key: String, _ args: CVarArg...) -> String {
+    String(format: nutritionLocalized(key), locale: AppLanguageManager.shared.locale, arguments: args)
+}
+
 struct NutritionView: View {
     enum EntryMode: String, CaseIterable, Identifiable {
         case ai = "Smart"
@@ -25,7 +33,7 @@ struct NutritionView: View {
         }
 
         var description: String {
-            "Total for \(count) \(count == 1 ? "serving" : "servings"): \(calories) calories, \(protein)g protein, \(carbs)g carbs, \(sugars)g sugars"
+            nutritionLocalizedFormat("Total for %d %@: %d calories, %dg protein, %dg carbs, %dg sugars", count, nutritionLocalized(count == 1 ? "serving" : "servings"), calories, protein, carbs, sugars)
         }
     }
 
@@ -267,7 +275,7 @@ struct NutritionView: View {
                     Image(systemName: "questionmark.circle.fill")
                         .font(.subheadline.weight(.bold))
                         .foregroundStyle(.white.opacity(0.8))
-                        .accessibilityLabel("Daily goals info")
+                        .accessibilityLabel(nutritionLocalized("Daily goals info"))
                 }
                 .buttonStyle(.plain)
 
@@ -352,10 +360,10 @@ struct NutritionView: View {
         .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .padding(.horizontal)
         .padding(.bottom, 4)
-        .alert("Daily goals", isPresented: $showDailyGoalsHelp) {
-            Button("OK", role: .cancel) {}
+        .alert(nutritionLocalized("Daily goals"), isPresented: $showDailyGoalsHelp) {
+            Button(nutritionLocalized("OK"), role: .cancel) {}
         } message: {
-            Text("AI estimates your daily goals from your age, height, weight, and fitness goal, then tracks today’s foods against those targets.")
+            Text(nutritionLocalized("AI estimates your daily goals from your age, height, weight, and fitness goal, then tracks today’s foods against those targets."))
         }
     }
 
@@ -875,7 +883,7 @@ struct NutritionView: View {
                         Spacer()
 
                         Button(action: onEdit) {
-                            Label("Edit", systemImage: "slider.horizontal.3")
+                    Label(nutritionLocalized("Edit"), systemImage: "slider.horizontal.3")
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.white.opacity(0.88))
                         }
@@ -893,14 +901,14 @@ struct NutritionView: View {
                                 }
                             }
                         } label: {
-                            Label(isSaved ? "Favorited" : "Favorite",
+                            Label(nutritionLocalized(isSaved ? "Favorited" : "Favorite"),
                                   systemImage: isSaved ? "star.fill" : "star")
                                 .foregroundStyle(.yellow)
                         }
                     }
 
                     Button(role: .destructive, action: onRemove) {
-                        Label("Remove all", systemImage: "trash")
+                        Label(nutritionLocalized("Remove all"), systemImage: "trash")
                             .font(.subheadline.weight(.semibold))
                     }
                     .buttonStyle(.plain)
@@ -942,36 +950,36 @@ private struct FoodMacroEditorView: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(edit.name)
                             .font(.headline)
-                        Text("Values are per serving. Saving applies them to all \(edit.count) \(edit.count == 1 ? "serving" : "servings") in today's foods.")
+                        Text(nutritionLocalizedFormat("Values are per serving. Saving applies them to all %d %@ in today's foods.", edit.count, nutritionLocalized(edit.count == 1 ? "serving" : "servings")))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
                     .padding(.vertical, 4)
                 }
 
-                Section("Per serving") {
-                    macroStepper("Calories", value: $calories, unit: "kcal")
-                    macroStepper("Protein", value: $protein, unit: "g")
-                    macroStepper("Carbs", value: $carbs, unit: "g")
-                    macroStepper("Sugar", value: $sugars, unit: "g")
+                Section(nutritionLocalized("Per serving")) {
+                    macroStepper(nutritionLocalized("Calories"), value: $calories, unit: "kcal")
+                    macroStepper(nutritionLocalized("Protein"), value: $protein, unit: "g")
+                    macroStepper(nutritionLocalized("Carbs"), value: $carbs, unit: "g")
+                    macroStepper(nutritionLocalized("Sugar"), value: $sugars, unit: "g")
                 }
 
-                Section("Stack total") {
-                    macroTotal("Calories", value: calories * edit.count, unit: "kcal")
-                    macroTotal("Protein", value: protein * edit.count, unit: "g")
-                    macroTotal("Carbs", value: carbs * edit.count, unit: "g")
-                    macroTotal("Sugar", value: sugars * edit.count, unit: "g")
+                Section(nutritionLocalized("Stack total")) {
+                    macroTotal(nutritionLocalized("Calories"), value: calories * edit.count, unit: "kcal")
+                    macroTotal(nutritionLocalized("Protein"), value: protein * edit.count, unit: "g")
+                    macroTotal(nutritionLocalized("Carbs"), value: carbs * edit.count, unit: "g")
+                    macroTotal(nutritionLocalized("Sugar"), value: sugars * edit.count, unit: "g")
                 }
             }
-            .navigationTitle("Edit macros")
+            .navigationTitle(nutritionLocalized("Edit macros"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(nutritionLocalized("Cancel")) { dismiss() }
                 }
 
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Save") {
+                    Button(nutritionLocalized("Save")) {
                         onSave(
                             NutritionView.FoodMacroEdit(
                                 name: edit.name,
@@ -1464,6 +1472,7 @@ private struct MealsWindow: View {
 private struct MealOptionCard: View {
     let meal: MealDTO
     let onAdd: () -> Void
+    @State private var showingSharePicker = false
 
     var body: some View {
         ZStack(alignment: .topLeading) {
@@ -1514,6 +1523,27 @@ private struct MealOptionCard: View {
                     .font(.footnote)
                     .foregroundStyle(.white.opacity(0.72))
                     .fixedSize(horizontal: false, vertical: true)
+
+                if let mealID = meal.id {
+                    Button {
+                        showingSharePicker = true
+                    } label: {
+                        Label(LocalizedStringKey("Share"), systemImage: "square.and.arrow.up")
+                            .font(.caption.weight(.bold))
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(Color.white.opacity(0.12))
+                            .cornerRadius(10)
+                    }
+                    .buttonStyle(.plain)
+                    .sheet(isPresented: $showingSharePicker) {
+                        FriendSharePickerView(
+                            title: AppLanguageManager.shared.localizedString(forKey: "Share Meal"),
+                            target: .meal(mealID)
+                        )
+                    }
+                }
             }
 
             Button(action: onAdd) {

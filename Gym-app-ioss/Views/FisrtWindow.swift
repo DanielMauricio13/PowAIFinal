@@ -1646,6 +1646,7 @@ private struct RoutineDetailView: View {
     let onReturnHome: () -> Void
     @State private var expandedDays: Set<Int> = []
     @State private var selectedWorkoutDay: RoutineWorkoutDay?
+    @State private var sharingWorkoutDay: RoutineWorkoutDay?
 
     private var routineDays: [RoutineWorkoutDay] {
         routine.routineTraining.workout_plan.sorted { $0.day < $1.day }
@@ -1693,6 +1694,12 @@ private struct RoutineDetailView: View {
                 totalRoutineDays: totalDays,
                 currentRoutineDay: $currentRoutineDay,
                 onReturnHome: onReturnHome
+            )
+        }
+        .sheet(item: $sharingWorkoutDay) { day in
+            FriendSharePickerView(
+                title: AppLanguageManager.shared.localizedString(forKey: "Share Routine Day"),
+                target: .routineDay(day.day)
             )
         }
     }
@@ -1893,6 +1900,20 @@ private struct RoutineDetailView: View {
                         .padding(.vertical, 11)
                         .background(isCurrentDay ? Color.orange : Color.white.opacity(0.14))
                         .cornerRadius(8)
+                    }
+                    .buttonStyle(.plain)
+
+                    Button {
+                        sharingWorkoutDay = day
+                    } label: {
+                        Label("Share Routine Day", systemImage: "square.and.arrow.up")
+                            .font(.caption)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 11)
+                            .background(Color.white.opacity(0.12))
+                            .cornerRadius(8)
                     }
                     .buttonStyle(.plain)
                 }

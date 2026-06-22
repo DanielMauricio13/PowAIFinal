@@ -5,6 +5,14 @@ import AlarmKit
 import AVFoundation
 import EventKit
 
+private func powAILocalized(_ key: String) -> String {
+    AppLanguageManager.shared.localizedString(forKey: key)
+}
+
+private func powAILocalizedFormat(_ key: String, _ args: CVarArg...) -> String {
+    String(format: powAILocalized(key), locale: AppLanguageManager.shared.locale, arguments: args)
+}
+
 private enum PowAI {
     static let base = Color(hex: "#0D0D0F")
     static let surface = Color(hex: "#16161C")
@@ -171,6 +179,10 @@ struct AlarmSoundOption: Identifiable, Equatable {
         guard parts.count == 2 else { return nil }
         return Bundle.main.url(forResource: parts[0], withExtension: parts[1])
     }
+
+    var localizedTitle: String {
+        powAILocalized(title)
+    }
 }
 
 enum AlarmSoundPreviewer {
@@ -222,7 +234,7 @@ struct AlarmItem: Codable, Equatable, Identifiable {
     }
 
     var soundText: String {
-        soundOption.title
+        soundOption.localizedTitle
     }
 
     var missions: [String] {
@@ -233,10 +245,10 @@ struct AlarmItem: Codable, Equatable, Identifiable {
     var missionText: String {
         missions.map { mission in
             switch mission {
-            case "typing": return "Typing"
-            case "memory": return "Memory"
+            case "typing": return powAILocalized("Typing")
+            case "memory": return powAILocalized("Memory")
             case "barcode": return "QR/Barcode"
-            default: return "Math"
+            default: return powAILocalized("Math")
             }
         }
         .joined(separator: " + ")
@@ -253,7 +265,7 @@ struct AlarmItem: Codable, Equatable, Identifiable {
     }
 
     var repeatText: String {
-        guard !repeatDays.isEmpty else { return "Once" }
+        guard !repeatDays.isEmpty else { return powAILocalized("Once") }
         let symbols = Calendar.current.shortWeekdaySymbols
         return repeatDays
             .sorted()
@@ -590,28 +602,374 @@ struct PowAIAlarmMetadata: AlarmMetadata {
     let title: String
 }
 
+struct ProductivityBootstrapResponse: Codable {
+    let alarms: [AlarmItem]
+    let daySchedule: [DayPlanBlock]
+}
+
+enum ProductivityBootstrapAPI {
+    static func load(for date: Date) async throws -> ProductivityBootstrapResponse {
+        let dateString = DayPlanDateFormatter.string(from: date)
+        var components = URLComponents(string: Constants.baseURL + "app/bootstrap")
+        components?.queryItems = [URLQueryItem(name: "date", value: dateString)]
+        guard let url = components?.url else { throw URLError(.badURL) }
+
+        var request = URLRequest(url: url)
+        request.applyBearerToken()
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode(ProductivityBootstrapResponse.self, from: data)
+    }
+}
+
+struct FriendSummaryDTO: Codable, Identifiable, Equatable {
+    let id: UUID
+    let firstName: String
+    let lastName: String
+    let email: String
+
+    var displayName: String {
+        let name = "\(firstName) \(lastName)".trimmingCharacters(in: .whitespacesAndNewlines)
+        return name.isEmpty ? email : name
+    }
+}
+
+struct FriendshipDTO: Codable, Identifiable, Equatable {
+    let id: UUID?
+    let status: String
+    let direction: String
+    let friend: FriendSummaryDTO
+    let createdAt: String?
+
+    var stableID: UUID { id ?? friend.id }
+}
+
+struct SharedFriendItemDTO: Codable, Identifiable, Equatable {
+    let id: UUID?
+    let type: String
+    let title: String
+    let status: String
+    let sender: FriendSummaryDTO
+    let recipient: FriendSummaryDTO
+    let createdAt: String?
+    let acceptedAt: String?
+
+    var stableID: UUID { id ?? UUID() }
+    var localizedType: String {
+        switch type {
+        case "meal": return powAILocalized("Meal")
+        case "routine_day": return powAILocalized("Routine Day")
+        case "workout_day": return powAILocalized("Workout Day")
+        case "day_plan_event": return powAILocalized("Day Plan Event")
+        default: return type
+        }
+    }
+}
+
+struct FriendWorkoutActivityDTO: Codable, Identifiable, Equatable {
+    let id: UUID?
+    let user: FriendSummaryDTO
+    let workoutType: String
+    let title: String
+    let muscleGroup: String?
+    let durationSeconds: Int?
+    let calories: Int
+    let completedDate: String
+    let completedAt: String?
+
+    var stableID: UUID { id ?? UUID() }
+    var localizedWorkoutType: String {
+        switch workoutType {
+        case "training": return powAILocalized("Training")
+        case "routine": return powAILocalized("Routine")
+        case "custom": return powAILocalized("Custom")
+        case "hiit": return powAILocalized("HIIT")
+        default: return powAILocalized("Workout")
+        }
+    }
+}
+
+struct FriendStreakDTO: Codable, Identifiable, Equatable {
+    let user: FriendSummaryDTO
+    let currentStreak: Int
+    let completedToday: Bool
+    let lastCompletedDate: String?
+    let recentCompletions: [String]
+
+    var id: UUID { user.id }
+}
+
+struct FriendCompetitionDTO: Codable, Equatable {
+    let streaks: [FriendStreakDTO]
+    let feed: [FriendWorkoutActivityDTO]
+}
+
+private struct FriendRequestPayload: Encodable {
+    let email: String
+}
+
+private struct AcceptSharePayload: Encodable {
+    let targetDay: Int?
+}
+
+struct WorkoutCompletionPayload: Encodable {
+    let workoutType: String
+    let title: String
+    let muscleGroup: String?
+    let durationSeconds: Int?
+    let calories: Int
+    let completedDate: String
+    let challengeID: UUID?
+    let challengeDay: Int?
+}
+
+struct ChallengeRoutineTrainingDTO: Codable {
+    var workout_plan: [ChallengeWorkoutDayDTO]
+}
+
+struct ChallengeWorkoutDayDTO: Codable, Identifiable {
+    var id: Int { day }
+    var day: Int
+    var muscle_group: String
+    var exercises: [ChallengeExerciseDTO]
+
+    var workoutPlan: workout_plans {
+        workout_plans(
+            day: day,
+            muscle_group: muscle_group,
+            exercises: exercises.map { exercise in
+                Excersise(
+                    name: exercise.name,
+                    reps: exercise.reps,
+                    sets: exercise.sets,
+                    calories_burned: exercise.calories_burned,
+                    descriptionEng: exercise.descriptionEng,
+                    descriptionEsp: exercise.descriptionEsp,
+                    loggedSets: exercise.loggedSets ?? []
+                )
+            }
+        )
+    }
+}
+
+struct ChallengeExerciseDTO: Codable, Identifiable {
+    var id: String { "\(name)-\(sets)-\(reps)" }
+    var name: String
+    var reps: String
+    var sets: Int
+    var calories_burned: Int
+    var descriptionEng: String?
+    var descriptionEsp: String?
+    var weight: Double
+    var unit: String
+    var loggedSets: [SetEntry]?
+}
+
+struct ChallengeSetLogDTO: Codable, Identifiable {
+    let id: UUID?
+    let user: FriendSummaryDTO
+    let day: Int
+    let exerciseIndex: Int?
+    let exerciseName: String
+    let setEntry: SetEntry
+    let unit: String?
+    let createdAt: String?
+
+    var stableID: UUID { id ?? UUID() }
+}
+
+struct WorkoutChallengeDTO: Codable, Identifiable {
+    let id: UUID?
+    let status: String
+    let direction: String
+    let requester: FriendSummaryDTO
+    let recipient: FriendSummaryDTO
+    let friend: FriendSummaryDTO
+    let daysPerWeek: Int
+    let hoursPerWorkout: Double
+    let routineTraining: ChallengeRoutineTrainingDTO?
+    let logs: [ChallengeSetLogDTO]
+    let createdAt: String?
+    let acceptedAt: String?
+
+    var stableID: UUID { id ?? UUID() }
+}
+
+private struct ChallengeInvitePayload: Encodable {
+    let friendID: UUID
+    let daysPerWeek: Int
+    let hoursPerWorkout: Double
+}
+
+enum FriendShareTarget {
+    case meal(UUID)
+    case routineDay(Int)
+    case workoutDay(Int)
+    case dayPlan(UUID)
+
+    func path(friendID: UUID) -> String {
+        switch self {
+        case .meal(let id):
+            return "friends/\(friendID.uuidString)/share/meal/\(id.uuidString)"
+        case .routineDay(let day):
+            return "friends/\(friendID.uuidString)/share/routine-day/\(day)"
+        case .workoutDay(let day):
+            return "friends/\(friendID.uuidString)/share/workout-day/\(day)"
+        case .dayPlan(let id):
+            return "friends/\(friendID.uuidString)/share/day-plan/\(id.uuidString)"
+        }
+    }
+}
+
+enum FriendshipAPI {
+    static func fetchFriends() async throws -> [FriendshipDTO] {
+        let data = try await request(path: "friends", method: "GET")
+        return try JSONDecoder().decode([FriendshipDTO].self, from: data)
+    }
+
+    static func fetchCompetition(date: Date = Date()) async throws -> FriendCompetitionDTO {
+        let dateString = localDayFormatter.string(from: date)
+        let data = try await request(path: "friends/competition?date=\(dateString)", method: "GET")
+        return try JSONDecoder().decode(FriendCompetitionDTO.self, from: data)
+    }
+
+    static func sendRequest(email: String) async throws -> FriendshipDTO {
+        let normalizedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+        let body = try JSONEncoder().encode(FriendRequestPayload(email: normalizedEmail))
+        let data = try await request(path: "friends/request", method: "POST", body: body)
+        return try JSONDecoder().decode(FriendshipDTO.self, from: data)
+    }
+
+    static func acceptFriendship(id: UUID) async throws -> FriendshipDTO {
+        let data = try await request(path: "friends/\(id.uuidString)/accept", method: "POST")
+        return try JSONDecoder().decode(FriendshipDTO.self, from: data)
+    }
+
+    static func declineFriendship(id: UUID) async throws -> FriendshipDTO {
+        let data = try await request(path: "friends/\(id.uuidString)/decline", method: "POST")
+        return try JSONDecoder().decode(FriendshipDTO.self, from: data)
+    }
+
+    static func fetchShares() async throws -> [SharedFriendItemDTO] {
+        let data = try await request(path: "friends/shares", method: "GET")
+        return try JSONDecoder().decode([SharedFriendItemDTO].self, from: data)
+    }
+
+    static func share(target: FriendShareTarget, with friend: FriendSummaryDTO) async throws -> SharedFriendItemDTO {
+        let data = try await request(path: target.path(friendID: friend.id), method: "POST")
+        return try JSONDecoder().decode(SharedFriendItemDTO.self, from: data)
+    }
+
+    static func postWorkoutCompletion(_ payload: WorkoutCompletionPayload) async throws -> FriendWorkoutActivityDTO {
+        let body = try JSONEncoder().encode(payload)
+        let data = try await request(path: "friends/workout-completions", method: "POST", body: body)
+        return try JSONDecoder().decode(FriendWorkoutActivityDTO.self, from: data)
+    }
+
+    static func fetchChallenges() async throws -> [WorkoutChallengeDTO] {
+        let data = try await request(path: "friends/challenges", method: "GET")
+        return try JSONDecoder().decode([WorkoutChallengeDTO].self, from: data)
+    }
+
+    static func inviteChallenge(friendID: UUID, daysPerWeek: Int, hoursPerWorkout: Double) async throws -> WorkoutChallengeDTO {
+        let payload = ChallengeInvitePayload(friendID: friendID, daysPerWeek: daysPerWeek, hoursPerWorkout: hoursPerWorkout)
+        let body = try JSONEncoder().encode(payload)
+        let data = try await request(path: "friends/challenges", method: "POST", body: body)
+        return try JSONDecoder().decode(WorkoutChallengeDTO.self, from: data)
+    }
+
+    static func acceptChallenge(id: UUID) async throws -> WorkoutChallengeDTO {
+        let data = try await request(path: "friends/challenges/\(id.uuidString)/accept", method: "POST")
+        return try JSONDecoder().decode(WorkoutChallengeDTO.self, from: data)
+    }
+
+    static func declineChallenge(id: UUID) async throws -> WorkoutChallengeDTO {
+        let data = try await request(path: "friends/challenges/\(id.uuidString)/decline", method: "POST")
+        return try JSONDecoder().decode(WorkoutChallengeDTO.self, from: data)
+    }
+
+    static func acceptShare(id: UUID, targetDay: Int? = nil) async throws -> SharedFriendItemDTO {
+        let body = targetDay.map { AcceptSharePayload(targetDay: $0) }
+            .flatMap { try? JSONEncoder().encode($0) }
+        let data = try await request(path: "friends/shares/\(id.uuidString)/accept", method: "POST", body: body)
+        return try JSONDecoder().decode(SharedFriendItemDTO.self, from: data)
+    }
+
+    static func declineShare(id: UUID) async throws -> SharedFriendItemDTO {
+        let data = try await request(path: "friends/shares/\(id.uuidString)/decline", method: "POST")
+        return try JSONDecoder().decode(SharedFriendItemDTO.self, from: data)
+    }
+
+    @discardableResult
+    private static func request(path: String, method: String, body: Data? = nil) async throws -> Data {
+        guard let url = URL(string: Constants.baseURL + path) else { throw URLError(.badURL) }
+        var request = URLRequest(url: url)
+        request.httpMethod = method
+        request.applyBearerToken()
+        if let body {
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = body
+        }
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200...299).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return data
+    }
+
+    static var localDayFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.timeZone = .current
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter
+    }
+}
+
 @MainActor
 final class AlarmViewModel: ObservableObject {
     @Published var alarms: [AlarmItem] = []
     @Published var isLoading = false
     @Published var message: String?
 
-    func load() async {
-        isLoading = true
+    private static var cachedAlarms: [AlarmItem]?
+    private static var cachedAt: Date?
+    private static var loadTask: Task<[AlarmItem], Error>?
+
+    func applyServerAlarms(_ serverAlarms: [AlarmItem]) {
+        let sorted = serverAlarms.sorted { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
+        alarms = sorted
+        sorted.forEach { AlarmScheduler.schedule($0) }
+        message = sorted.isEmpty ? powAILocalized("No alarms yet.") : nil
+        Self.cachedAlarms = sorted
+        Self.cachedAt = Date()
+    }
+
+    func load(force: Bool = false) async {
+        if !force, let cached = Self.cachedAlarms, Self.isFresh(Self.cachedAt) {
+            applyServerAlarms(cached)
+            return
+        }
+
+        isLoading = alarms.isEmpty
         defer { isLoading = false }
 
         do {
-            var request = try makeRequest(path: "alarms")
-            request.httpMethod = "GET"
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                throw URLError(.badServerResponse)
+            let serverAlarms: [AlarmItem]
+            if let loadTask = Self.loadTask {
+                serverAlarms = try await loadTask.value
+            } else {
+                let task = Task { try await Self.fetchAlarms() }
+                Self.loadTask = task
+                defer { Self.loadTask = nil }
+                serverAlarms = try await task.value
             }
-            alarms = try JSONDecoder().decode([AlarmItem].self, from: data)
-            alarms.forEach { AlarmScheduler.schedule($0) }
-            message = alarms.isEmpty ? "No alarms yet." : nil
+            applyServerAlarms(serverAlarms)
         } catch {
-            message = "Could not load alarms."
+            message = powAILocalized("Could not load alarms.")
             print("Load alarms failed: \(error)")
         }
     }
@@ -635,10 +993,12 @@ final class AlarmViewModel: ObservableObject {
                 alarms.append(saved)
             }
             alarms.sort { ($0.hour, $0.minute) < ($1.hour, $1.minute) }
+            Self.cachedAlarms = alarms
+            Self.cachedAt = Date()
             AlarmScheduler.schedule(saved)
             message = nil
         } catch {
-            message = "Could not save alarm."
+            message = powAILocalized("Could not save alarm.")
             print("Save alarm failed: \(error)")
         }
     }
@@ -652,9 +1012,11 @@ final class AlarmViewModel: ObservableObject {
                 throw URLError(.badServerResponse)
             }
             alarms.removeAll { $0.id == alarm.id }
+            Self.cachedAlarms = alarms
+            Self.cachedAt = Date()
             AlarmScheduler.cancel(alarm)
         } catch {
-            message = "Could not delete alarm."
+            message = powAILocalized("Could not delete alarm.")
             print("Delete alarm failed: \(error)")
         }
     }
@@ -691,17 +1053,43 @@ final class AlarmViewModel: ObservableObject {
         request.applyBearerToken()
         return request
     }
+
+    private static func fetchAlarms() async throws -> [AlarmItem] {
+        guard let url = URL(string: Constants.baseURL + "alarms") else {
+            throw URLError(.badURL)
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "GET"
+        request.applyBearerToken()
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode([AlarmItem].self, from: data)
+    }
+
+    private static func isFresh(_ date: Date?) -> Bool {
+        guard let date else { return false }
+        return Date().timeIntervalSince(date) < 20
+    }
 }
 
 struct AlarmListView: View {
     @Binding var pendingAlarmID: String?
-    @StateObject private var viewModel = AlarmViewModel()
+    @ObservedObject var viewModel: AlarmViewModel
     @ObservedObject private var runtime = AlarmRuntime.shared
     @State private var editingAlarm: AlarmItem?
     @State private var showingEditor = false
+    let loadOnAppear: Bool
 
-    init(pendingAlarmID: Binding<String?> = .constant(nil)) {
+    init(
+        pendingAlarmID: Binding<String?> = .constant(nil),
+        viewModel: AlarmViewModel,
+        loadOnAppear: Bool = true
+    ) {
         _pendingAlarmID = pendingAlarmID
+        self.viewModel = viewModel
+        self.loadOnAppear = loadOnAppear
     }
 
     var body: some View {
@@ -726,7 +1114,9 @@ struct AlarmListView: View {
             }
         }
         .task {
-            await viewModel.load()
+            if loadOnAppear {
+                await viewModel.load()
+            }
             activatePendingAlarmIfNeeded()
         }
         .onReceive(NotificationCenter.default.publisher(for: .powAIAlarmNotificationTapped)) { notification in
@@ -756,10 +1146,10 @@ struct AlarmListView: View {
                 Text("Alarms")
                     .font(.system(size: 30, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                Text("Stack missions · Force a real wake-up")
+                Text(powAILocalized("Stack missions · Force a real wake-up"))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(PowAI.slate)
-                Text("Set loud alarms that only stop after math, memory, typing, or movement missions.")
+                Text(powAILocalized("Set loud alarms that only stop after math, memory, typing, or movement missions."))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(PowAI.slate.opacity(0.9))
                     .lineLimit(2)
@@ -825,6 +1215,9 @@ struct AlarmListView: View {
 struct ProductivityView: View {
     @Binding var pendingAlarmID: String?
     @State private var selectedSection: ProductivitySection = .alarms
+    @StateObject private var alarmViewModel = AlarmViewModel()
+    @StateObject private var dayPlanViewModel = DayPlanViewModel()
+    @State private var didBootstrap = false
 
     var body: some View {
         VStack(spacing: 0) {
@@ -836,13 +1229,40 @@ struct ProductivityView: View {
             Group {
                 switch selectedSection {
                 case .alarms:
-                    AlarmListView(pendingAlarmID: $pendingAlarmID)
+                    AlarmListView(
+                        pendingAlarmID: $pendingAlarmID,
+                        viewModel: alarmViewModel,
+                        loadOnAppear: !didBootstrap
+                    )
                 case .dayPlan:
-                    DayPlanView()
+                    DayPlanView(
+                        viewModel: dayPlanViewModel,
+                        loadOnAppear: !didBootstrap
+                    )
+                case .friends:
+                    FriendshipCenterView()
                 }
             }
         }
         .background(AppBackgroundView())
+        .task {
+            await bootstrapProductivity()
+        }
+    }
+
+    private func bootstrapProductivity() async {
+        guard !didBootstrap else { return }
+        do {
+            let response = try await ProductivityBootstrapAPI.load(for: Date())
+            alarmViewModel.applyServerAlarms(response.alarms)
+            dayPlanViewModel.applyServerBlocks(response.daySchedule, for: Date())
+            didBootstrap = true
+        } catch {
+            print("Productivity bootstrap failed: \(error)")
+            await alarmViewModel.load()
+            await dayPlanViewModel.load(for: Date())
+            didBootstrap = true
+        }
     }
 
     private var customSegmentedControl: some View {
@@ -857,7 +1277,7 @@ struct ProductivityView: View {
                     HStack(spacing: 6) {
                         Image(systemName: section.icon)
                             .font(.system(size: 13, weight: .bold))
-                        Text(section.title)
+                        Text(section.localizedTitle)
                             .font(.system(size: 14, weight: .bold))
                     }
                     .foregroundStyle(isSelected ? .black : PowAI.slate)
@@ -881,19 +1301,841 @@ struct ProductivityView: View {
 private enum ProductivitySection: String, CaseIterable {
     case alarms
     case dayPlan
+    case friends
 
     var title: String {
         switch self {
         case .alarms: return "Alarms"
         case .dayPlan: return "Day Plan"
+        case .friends: return "Friends"
         }
+    }
+
+    var localizedTitle: String {
+        powAILocalized(title)
     }
 
     var icon: String {
         switch self {
         case .alarms: return "alarm"
         case .dayPlan: return "calendar.badge.clock"
+        case .friends: return "person.2.fill"
         }
+    }
+}
+
+struct FriendshipCenterView: View {
+    @State private var friendships: [FriendshipDTO] = []
+    @State private var shares: [SharedFriendItemDTO] = []
+    @State private var competition: FriendCompetitionDTO?
+    @State private var challenges: [WorkoutChallengeDTO] = []
+    @State private var email = ""
+    @State private var isLoading = false
+    @State private var message: String?
+    @State private var showingChallengeCreator = false
+    @State private var activeChallengeWorkout: ActiveChallengeWorkout?
+
+    private var incomingRequests: [FriendshipDTO] {
+        friendships.filter { $0.status == "pending" && $0.direction == "incoming" }
+    }
+
+    private var outgoingRequests: [FriendshipDTO] {
+        friendships.filter { $0.status == "pending" && $0.direction == "outgoing" }
+    }
+
+    private var acceptedFriends: [FriendshipDTO] {
+        friendships.filter { $0.status == "accepted" }
+    }
+
+    private var incomingShares: [SharedFriendItemDTO] {
+        shares.filter { $0.status == "pending" }
+    }
+
+    var body: some View {
+        ZStack {
+            AppBackgroundView()
+
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 16) {
+                    header
+                    addFriendCard
+                    if let competition { streaksSection(competition) }
+                    if let competition { activitySection(competition) }
+                    challengesHeader
+                    if !challenges.isEmpty { challengesSection }
+                    if !incomingRequests.isEmpty { requestsSection }
+                    if !incomingShares.isEmpty { sharesSection }
+                    friendsSection
+                    if !outgoingRequests.isEmpty { outgoingSection }
+                    if let message {
+                        Text(message)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(PowAI.slate)
+                            .frame(maxWidth: .infinity, alignment: .center)
+                            .padding(.top, 8)
+                    }
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 20)
+                .padding(.bottom, 30)
+            }
+        }
+        .task { await load() }
+        .refreshable { await load() }
+        .sheet(isPresented: $showingChallengeCreator) {
+            ChallengeCreatorView(friends: acceptedFriends.map(\.friend)) { friend, days, hours in
+                await inviteChallenge(friend: friend, days: days, hours: hours)
+            }
+            .presentationDetents([.medium, .large])
+        }
+        .fullScreenCover(item: $activeChallengeWorkout) { active in
+            ChallengeWorkoutRunner(active: active) {
+                activeChallengeWorkout = nil
+                Task { await load() }
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(powAILocalized("Friends"))
+                .font(.system(size: 30, weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+            Text(powAILocalized("Share workout days, routine days, meals, and planner events."))
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(PowAI.slate)
+        }
+    }
+
+    private var addFriendCard: some View {
+        PowAICard(accentColor: PowAI.cyan) {
+            HStack(spacing: 10) {
+                PowAIInputField(placeholder: powAILocalized("Friend email"), text: $email)
+                    .textInputAutocapitalization(.never)
+                    .keyboardType(.emailAddress)
+
+                Button {
+                    Task { await sendRequest() }
+                } label: {
+                    Image(systemName: "person.badge.plus")
+                        .font(.system(size: 15, weight: .black))
+                        .foregroundStyle(.black)
+                        .frame(width: 44, height: 44)
+                        .background(PowAI.cyan, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || isLoading)
+            }
+            .padding(14)
+        }
+    }
+
+    private var challengesHeader: some View {
+        PowAICard(accentColor: PowAI.orange) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(powAILocalized("7-Day Challenges"))
+                        .font(.headline.weight(.heavy))
+                        .foregroundStyle(.white)
+                    Text(powAILocalized("Invite a friend, generate one shared week, and compare lifts."))
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(PowAI.slate)
+                }
+                Spacer()
+                Button {
+                    showingChallengeCreator = true
+                } label: {
+                    Image(systemName: "trophy.fill")
+                        .font(.system(size: 15, weight: .black))
+                        .foregroundStyle(.black)
+                        .frame(width: 44, height: 44)
+                        .background(PowAI.orange, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .disabled(acceptedFriends.isEmpty || isLoading)
+            }
+            .padding(14)
+        }
+    }
+
+    private var requestsSection: some View {
+        section(title: powAILocalized("Friend Requests")) {
+            ForEach(incomingRequests, id: \.stableID) { friendship in
+                friendshipRow(friendship) {
+                    Task { await accept(friendship) }
+                } secondary: {
+                    Task { await decline(friendship) }
+                }
+            }
+        }
+    }
+
+    private func streaksSection(_ competition: FriendCompetitionDTO) -> some View {
+        section(title: powAILocalized("Streaks")) {
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 10) {
+                    ForEach(competition.streaks) { streak in
+                        VStack(alignment: .leading, spacing: 8) {
+                            HStack(spacing: 8) {
+                                Image(systemName: streak.completedToday ? "flame.fill" : "flame")
+                                    .foregroundStyle(streak.completedToday ? PowAI.orange : PowAI.slate)
+                                Text(streak.user.displayName)
+                                    .font(.caption.weight(.bold))
+                                    .foregroundStyle(.white)
+                                    .lineLimit(1)
+                            }
+
+                            Text(powAILocalizedFormat("%d day streak", streak.currentStreak))
+                                .font(.system(size: 20, weight: .heavy, design: .rounded))
+                                .foregroundStyle(streak.currentStreak > 0 ? PowAI.orange : PowAI.slate)
+
+                            Text(streak.completedToday ? powAILocalized("Done today") : powAILocalized("Not done today"))
+                                .font(.caption2.weight(.semibold))
+                                .foregroundStyle(PowAI.slate)
+                        }
+                        .frame(width: 150, alignment: .leading)
+                        .padding(13)
+                        .background(PowAI.surface, in: RoundedRectangle(cornerRadius: 14))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 14)
+                                .stroke((streak.completedToday ? PowAI.orange : PowAI.cyan).opacity(0.28), lineWidth: 1)
+                        )
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+        }
+    }
+
+    private func activitySection(_ competition: FriendCompetitionDTO) -> some View {
+        section(title: powAILocalized("Recent Workouts")) {
+            if competition.feed.isEmpty {
+                Text(powAILocalized("Finish a workout to start the friend feed."))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(PowAI.slate)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(18)
+                    .background(PowAI.surface, in: RoundedRectangle(cornerRadius: 14))
+            } else {
+                ForEach(competition.feed.prefix(8), id: \.stableID) { activity in
+                    HStack(spacing: 12) {
+                        Image(systemName: "bolt.heart.fill")
+                            .font(.system(size: 14, weight: .bold))
+                            .foregroundStyle(PowAI.green)
+                            .frame(width: 36, height: 36)
+                            .background(PowAI.green.opacity(0.13), in: Circle())
+
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(activity.user.displayName)
+                                .font(.subheadline.weight(.bold))
+                                .foregroundStyle(.white)
+                                .lineLimit(1)
+                            Text(activity.title)
+                                .font(.caption.weight(.semibold))
+                                .foregroundStyle(PowAI.slate)
+                                .lineLimit(1)
+                            Text(activitySummary(activity))
+                                .font(.caption2.weight(.bold))
+                                .foregroundStyle(PowAI.cyan)
+                        }
+
+                        Spacer()
+                    }
+                    .padding(13)
+                    .background(PowAI.surface, in: RoundedRectangle(cornerRadius: 14))
+                }
+            }
+        }
+    }
+
+    private var sharesSection: some View {
+        section(title: powAILocalized("Shared With You")) {
+            ForEach(incomingShares, id: \.stableID) { share in
+                PowAICard(accentColor: PowAI.green) {
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 3) {
+                                Text(share.title)
+                                    .font(.headline.weight(.bold))
+                                    .foregroundStyle(.white)
+                                Text("\(share.localizedType) • \(share.sender.displayName)")
+                                    .font(.caption.weight(.semibold))
+                                    .foregroundStyle(PowAI.slate)
+                            }
+                            Spacer()
+                        }
+
+                        HStack(spacing: 10) {
+                            Button(powAILocalized("Add")) {
+                                Task { await acceptShare(share) }
+                            }
+                            .buttonStyle(PowAIPrimaryButtonStyle(color: PowAI.green))
+
+                            Button(powAILocalized("Skip")) {
+                                Task { await declineShare(share) }
+                            }
+                            .buttonStyle(PowAISecondaryButtonStyle())
+                        }
+                    }
+                    .padding(14)
+                }
+            }
+        }
+    }
+
+    private var challengesSection: some View {
+        section(title: powAILocalized("Challenges")) {
+            ForEach(challenges, id: \.stableID) { challenge in
+                challengeCard(challenge)
+            }
+        }
+    }
+
+    private var friendsSection: some View {
+        section(title: powAILocalized("Your Friends")) {
+            if acceptedFriends.isEmpty {
+                Text(powAILocalized("Add friends to start sharing."))
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(PowAI.slate)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(18)
+                    .background(PowAI.surface, in: RoundedRectangle(cornerRadius: 14))
+            } else {
+                ForEach(acceptedFriends, id: \.stableID) { friendship in
+                    friendLabel(friendship.friend, subtitle: friendship.friend.email)
+                }
+            }
+        }
+    }
+
+    private var outgoingSection: some View {
+        section(title: powAILocalized("Sent Requests")) {
+            ForEach(outgoingRequests, id: \.stableID) { friendship in
+                friendLabel(friendship.friend, subtitle: powAILocalized("Waiting for approval"))
+            }
+        }
+    }
+
+    private func section<Content: View>(title: String, @ViewBuilder content: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            PowAISectionLabel(text: title)
+            content()
+        }
+    }
+
+    private func friendLabel(_ friend: FriendSummaryDTO, subtitle: String) -> some View {
+        HStack(spacing: 12) {
+            Image(systemName: "person.fill")
+                .font(.system(size: 14, weight: .bold))
+                .foregroundStyle(PowAI.cyan)
+                .frame(width: 36, height: 36)
+                .background(PowAI.cyan.opacity(0.12), in: Circle())
+            VStack(alignment: .leading, spacing: 2) {
+                Text(friend.displayName)
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(.white)
+                Text(subtitle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(PowAI.slate)
+            }
+            Spacer()
+        }
+        .padding(13)
+        .background(PowAI.surface, in: RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func friendshipRow(_ friendship: FriendshipDTO, primary: @escaping () -> Void, secondary: @escaping () -> Void) -> some View {
+        PowAICard(accentColor: PowAI.cyan) {
+            VStack(alignment: .leading, spacing: 10) {
+                friendLabel(friendship.friend, subtitle: friendship.friend.email)
+                HStack(spacing: 10) {
+                    Button(powAILocalized("Accept"), action: primary)
+                        .buttonStyle(PowAIPrimaryButtonStyle(color: PowAI.cyan))
+                    Button(powAILocalized("Decline"), action: secondary)
+                        .buttonStyle(PowAISecondaryButtonStyle())
+                }
+            }
+            .padding(12)
+        }
+    }
+
+    private func challengeCard(_ challenge: WorkoutChallengeDTO) -> some View {
+        PowAICard(accentColor: challenge.status == "accepted" ? PowAI.green : PowAI.orange) {
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(alignment: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(challenge.friend.displayName)
+                            .font(.headline.weight(.heavy))
+                            .foregroundStyle(.white)
+                        Text(challengeSubtitle(challenge))
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(PowAI.slate)
+                    }
+                    Spacer()
+                    Text(powAILocalized(challenge.status.capitalized))
+                        .font(.caption2.weight(.black))
+                        .foregroundStyle(challenge.status == "accepted" ? PowAI.green : PowAI.orange)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background((challenge.status == "accepted" ? PowAI.green : PowAI.orange).opacity(0.14), in: Capsule())
+                }
+
+                if challenge.status == "pending" && challenge.direction == "incoming" {
+                    HStack(spacing: 10) {
+                        Button(powAILocalized("Accept Challenge")) {
+                            Task { await acceptChallenge(challenge) }
+                        }
+                        .buttonStyle(PowAIPrimaryButtonStyle(color: PowAI.orange))
+
+                        Button(powAILocalized("Decline")) {
+                            Task { await declineChallenge(challenge) }
+                        }
+                        .buttonStyle(PowAISecondaryButtonStyle())
+                    }
+                } else if challenge.status == "pending" {
+                    Text(powAILocalized("Waiting for your friend to accept."))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(PowAI.slate)
+                }
+
+                if challenge.status == "accepted", let routine = challenge.routineTraining {
+                    LazyVGrid(columns: [GridItem(.adaptive(minimum: 92), spacing: 8)], spacing: 8) {
+                        ForEach(routine.workout_plan.sorted { $0.day < $1.day }) { day in
+                            Button {
+                                activeChallengeWorkout = ActiveChallengeWorkout(challenge: challenge, day: day)
+                            } label: {
+                                VStack(spacing: 4) {
+                                    Text(powAILocalizedFormat("Day %d", day.day))
+                                        .font(.caption2.weight(.black))
+                                        .foregroundStyle(PowAI.cyan)
+                                    Text(day.muscle_group)
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .lineLimit(2)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity, minHeight: 58)
+                                .padding(8)
+                                .background(PowAI.base.opacity(0.72), in: RoundedRectangle(cornerRadius: 12))
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+
+                    if !challenge.logs.isEmpty {
+                        VStack(alignment: .leading, spacing: 7) {
+                            Text(powAILocalized("Shared Lifts"))
+                                .font(.caption.weight(.black))
+                                .foregroundStyle(PowAI.slate)
+                            ForEach(challenge.logs.prefix(4), id: \.stableID) { log in
+                                HStack {
+                                    Text(log.user.displayName)
+                                        .font(.caption.weight(.bold))
+                                        .foregroundStyle(.white)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    Text(challengeLogSummary(log))
+                                        .font(.caption2.weight(.bold))
+                                        .foregroundStyle(PowAI.cyan)
+                                        .lineLimit(1)
+                                }
+                            }
+                        }
+                        .padding(10)
+                        .background(PowAI.base.opacity(0.48), in: RoundedRectangle(cornerRadius: 12))
+                    }
+                }
+            }
+            .padding(14)
+        }
+    }
+
+    private func challengeSubtitle(_ challenge: WorkoutChallengeDTO) -> String {
+        powAILocalizedFormat("%d days/week • %.1f hours", challenge.daysPerWeek, challenge.hoursPerWorkout)
+    }
+
+    private func challengeLogSummary(_ log: ChallengeSetLogDTO) -> String {
+        let weight = Int(log.setEntry.weight.rounded())
+        return powAILocalizedFormat("Day %d • %@ • %d x %d lb", log.day, log.exerciseName, log.setEntry.reps, weight)
+    }
+
+    private func activitySummary(_ activity: FriendWorkoutActivityDTO) -> String {
+        var parts = [activity.localizedWorkoutType]
+        if let duration = activity.durationSeconds, duration > 0 {
+            parts.append(formatDuration(duration))
+        }
+        if activity.calories > 0 {
+            parts.append(powAILocalizedFormat("%d cal", activity.calories))
+        }
+        parts.append(activity.completedDate)
+        return parts.joined(separator: " • ")
+    }
+
+    private func formatDuration(_ seconds: Int) -> String {
+        let minutes = max(1, seconds / 60)
+        if minutes < 60 {
+            return powAILocalizedFormat("%dm", minutes)
+        }
+        let hours = minutes / 60
+        let remaining = minutes % 60
+        return remaining == 0 ? powAILocalizedFormat("%dh", hours) : powAILocalizedFormat("%dh %dm", hours, remaining)
+    }
+
+    @MainActor
+    private func load() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            async let fetchedFriends = FriendshipAPI.fetchFriends()
+            async let fetchedShares = FriendshipAPI.fetchShares()
+            async let fetchedCompetition = FriendshipAPI.fetchCompetition()
+            async let fetchedChallenges = FriendshipAPI.fetchChallenges()
+            friendships = try await fetchedFriends
+            shares = try await fetchedShares
+            competition = try await fetchedCompetition
+            challenges = try await fetchedChallenges
+            message = nil
+        } catch {
+            message = powAILocalized("Could not load friends.")
+        }
+    }
+
+    @MainActor
+    private func sendRequest() async {
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedEmail.isEmpty else { return }
+        do {
+            let friendship = try await FriendshipAPI.sendRequest(email: trimmedEmail)
+            upsert(friendship)
+            email = ""
+            message = powAILocalized("Friend request sent.")
+        } catch {
+            message = powAILocalized("Could not send friend request.")
+        }
+    }
+
+    @MainActor
+    private func accept(_ friendship: FriendshipDTO) async {
+        guard let id = friendship.id else { return }
+        do {
+            upsert(try await FriendshipAPI.acceptFriendship(id: id))
+        } catch {
+            message = powAILocalized("Could not accept friend request.")
+        }
+    }
+
+    @MainActor
+    private func decline(_ friendship: FriendshipDTO) async {
+        guard let id = friendship.id else { return }
+        do {
+            upsert(try await FriendshipAPI.declineFriendship(id: id))
+        } catch {
+            message = powAILocalized("Could not decline friend request.")
+        }
+    }
+
+    @MainActor
+    private func acceptShare(_ share: SharedFriendItemDTO) async {
+        guard let id = share.id else { return }
+        do {
+            upsert(try await FriendshipAPI.acceptShare(id: id))
+            message = powAILocalized("Shared item added.")
+        } catch {
+            message = powAILocalized("Could not add shared item.")
+        }
+    }
+
+    @MainActor
+    private func declineShare(_ share: SharedFriendItemDTO) async {
+        guard let id = share.id else { return }
+        do {
+            upsert(try await FriendshipAPI.declineShare(id: id))
+        } catch {
+            message = powAILocalized("Could not skip shared item.")
+        }
+    }
+
+    @MainActor
+    private func inviteChallenge(friend: FriendSummaryDTO, days: Int, hours: Double) async {
+        do {
+            let challenge = try await FriendshipAPI.inviteChallenge(friendID: friend.id, daysPerWeek: days, hoursPerWorkout: hours)
+            upsert(challenge)
+            message = powAILocalized("Challenge sent.")
+        } catch {
+            message = powAILocalized("Could not send challenge.")
+        }
+    }
+
+    @MainActor
+    private func acceptChallenge(_ challenge: WorkoutChallengeDTO) async {
+        guard let id = challenge.id else { return }
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            upsert(try await FriendshipAPI.acceptChallenge(id: id))
+            message = powAILocalized("Challenge accepted.")
+        } catch {
+            message = powAILocalized("Could not accept challenge.")
+        }
+    }
+
+    @MainActor
+    private func declineChallenge(_ challenge: WorkoutChallengeDTO) async {
+        guard let id = challenge.id else { return }
+        do {
+            upsert(try await FriendshipAPI.declineChallenge(id: id))
+        } catch {
+            message = powAILocalized("Could not decline challenge.")
+        }
+    }
+
+    private func upsert(_ friendship: FriendshipDTO) {
+        if let index = friendships.firstIndex(where: { $0.stableID == friendship.stableID }) {
+            friendships[index] = friendship
+        } else {
+            friendships.insert(friendship, at: 0)
+        }
+    }
+
+    private func upsert(_ share: SharedFriendItemDTO) {
+        if let index = shares.firstIndex(where: { $0.stableID == share.stableID }) {
+            shares[index] = share
+        } else {
+            shares.insert(share, at: 0)
+        }
+    }
+
+    private func upsert(_ challenge: WorkoutChallengeDTO) {
+        if let index = challenges.firstIndex(where: { $0.stableID == challenge.stableID }) {
+            challenges[index] = challenge
+        } else {
+            challenges.insert(challenge, at: 0)
+        }
+    }
+}
+
+private struct ActiveChallengeWorkout: Identifiable {
+    let challenge: WorkoutChallengeDTO
+    let day: ChallengeWorkoutDayDTO
+
+    var id: String { "\(challenge.stableID.uuidString)-\(day.day)" }
+}
+
+private struct ChallengeWorkoutRunner: View {
+    let active: ActiveChallengeWorkout
+    let onClose: () -> Void
+
+    @State private var exToday: String
+
+    init(active: ActiveChallengeWorkout, onClose: @escaping () -> Void) {
+        self.active = active
+        self.onClose = onClose
+        _exToday = State(initialValue: active.day.muscle_group)
+    }
+
+    var body: some View {
+        StaringWorkWindow(
+            todaysWork: active.day.workoutPlan,
+            exToday: $exToday,
+            cals: active.day.exercises.reduce(0) { $0 + $1.calories_burned },
+            onWorkoutFinished: onClose,
+            routineDay: active.day.day,
+            challengeID: active.challenge.id,
+            routineExerciseWeights: active.day.exercises.map { $0.weight },
+            routineExerciseUnits: active.day.exercises.map { $0.unit },
+            onRoutineHome: onClose
+        )
+        .onChange(of: exToday) {
+            if exToday.isEmpty {
+                onClose()
+            }
+        }
+    }
+}
+
+private struct ChallengeCreatorView: View {
+    let friends: [FriendSummaryDTO]
+    let onInvite: (FriendSummaryDTO, Int, Double) async -> Void
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedFriendID: UUID?
+    @State private var days = 4
+    @State private var hours = 1.0
+    @State private var isSending = false
+
+    private var selectedFriend: FriendSummaryDTO? {
+        friends.first { $0.id == (selectedFriendID ?? friends.first?.id) }
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppBackgroundView()
+                Form {
+                    Section(powAILocalized("Friend")) {
+                        Picker(powAILocalized("Friend"), selection: Binding(
+                            get: { selectedFriendID ?? friends.first?.id },
+                            set: { selectedFriendID = $0 }
+                        )) {
+                            ForEach(friends) { friend in
+                                Text(friend.displayName).tag(Optional(friend.id))
+                            }
+                        }
+                    }
+
+                    Section(powAILocalized("Challenge")) {
+                        Stepper(powAILocalizedFormat("%d workout days", days), value: $days, in: 1...7)
+                        Stepper(powAILocalizedFormat("%.1f hours each", hours), value: $hours, in: 0.5...4, step: 0.5)
+                    }
+
+                    Button {
+                        Task { await send() }
+                    } label: {
+                        HStack {
+                            if isSending { ProgressView() }
+                            Text(powAILocalized("Send Challenge"))
+                        }
+                    }
+                    .disabled(selectedFriend == nil || isSending)
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle(powAILocalized("7-Day Challenge"))
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button(powAILocalized("Close")) { dismiss() }
+                }
+            }
+            .onAppear {
+                selectedFriendID = selectedFriendID ?? friends.first?.id
+            }
+        }
+    }
+
+    @MainActor
+    private func send() async {
+        guard let selectedFriend else { return }
+        isSending = true
+        await onInvite(selectedFriend, days, hours)
+        isSending = false
+        dismiss()
+    }
+}
+
+struct FriendSharePickerView: View {
+    let title: String
+    let target: FriendShareTarget
+
+    @Environment(\.dismiss) private var dismiss
+    @State private var friendships: [FriendshipDTO] = []
+    @State private var isLoading = false
+    @State private var message: String?
+
+    private var friends: [FriendSummaryDTO] {
+        friendships
+            .filter { $0.status == "accepted" }
+            .map(\.friend)
+            .sorted { $0.displayName < $1.displayName }
+    }
+
+    var body: some View {
+        NavigationView {
+            ZStack {
+                AppBackgroundView()
+                List {
+                    if friends.isEmpty && !isLoading {
+                        Text(powAILocalized("Add friends before sharing."))
+                            .foregroundStyle(PowAI.slate)
+                    }
+
+                    ForEach(friends) { friend in
+                        Button {
+                            Task { await share(with: friend) }
+                        } label: {
+                            HStack {
+                                Label(friend.displayName, systemImage: "person.fill")
+                                Spacer()
+                                Image(systemName: "paperplane.fill")
+                                    .foregroundStyle(PowAI.cyan)
+                            }
+                        }
+                    }
+                }
+                .scrollContentBackground(.hidden)
+            }
+            .navigationTitle(title)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button(powAILocalized("Close")) { dismiss() }
+                }
+            }
+            .task { await loadFriends() }
+            .overlay {
+                if isLoading {
+                    ProgressView()
+                        .tint(PowAI.cyan)
+                }
+            }
+            .alert(powAILocalized("Share"), isPresented: Binding(
+                get: { message != nil },
+                set: { if !$0 { message = nil } }
+            )) {
+                Button(powAILocalized("OK"), role: .cancel) {
+                    if message == powAILocalized("Shared.") {
+                        dismiss()
+                    }
+                }
+            } message: {
+                Text(message ?? "")
+            }
+        }
+    }
+
+    @MainActor
+    private func loadFriends() async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            friendships = try await FriendshipAPI.fetchFriends()
+        } catch {
+            message = powAILocalized("Could not load friends.")
+        }
+    }
+
+    @MainActor
+    private func share(with friend: FriendSummaryDTO) async {
+        isLoading = true
+        defer { isLoading = false }
+        do {
+            _ = try await FriendshipAPI.share(target: target, with: friend)
+            message = powAILocalized("Shared.")
+        } catch {
+            message = powAILocalized("Could not share.")
+        }
+    }
+}
+
+struct PowAIPrimaryButtonStyle: ButtonStyle {
+    var color: Color = PowAI.orange
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.black))
+            .foregroundStyle(.black)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(color.opacity(configuration.isPressed ? 0.72 : 1), in: RoundedRectangle(cornerRadius: 10))
+    }
+}
+
+struct PowAISecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.caption.weight(.black))
+            .foregroundStyle(PowAI.slateLight)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 10)
+            .background(PowAI.surface.opacity(configuration.isPressed ? 0.7 : 1), in: RoundedRectangle(cornerRadius: 10))
     }
 }
 
@@ -915,9 +2157,33 @@ struct DayPlanCategory: Identifiable, Equatable {
     static func option(for id: String) -> DayPlanCategory {
         options.first { $0.id == id.lowercased() } ?? options[0]
     }
+
+    var localizedTitle: String {
+        powAILocalized(title)
+    }
+}
+
+enum DayPlanRecurrence: String, CaseIterable, Identifiable, Codable {
+    case none
+    case daily
+    case weekly
+    case custom
+
+    var id: String { rawValue }
+
+    var localizedTitle: String {
+        switch self {
+        case .none: return powAILocalized("Does not repeat")
+        case .daily: return powAILocalized("Every day")
+        case .weekly: return powAILocalized("Every week")
+        case .custom: return powAILocalized("Custom days")
+        }
+    }
 }
 
 struct DayPlanBlock: Codable, Equatable, Identifiable {
+    static let appleCalendarCopyPrefix = "Copied from Apple Calendar:"
+
     var id: UUID
     var scheduledDate: String
     var title: String
@@ -928,7 +2194,11 @@ struct DayPlanBlock: Codable, Equatable, Identifiable {
     var endMinute: Int
     var category: String
     var reminderMinutesBefore: Int?
+    var leaveReminderMinutesBefore: Int?
     var startAlarmEnabled: Bool
+    var recurrence: String
+    var repeatDays: [Int]
+    var recurrenceEndDate: String?
     var isDone: Bool
 
     var categoryOption: DayPlanCategory {
@@ -956,16 +2226,52 @@ struct DayPlanBlock: Codable, Equatable, Identifiable {
     }
 
     var reminderText: String {
-        guard let reminderMinutesBefore else { return "No reminder" }
-        return reminderMinutesBefore == 0 ? "At start" : "\(reminderMinutesBefore)m before"
+        guard let reminderMinutesBefore else { return powAILocalized("No reminder") }
+        return reminderMinutesBefore == 0 ? powAILocalized("At start") : powAILocalizedFormat("%dm before", reminderMinutesBefore)
+    }
+
+    var recurrenceOption: DayPlanRecurrence {
+        DayPlanRecurrence(rawValue: recurrence) ?? .none
+    }
+
+    var recurrenceText: String {
+        switch recurrenceOption {
+        case .none:
+            return powAILocalized("Does not repeat")
+        case .daily:
+            return powAILocalized("Every day")
+        case .weekly:
+            return powAILocalizedFormat("Weekly on %@", repeatDaysText)
+        case .custom:
+            return repeatDays.isEmpty ? powAILocalized("Custom days") : repeatDaysText
+        }
+    }
+
+    var leaveReminderText: String {
+        guard let leaveReminderMinutesBefore else { return powAILocalized("No leave reminder") }
+        return powAILocalizedFormat("Leave %dm before", leaveReminderMinutesBefore)
+    }
+
+    var repeatDaysText: String {
+        let names = repeatDays.sorted().compactMap { Self.shortWeekdayName($0) }
+        return names.isEmpty ? powAILocalized("No days") : names.joined(separator: ", ")
     }
 
     var isAllDayCalendarCopy: Bool {
-        notes?.hasPrefix("Copied from Apple Calendar:") == true &&
+        notes?.hasPrefix(Self.appleCalendarCopyPrefix) == true &&
         startHour == 0 &&
         startMinute == 0 &&
         endHour == 23 &&
         endMinute == 59
+    }
+
+    var displayNotes: String? {
+        guard let notes, !notes.isEmpty else { return nil }
+        guard notes.hasPrefix(Self.appleCalendarCopyPrefix) else { return notes }
+        let calendarTitle = notes
+            .dropFirst(Self.appleCalendarCopyPrefix.count)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return powAILocalizedFormat("Copied from Apple Calendar: %@", calendarTitle)
     }
 
     private static func timeString(hour: Int, minute: Int) -> String {
@@ -976,6 +2282,14 @@ struct DayPlanBlock: Codable, Equatable, Identifiable {
         components.minute = minute
         let date = Calendar.current.date(from: components) ?? Date()
         return formatter.string(from: date)
+    }
+
+    static func shortWeekdayName(_ weekday: Int) -> String? {
+        guard (1...7).contains(weekday) else { return nil }
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        let symbols = formatter.shortWeekdaySymbols ?? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+        return symbols[weekday - 1]
     }
 }
 
@@ -989,7 +2303,7 @@ struct DayPlanCalendarEvent: Identifiable, Equatable {
     let color: Color
 
     var timeText: String {
-        if isAllDay { return "All day" }
+        if isAllDay { return powAILocalized("All day") }
         let formatter = DateFormatter()
         formatter.timeStyle = .short
         formatter.dateStyle = .none
@@ -997,7 +2311,7 @@ struct DayPlanCalendarEvent: Identifiable, Equatable {
     }
 
     var durationText: String {
-        if isAllDay { return "Calendar" }
+        if isAllDay { return powAILocalized("Calendar") }
         let minutes = max(1, Int(endDate.timeIntervalSince(startDate) / 60))
         if minutes >= 60 {
             let hours = minutes / 60
@@ -1018,7 +2332,11 @@ struct DayPlanSaveRequest: Encodable {
     var endMinute: Int
     var category: String?
     var reminderMinutesBefore: Int?
+    var leaveReminderMinutesBefore: Int?
     var startAlarmEnabled: Bool?
+    var recurrence: String?
+    var repeatDays: [Int]?
+    var recurrenceEndDate: String?
     var isDone: Bool?
 }
 
@@ -1027,6 +2345,7 @@ enum DayPlanScheduler {
         cancel(block)
         requestNotificationPermission()
         scheduleReminder(block)
+        scheduleLeaveReminder(block)
         scheduleStartAlarm(block)
     }
 
@@ -1039,45 +2358,54 @@ enum DayPlanScheduler {
     }
 
     private static func scheduleReminder(_ block: DayPlanBlock) {
-        guard let reminder = block.reminderMinutesBefore,
-              let blockDate = DayPlanDateFormatter.date(from: block.scheduledDate),
-              let startDate = Calendar.current.date(
-                bySettingHour: block.startHour,
-                minute: block.startMinute,
-                second: 0,
-                of: blockDate
-              ) else { return }
-
-        let fireDate = Calendar.current.date(byAdding: .minute, value: -reminder, to: startDate) ?? startDate
-        guard fireDate > Date() else { return }
-
+        guard let reminder = block.reminderMinutesBefore else { return }
         let content = UNMutableNotificationContent()
         content.title = block.title
         content.body = "\(block.timeText) • \(block.categoryOption.title)"
         content.sound = .default
         content.interruptionLevel = .timeSensitive
 
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: reminderNotificationID(for: block),
+        scheduleNotifications(
+            for: block,
             content: content,
-            trigger: trigger
+            prefix: reminderNotificationPrefix(for: block),
+            minutesBeforeStart: reminder
         )
+    }
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                print("Day plan reminder scheduling failed: \(error)")
-            }
-        }
+    private static func scheduleLeaveReminder(_ block: DayPlanBlock) {
+        guard let leaveReminder = block.leaveReminderMinutesBefore else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = powAILocalized("Leave now to be on time")
+        content.body = "\(block.title) • \(block.timeText)"
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+
+        scheduleNotifications(
+            for: block,
+            content: content,
+            prefix: leaveReminderNotificationPrefix(for: block),
+            minutesBeforeStart: leaveReminder
+        )
     }
 
     private static func scheduleStartAlarm(_ block: DayPlanBlock) {
         guard block.startAlarmEnabled,
-              let startDate = startDate(for: block),
-              startDate > Date() else { return }
+              let startDate = occurrenceStartDates(for: block, limit: 1).first else { return }
 
-        scheduleStartAlarmNotification(block, startDate: startDate)
+        let content = UNMutableNotificationContent()
+        content.title = powAILocalizedFormat("Start: %@", block.title)
+        content.body = powAILocalizedFormat("%@ • Keep moving with your plan.", block.timeText)
+        content.sound = .default
+        content.interruptionLevel = .timeSensitive
+
+        scheduleNotifications(
+            for: block,
+            content: content,
+            prefix: startAlarmNotificationPrefix(for: block),
+            minutesBeforeStart: 0
+        )
 
         Task {
             do {
@@ -1089,9 +2417,19 @@ enum DayPlanScheduler {
     }
 
     static func cancel(_ block: DayPlanBlock) {
-        UNUserNotificationCenter.current().removePendingNotificationRequests(
-            withIdentifiers: [reminderNotificationID(for: block), startAlarmNotificationID(for: block)]
-        )
+        let prefixes = [
+            reminderNotificationPrefix(for: block),
+            leaveReminderNotificationPrefix(for: block),
+            startAlarmNotificationPrefix(for: block)
+        ]
+        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
+            let identifiers = requests
+                .map(\.identifier)
+                .filter { identifier in
+                    prefixes.contains { identifier.hasPrefix($0) }
+                }
+            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+        }
 
         Task {
             do {
@@ -1102,36 +2440,87 @@ enum DayPlanScheduler {
         }
     }
 
-    private static func startDate(for block: DayPlanBlock) -> Date? {
-        guard let blockDate = DayPlanDateFormatter.date(from: block.scheduledDate) else { return nil }
-        return Calendar.current.date(
+    private static func startDate(for block: DayPlanBlock, on date: Date) -> Date? {
+        Calendar.current.date(
             bySettingHour: block.startHour,
             minute: block.startMinute,
             second: 0,
-            of: blockDate
+            of: date
         )
     }
 
-    private static func scheduleStartAlarmNotification(_ block: DayPlanBlock, startDate: Date) {
-        let content = UNMutableNotificationContent()
-        content.title = "Start: \(block.title)"
-        content.body = "\(block.timeText) • Keep moving with your plan."
-        content.sound = .default
-        content.interruptionLevel = .timeSensitive
+    private static func startDate(for block: DayPlanBlock) -> Date? {
+        guard let blockDate = DayPlanDateFormatter.date(from: block.scheduledDate) else { return nil }
+        return startDate(for: block, on: blockDate)
+    }
 
-        let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: startDate)
-        let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
-        let request = UNNotificationRequest(
-            identifier: startAlarmNotificationID(for: block),
-            content: content,
-            trigger: trigger
-        )
+    private static func scheduleNotifications(
+        for block: DayPlanBlock,
+        content: UNMutableNotificationContent,
+        prefix: String,
+        minutesBeforeStart: Int
+    ) {
+        let fireDates = occurrenceStartDates(for: block, limit: 24).compactMap { startDate in
+            Calendar.current.date(byAdding: .minute, value: -minutesBeforeStart, to: startDate)
+        }
+        let now = Date()
 
-        UNUserNotificationCenter.current().add(request) { error in
-            if let error {
-                print("Day plan start alarm notification failed: \(error)")
+        for fireDate in fireDates where fireDate > now {
+            let components = Calendar.current.dateComponents([.year, .month, .day, .hour, .minute], from: fireDate)
+            let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
+            let request = UNNotificationRequest(
+                identifier: "\(prefix)-\(Int(fireDate.timeIntervalSince1970))",
+                content: content,
+                trigger: trigger
+            )
+
+            UNUserNotificationCenter.current().add(request) { error in
+                if let error {
+                    print("Day plan notification scheduling failed: \(error)")
+                }
             }
         }
+    }
+
+    private static func occurrenceStartDates(for block: DayPlanBlock, limit: Int) -> [Date] {
+        guard let firstDate = DayPlanDateFormatter.date(from: block.scheduledDate) else { return [] }
+
+        let calendar = Calendar.current
+        let now = Date()
+        let recurrence = DayPlanRecurrence(rawValue: block.recurrence) ?? .none
+        let endDate = block.recurrenceEndDate.flatMap(DayPlanDateFormatter.date(from:))
+        let finalDay = endDate.map { calendar.startOfDay(for: $0) }
+        var dates: [Date] = []
+
+        func appendIfValid(_ date: Date) {
+            guard let start = startDate(for: block, on: date), start > now else { return }
+            if let finalDay, calendar.startOfDay(for: date) > finalDay { return }
+            dates.append(start)
+        }
+
+        switch recurrence {
+        case .none:
+            appendIfValid(firstDate)
+        case .daily, .weekly, .custom:
+            var cursor = calendar.startOfDay(for: firstDate)
+            let weekdays = Set(block.repeatDays)
+            var inspectedDays = 0
+            while dates.count < limit, inspectedDays < 370 {
+                defer {
+                    cursor = calendar.date(byAdding: .day, value: 1, to: cursor) ?? cursor
+                    inspectedDays += 1
+                }
+
+                if let finalDay, cursor > finalDay { break }
+
+                let weekday = calendar.component(.weekday, from: cursor)
+                if recurrence == .daily || weekdays.contains(weekday) {
+                    appendIfValid(cursor)
+                }
+            }
+        }
+
+        return dates
     }
 
     private static func scheduleStartSystemAlarm(_ block: DayPlanBlock, startDate: Date) async throws {
@@ -1171,11 +2560,15 @@ enum DayPlanScheduler {
         _ = try await manager.schedule(id: block.id, configuration: configuration)
     }
 
-    private static func reminderNotificationID(for block: DayPlanBlock) -> String {
+    private static func reminderNotificationPrefix(for block: DayPlanBlock) -> String {
         "day-plan-reminder-\(block.id.uuidString)"
     }
 
-    private static func startAlarmNotificationID(for block: DayPlanBlock) -> String {
+    private static func leaveReminderNotificationPrefix(for block: DayPlanBlock) -> String {
+        "day-plan-leave-\(block.id.uuidString)"
+    }
+
+    private static func startAlarmNotificationPrefix(for block: DayPlanBlock) -> String {
         "day-plan-start-alarm-\(block.id.uuidString)"
     }
 }
@@ -1209,30 +2602,45 @@ final class DayPlanViewModel: ObservableObject {
     @Published var calendarMessage: String?
 
     private let eventStore = EKEventStore()
+    private static var cachedBlocksByDate: [String: [DayPlanBlock]] = [:]
+    private static var cachedAtByDate: [String: Date] = [:]
+    private static var loadTasksByDate: [String: Task<[DayPlanBlock], Error>] = [:]
 
-    func load(for date: Date) async {
-        isLoading = true
+    func applyServerBlocks(_ serverBlocks: [DayPlanBlock], for date: Date) {
+        let dateString = DayPlanDateFormatter.string(from: date)
+        let sorted = serverBlocks.sorted { ($0.startHour, $0.startMinute) < ($1.startHour, $1.startMinute) }
+        blocks = sorted
+        sorted.forEach { DayPlanScheduler.schedule($0) }
+        message = sorted.isEmpty ? powAILocalized("No time blocks yet.") : nil
+        Self.cachedBlocksByDate[dateString] = sorted
+        Self.cachedAtByDate[dateString] = Date()
+    }
+
+    func load(for date: Date, force: Bool = false) async {
+        let dateString = DayPlanDateFormatter.string(from: date)
+        if !force,
+           let cached = Self.cachedBlocksByDate[dateString],
+           Self.isFresh(Self.cachedAtByDate[dateString]) {
+            applyServerBlocks(cached, for: date)
+            return
+        }
+
+        isLoading = blocks.isEmpty
         defer { isLoading = false }
 
         do {
-            let dateString = DayPlanDateFormatter.string(from: date)
-            var components = URLComponents(string: Constants.baseURL + "day-schedule")
-            components?.queryItems = [URLQueryItem(name: "date", value: dateString)]
-            guard let url = components?.url else { throw URLError(.badURL) }
-
-            var request = URLRequest(url: url)
-            request.applyBearerToken()
-            let (data, response) = try await URLSession.shared.data(for: request)
-            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
-                throw URLError(.badServerResponse)
+            let serverBlocks: [DayPlanBlock]
+            if let loadTask = Self.loadTasksByDate[dateString] {
+                serverBlocks = try await loadTask.value
+            } else {
+                let task = Task { try await Self.fetchBlocks(for: dateString) }
+                Self.loadTasksByDate[dateString] = task
+                defer { Self.loadTasksByDate[dateString] = nil }
+                serverBlocks = try await task.value
             }
-
-            blocks = try JSONDecoder().decode([DayPlanBlock].self, from: data)
-                .sorted { ($0.startHour, $0.startMinute) < ($1.startHour, $1.startMinute) }
-            blocks.forEach { DayPlanScheduler.schedule($0) }
-            message = blocks.isEmpty ? "No time blocks yet." : nil
+            applyServerBlocks(serverBlocks, for: date)
         } catch {
-            message = "Could not load day plan."
+            message = powAILocalized("Could not load day plan.")
             print("Load day plan failed: \(error)")
         }
     }
@@ -1244,7 +2652,7 @@ final class DayPlanViewModel: ObservableObject {
         do {
             guard try await ensureCalendarAccess() else {
                 calendarEvents = []
-                calendarMessage = "Calendar access is needed to show Apple Calendar events."
+                calendarMessage = powAILocalized("Calendar access is needed to show Apple Calendar events.")
                 return
             }
 
@@ -1262,7 +2670,7 @@ final class DayPlanViewModel: ObservableObject {
                 .map { event in
                     DayPlanCalendarEvent(
                         id: event.eventIdentifier ?? "\(event.title ?? "event")-\(event.startDate.timeIntervalSince1970)",
-                        title: event.title?.isEmpty == false ? event.title : "Untitled event",
+                        title: event.title?.isEmpty == false ? event.title : powAILocalized("Untitled event"),
                         calendarTitle: event.calendar.title,
                         startDate: event.startDate,
                         endDate: event.endDate,
@@ -1270,10 +2678,10 @@ final class DayPlanViewModel: ObservableObject {
                         color: Color(cgColor: event.calendar.cgColor)
                     )
                 }
-            calendarMessage = calendarEvents.isEmpty ? "No Apple Calendar events on this date." : nil
+            calendarMessage = calendarEvents.isEmpty ? powAILocalized("No Apple Calendar events on this date.") : nil
         } catch {
             calendarEvents = []
-            calendarMessage = "Could not load Apple Calendar events."
+            calendarMessage = powAILocalized("Could not load Apple Calendar events.")
             print("Load Apple Calendar events failed: \(error)")
         }
     }
@@ -1296,16 +2704,21 @@ final class DayPlanViewModel: ObservableObject {
             }
 
             let saved = try JSONDecoder().decode(DayPlanBlock.self, from: data)
+            if let existing {
+                DayPlanScheduler.cancel(existing)
+            }
             if let index = blocks.firstIndex(where: { $0.id == saved.id }) {
                 blocks[index] = saved
             } else {
                 blocks.append(saved)
             }
             blocks.sort { ($0.startHour, $0.startMinute) < ($1.startHour, $1.startMinute) }
+            Self.cachedBlocksByDate[saved.scheduledDate] = blocks
+            Self.cachedAtByDate[saved.scheduledDate] = Date()
             DayPlanScheduler.schedule(saved)
             message = nil
         } catch {
-            message = "Could not save time block."
+            message = powAILocalized("Could not save time block.")
             print("Save day plan failed: \(error)")
         }
     }
@@ -1319,10 +2732,12 @@ final class DayPlanViewModel: ObservableObject {
                 throw URLError(.badServerResponse)
             }
             blocks.removeAll { $0.id == block.id }
+            Self.cachedBlocksByDate[block.scheduledDate] = blocks
+            Self.cachedAtByDate[block.scheduledDate] = Date()
             DayPlanScheduler.cancel(block)
-            message = blocks.isEmpty ? "No time blocks yet." : nil
+            message = blocks.isEmpty ? powAILocalized("No time blocks yet.") : nil
         } catch {
-            message = "Could not delete time block."
+            message = powAILocalized("Could not delete time block.")
             print("Delete day plan failed: \(error)")
         }
     }
@@ -1338,7 +2753,11 @@ final class DayPlanViewModel: ObservableObject {
             endMinute: block.endMinute,
             category: block.category,
             reminderMinutesBefore: block.reminderMinutesBefore,
+            leaveReminderMinutesBefore: block.leaveReminderMinutesBefore,
             startAlarmEnabled: block.startAlarmEnabled,
+            recurrence: block.recurrence,
+            repeatDays: block.repeatDays,
+            recurrenceEndDate: block.recurrenceEndDate,
             isDone: isDone
         )
         await save(existing: block, request: payload)
@@ -1351,6 +2770,25 @@ final class DayPlanViewModel: ObservableObject {
         var request = URLRequest(url: url)
         request.applyBearerToken()
         return request
+    }
+
+    private static func fetchBlocks(for dateString: String) async throws -> [DayPlanBlock] {
+        var components = URLComponents(string: Constants.baseURL + "day-schedule")
+        components?.queryItems = [URLQueryItem(name: "date", value: dateString)]
+        guard let url = components?.url else { throw URLError(.badURL) }
+
+        var request = URLRequest(url: url)
+        request.applyBearerToken()
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+        return try JSONDecoder().decode([DayPlanBlock].self, from: data)
+    }
+
+    private static func isFresh(_ date: Date?) -> Bool {
+        guard let date else { return false }
+        return Date().timeIntervalSince(date) < 20
     }
 
     private func ensureCalendarAccess() async throws -> Bool {
@@ -1380,12 +2818,19 @@ final class DayPlanViewModel: ObservableObject {
 }
 
 struct DayPlanView: View {
-    @StateObject private var viewModel = DayPlanViewModel()
+    @ObservedObject var viewModel: DayPlanViewModel
     @State private var selectedDate = Date()
     @State private var editingBlock: DayPlanBlock?
+    @State private var sharingBlock: DayPlanBlock?
     @State private var showingEditor = false
     @State private var showingCalendarEvents = false
+    let loadOnAppear: Bool
     private let liveActivityTimer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
+
+    init(viewModel: DayPlanViewModel, loadOnAppear: Bool = true) {
+        self.viewModel = viewModel
+        self.loadOnAppear = loadOnAppear
+    }
 
     var body: some View {
         ZStack {
@@ -1417,7 +2862,9 @@ struct DayPlanView: View {
             }
         }
         .task {
-            await viewModel.load(for: selectedDate)
+            if loadOnAppear {
+                await viewModel.load(for: selectedDate)
+            }
             updateDayPlanLiveActivity()
         }
         .onChange(of: selectedDate) { _, newDate in
@@ -1440,6 +2887,12 @@ struct DayPlanView: View {
                 await viewModel.save(existing: editingBlock, request: payload)
                 showingEditor = false
             }
+        }
+        .sheet(item: $sharingBlock) { block in
+            FriendSharePickerView(
+                title: powAILocalized("Share Event"),
+                target: .dayPlan(block.id)
+            )
         }
     }
 
@@ -1471,14 +2924,18 @@ struct DayPlanView: View {
         return DayPlanSaveRequest(
             scheduledDate: DayPlanDateFormatter.string(from: selectedDate),
             title: event.title,
-            notes: "Copied from Apple Calendar: \(event.calendarTitle)",
+            notes: "\(DayPlanBlock.appleCalendarCopyPrefix) \(event.calendarTitle)",
             startHour: startComponents.hour ?? 0,
             startMinute: startComponents.minute ?? 0,
             endHour: endComponents.hour ?? 23,
             endMinute: endComponents.minute ?? 59,
             category: "personal",
             reminderMinutesBefore: nil,
+            leaveReminderMinutesBefore: nil,
             startAlarmEnabled: false,
+            recurrence: "none",
+            repeatDays: [],
+            recurrenceEndDate: nil,
             isDone: false
         )
     }
@@ -1498,13 +2955,13 @@ struct DayPlanView: View {
     private var header: some View {
         HStack(alignment: .center) {
             VStack(alignment: .leading, spacing: 4) {
-                Text("Day Plan")
+                Text(powAILocalized("Day Plan"))
                     .font(.system(size: 30, weight: .heavy, design: .rounded))
                     .foregroundStyle(.white)
-                Text("Block time · Stay visible")
+                Text(powAILocalized("Block time · Stay visible"))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(PowAI.slate)
-                Text("Plan your day by time blocks, with optional start alarms and Live Activity updates.")
+                Text(powAILocalized("Plan your day by time blocks, with optional start alarms and Live Activity updates."))
                     .font(.caption.weight(.medium))
                     .foregroundStyle(PowAI.slate.opacity(0.9))
                     .lineLimit(2)
@@ -1553,7 +3010,7 @@ struct DayPlanView: View {
                     Text(selectedDate.formatted(.dateTime.month(.abbreviated).day()))
                         .font(.system(size: 15, weight: .bold))
                         .foregroundStyle(.white)
-                    Text(isToday ? "Today" : selectedDate.formatted(.dateTime.weekday(.wide)))
+                    Text(isToday ? powAILocalized("Today") : selectedDate.formatted(.dateTime.weekday(.wide)))
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(isToday ? PowAI.cyan : PowAI.slate)
                 }
@@ -1595,7 +3052,7 @@ struct DayPlanView: View {
                     .font(.system(size: 15, weight: .bold))
                     .foregroundStyle(PowAI.cyan)
 
-                Text(showingCalendarEvents ? "Hide Apple Calendar" : "Show Apple Calendar")
+                Text(powAILocalized(showingCalendarEvents ? "Hide Apple Calendar" : "Show Apple Calendar"))
                     .font(.system(size: 14, weight: .bold))
                     .foregroundStyle(.white)
 
@@ -1657,6 +3114,9 @@ struct DayPlanView: View {
                         },
                         onDelete: {
                             Task { await viewModel.delete(block) }
+                        },
+                        onShare: {
+                            sharingBlock = block
                         }
                     )
                 }
@@ -1669,7 +3129,7 @@ struct DayPlanView: View {
     private var calendarEventsSection: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                PowAISectionLabel(text: "Apple Calendar")
+                PowAISectionLabel(text: powAILocalized("Apple Calendar"))
                 Spacer()
                 if !viewModel.calendarEvents.isEmpty {
                     Button {
@@ -1690,7 +3150,7 @@ struct DayPlanView: View {
                 HStack(spacing: 10) {
                     ProgressView()
                         .tint(PowAI.cyan)
-                    Text("Loading Apple Calendar events...")
+                    Text(powAILocalized("Loading Apple Calendar events..."))
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(PowAI.slate)
                 }
@@ -1779,7 +3239,7 @@ struct DayPlanCalendarEventRowView: View {
                     }
                     .buttonStyle(.plain)
                     .disabled(isImported || !canImport)
-                    .accessibilityLabel(event.isAllDay ? "All-day calendar event" : (isImported ? "Added to Day Plan" : "Add to Day Plan"))
+                    .accessibilityLabel(powAILocalized(event.isAllDay ? "All-day calendar event" : (isImported ? "Added to Day Plan" : "Add to Day Plan")))
                 }
                 .padding(16)
             }
@@ -1792,6 +3252,7 @@ struct DayPlanRowView: View {
     let onToggle: (Bool) -> Void
     let onEdit: () -> Void
     let onDelete: () -> Void
+    let onShare: () -> Void
 
     var body: some View {
         let category = block.categoryOption
@@ -1842,7 +3303,7 @@ struct DayPlanRowView: View {
                             .strikethrough(block.isDone, color: PowAI.slate)
                             .lineLimit(2)
 
-                        if let notes = block.notes, !notes.isEmpty {
+                        if let notes = block.displayNotes {
                             Text(notes)
                                 .font(.subheadline)
                                 .foregroundStyle(PowAI.slate)
@@ -1851,10 +3312,16 @@ struct DayPlanRowView: View {
 
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
-                                PowAIChip(label: category.title, icon: category.icon, color: category.color)
+                                PowAIChip(label: category.localizedTitle, icon: category.icon, color: category.color)
                                 PowAIChip(label: block.reminderText, icon: "bell.fill", color: PowAI.slate)
+                                if block.recurrenceOption != .none {
+                                    PowAIChip(label: block.recurrenceText, icon: "repeat", color: PowAI.cyan)
+                                }
+                                if block.leaveReminderMinutesBefore != nil {
+                                    PowAIChip(label: block.leaveReminderText, icon: "figure.walk", color: PowAI.green)
+                                }
                                 if block.startAlarmEnabled {
-                                    PowAIChip(label: "Alarm", icon: "alarm.fill", color: PowAI.orange)
+                                    PowAIChip(label: powAILocalized("Alarm"), icon: "alarm.fill", color: PowAI.orange)
                                 }
                             }
                         }
@@ -1863,8 +3330,9 @@ struct DayPlanRowView: View {
                     Spacer()
 
                     Menu {
-                        Button("Edit", systemImage: "pencil", action: onEdit)
-                        Button("Delete", systemImage: "trash", role: .destructive, action: onDelete)
+                        Button(powAILocalized("Share"), systemImage: "square.and.arrow.up", action: onShare)
+                        Button(powAILocalized("Edit"), systemImage: "pencil", action: onEdit)
+                        Button(powAILocalized("Delete"), systemImage: "trash", role: .destructive, action: onDelete)
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 14, weight: .bold))
@@ -1893,7 +3361,12 @@ struct DayPlanEditorView: View {
     @State private var endTime: Date
     @State private var category: String
     @State private var reminderMinutesBefore: Int?
+    @State private var leaveReminderMinutesBefore: Int?
     @State private var startAlarmEnabled: Bool
+    @State private var recurrence: DayPlanRecurrence
+    @State private var selectedRepeatDays: Set<Int>
+    @State private var hasRecurrenceEndDate: Bool
+    @State private var recurrenceEndDate: Date
     @State private var isSaving = false
     @State private var errorMessage: String?
 
@@ -1921,45 +3394,97 @@ struct DayPlanEditorView: View {
         } ?? defaultEnd)
         _category = State(initialValue: block?.category ?? "focus")
         _reminderMinutesBefore = State(initialValue: block?.reminderMinutesBefore)
+        _leaveReminderMinutesBefore = State(initialValue: block?.leaveReminderMinutesBefore)
         _startAlarmEnabled = State(initialValue: block?.startAlarmEnabled ?? false)
+        let initialRecurrence = DayPlanRecurrence(rawValue: block?.recurrence ?? "none") ?? .none
+        _recurrence = State(initialValue: initialRecurrence)
+        let weekday = calendar.component(.weekday, from: date)
+        _selectedRepeatDays = State(initialValue: Set(block?.repeatDays.isEmpty == false ? block?.repeatDays ?? [weekday] : [weekday]))
+        let initialEndDate = block?.recurrenceEndDate.flatMap(DayPlanDateFormatter.date(from:)) ?? date
+        _hasRecurrenceEndDate = State(initialValue: block?.recurrenceEndDate != nil)
+        _recurrenceEndDate = State(initialValue: initialEndDate)
     }
 
     var body: some View {
         NavigationView {
             Form {
-                Section("What") {
-                    TextField("Task, class, errand, workout...", text: $title)
-                    TextField("Notes", text: $notes, axis: .vertical)
+                Section(powAILocalized("What")) {
+                    TextField(powAILocalized("Task, class, errand, workout..."), text: $title)
+                    TextField(powAILocalized("Notes"), text: $notes, axis: .vertical)
                         .lineLimit(2...4)
                 }
 
-                Section("When") {
-                    DatePicker("Start", selection: $startTime, displayedComponents: .hourAndMinute)
-                    DatePicker("End", selection: $endTime, displayedComponents: .hourAndMinute)
+                Section(powAILocalized("When")) {
+                    DatePicker(powAILocalized("Start"), selection: $startTime, displayedComponents: .hourAndMinute)
+                    DatePicker(powAILocalized("End"), selection: $endTime, displayedComponents: .hourAndMinute)
                 }
 
-                Section("Type") {
-                    Picker("Category", selection: $category) {
+                Section(powAILocalized("Type")) {
+                    Picker(powAILocalized("Category"), selection: $category) {
                         ForEach(DayPlanCategory.options) { option in
-                            Label(option.title, systemImage: option.icon).tag(option.id)
+                            Label(option.localizedTitle, systemImage: option.icon).tag(option.id)
                         }
                     }
                 }
 
-                Section("Reminder") {
-                    Picker("Reminder", selection: $reminderMinutesBefore) {
-                        Text("None").tag(nil as Int?)
-                        Text("At start").tag(0 as Int?)
-                        Text("5 min before").tag(5 as Int?)
-                        Text("10 min before").tag(10 as Int?)
-                        Text("15 min before").tag(15 as Int?)
-                        Text("30 min before").tag(30 as Int?)
-                        Text("1 hour before").tag(60 as Int?)
+                Section(powAILocalized("Reminder")) {
+                    Picker(powAILocalized("Reminder"), selection: $reminderMinutesBefore) {
+                        Text(powAILocalized("None")).tag(nil as Int?)
+                        Text(powAILocalized("At start")).tag(0 as Int?)
+                        Text(powAILocalized("5 min before")).tag(5 as Int?)
+                        Text(powAILocalized("10 min before")).tag(10 as Int?)
+                        Text(powAILocalized("15 min before")).tag(15 as Int?)
+                        Text(powAILocalized("30 min before")).tag(30 as Int?)
+                        Text(powAILocalized("1 hour before")).tag(60 as Int?)
                     }
 
                     Toggle(isOn: $startAlarmEnabled) {
-                        Label("Alarm at start", systemImage: "alarm.fill")
+                        Label(powAILocalized("Alarm at start"), systemImage: "alarm.fill")
                     }
+                }
+
+                Section(powAILocalized("Repeat")) {
+                    Picker(powAILocalized("Repeat"), selection: $recurrence) {
+                        ForEach(DayPlanRecurrence.allCases) { option in
+                            Text(option.localizedTitle).tag(option)
+                        }
+                    }
+
+                    if recurrence == .custom {
+                        weekdayPicker
+                    }
+
+                    if recurrence != .none {
+                        Toggle(isOn: $hasRecurrenceEndDate) {
+                            Text(powAILocalized("Ends on date"))
+                        }
+
+                        if hasRecurrenceEndDate {
+                            DatePicker(
+                                powAILocalized("End repeat"),
+                                selection: $recurrenceEndDate,
+                                displayedComponents: .date
+                            )
+                        }
+                    }
+                }
+
+                Section(powAILocalized("Travel time")) {
+                    Picker(powAILocalized("Leave reminder"), selection: $leaveReminderMinutesBefore) {
+                        Text(powAILocalized("None")).tag(nil as Int?)
+                        Text(powAILocalized("5 min before")).tag(5 as Int?)
+                        Text(powAILocalized("10 min before")).tag(10 as Int?)
+                        Text(powAILocalized("15 min before")).tag(15 as Int?)
+                        Text(powAILocalized("20 min before")).tag(20 as Int?)
+                        Text(powAILocalized("30 min before")).tag(30 as Int?)
+                        Text(powAILocalized("45 min before")).tag(45 as Int?)
+                        Text(powAILocalized("1 hour before")).tag(60 as Int?)
+                        Text(powAILocalized("90 min before")).tag(90 as Int?)
+                        Text(powAILocalized("2 hours before")).tag(120 as Int?)
+                    }
+                    Text(powAILocalized("PowAI will remind you when you need to leave so you can arrive on time."))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
                 }
 
                 if let errorMessage {
@@ -1967,13 +3492,13 @@ struct DayPlanEditorView: View {
                         .foregroundStyle(.red)
                 }
             }
-            .navigationTitle(block == nil ? "New Time Block" : "Edit Time Block")
+            .navigationTitle(powAILocalized(block == nil ? "New Time Block" : "Edit Time Block"))
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(powAILocalized("Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Saving..." : "Save") {
+                    Button(powAILocalized(isSaving ? "Saving..." : "Save")) {
                         Task { await save() }
                     }
                     .disabled(isSaving)
@@ -1982,10 +3507,39 @@ struct DayPlanEditorView: View {
         }
     }
 
+    private var weekdayPicker: some View {
+        let formatter = DateFormatter()
+        formatter.locale = Locale.current
+        let weekdaySymbols = formatter.shortWeekdaySymbols ?? ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+        return HStack(spacing: 8) {
+            ForEach(1...7, id: \.self) { weekday in
+                Button {
+                    if selectedRepeatDays.contains(weekday) {
+                        selectedRepeatDays.remove(weekday)
+                    } else {
+                        selectedRepeatDays.insert(weekday)
+                    }
+                } label: {
+                    Text(weekdaySymbols[weekday - 1])
+                        .font(.caption.weight(.bold))
+                        .foregroundStyle(selectedRepeatDays.contains(weekday) ? .white : .secondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
+                        .background(
+                            selectedRepeatDays.contains(weekday) ? Color.accentColor : Color.secondary.opacity(0.14),
+                            in: Capsule()
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+        }
+    }
+
     private func save() async {
         let trimmedTitle = title.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmedTitle.isEmpty else {
-            errorMessage = "Title is required."
+            errorMessage = powAILocalized("Title is required.")
             return
         }
 
@@ -1998,7 +3552,13 @@ struct DayPlanEditorView: View {
         let endMinute = endComponents.minute ?? 0
 
         guard (endHour * 60 + endMinute) > (startHour * 60 + startMinute) else {
-            errorMessage = "End time must be after start time."
+            errorMessage = powAILocalized("End time must be after start time.")
+            return
+        }
+
+        let repeatDays = repeatDaysForPayload(calendar: calendar)
+        if recurrence == .custom, repeatDays.isEmpty {
+            errorMessage = powAILocalized("Choose at least one repeat day.")
             return
         }
 
@@ -2015,11 +3575,28 @@ struct DayPlanEditorView: View {
             endMinute: endMinute,
             category: category,
             reminderMinutesBefore: reminderMinutesBefore,
+            leaveReminderMinutesBefore: leaveReminderMinutesBefore,
             startAlarmEnabled: startAlarmEnabled,
+            recurrence: recurrence.rawValue,
+            repeatDays: repeatDays,
+            recurrenceEndDate: recurrence != .none && hasRecurrenceEndDate ? DayPlanDateFormatter.string(from: recurrenceEndDate) : nil,
             isDone: block?.isDone ?? false
         )
 
         await onSave(payload)
+    }
+
+    private func repeatDaysForPayload(calendar: Calendar) -> [Int] {
+        switch recurrence {
+        case .none:
+            return []
+        case .daily:
+            return Array(1...7)
+        case .weekly:
+            return [calendar.component(.weekday, from: startTime)]
+        case .custom:
+            return selectedRepeatDays.sorted()
+        }
     }
 }
 
@@ -2079,7 +3656,7 @@ struct AlarmRowView: View {
                     HStack(spacing: 8) {
                         Spacer()
                         Button(action: onEdit) {
-                            Label("Edit", systemImage: "pencil")
+                            Label(powAILocalized("Edit"), systemImage: "pencil")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(PowAI.slateLight)
                                 .padding(.horizontal, 14)
@@ -2087,7 +3664,7 @@ struct AlarmRowView: View {
                                 .background(PowAI.surface, in: Capsule())
                         }
                         Button(action: onDelete) {
-                            Label("Delete", systemImage: "trash")
+                            Label(powAILocalized("Delete"), systemImage: "trash")
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(.red.opacity(0.85))
                                 .padding(.horizontal, 14)
@@ -2152,12 +3729,12 @@ struct AlarmEditorView: View {
     init(alarm: AlarmItem?, onSave: @escaping (AlarmSaveRequest) async -> Void) {
         self.alarm = alarm
         self.onSave = onSave
-        _title = State(initialValue: alarm?.title ?? "Wake up")
+        _title = State(initialValue: alarm?.title ?? powAILocalized("Wake up"))
         _selectedDays = State(initialValue: Set(alarm?.repeatDays ?? Array(1...7)))
         _selectedMissions = State(initialValue: Set(alarm?.missions ?? ["math"]))
         _difficulty = State(initialValue: alarm?.difficulty ?? "medium")
         _barcodeValue = State(initialValue: alarm?.barcodeValue ?? "")
-        _typingPhrase = State(initialValue: alarm?.typingPhrase ?? "I am awake and ready")
+        _typingPhrase = State(initialValue: alarm?.typingPhrase ?? powAILocalized("I am awake and ready"))
         _wakeCheckEnabled = State(initialValue: (alarm?.wakeCheckMinutes ?? 0) > 0)
         _wakeCheckMinutes = State(initialValue: alarm?.wakeCheckMinutes ?? 5)
         _alarmSound = State(initialValue: alarm?.soundOption.id ?? "default")
@@ -2175,17 +3752,17 @@ struct AlarmEditorView: View {
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
-                        DatePicker("Time", selection: $selectedTime, displayedComponents: .hourAndMinute)
+                        DatePicker(powAILocalized("Time"), selection: $selectedTime, displayedComponents: .hourAndMinute)
                             .datePickerStyle(.wheel)
                             .labelsHidden()
                             .frame(maxWidth: .infinity)
                             .colorScheme(.dark)
 
                         VStack(alignment: .leading, spacing: 10) {
-                            Text("Name")
+                            Text(powAILocalized("Name"))
                                 .font(.caption.bold())
                                 .foregroundStyle(.orange)
-                            TextField("Wake up", text: $title)
+                            TextField(powAILocalized("Wake up"), text: $title)
                                 .textFieldStyle(.plain)
                                 .foregroundStyle(.white)
                                 .padding(14)
@@ -2194,7 +3771,7 @@ struct AlarmEditorView: View {
 
                         VStack(alignment: .leading, spacing: 12) {
                             HStack {
-                                Text("Sound")
+                                Text(powAILocalized("Sound"))
                                     .font(.caption.bold())
                                     .foregroundStyle(.orange)
 
@@ -2219,7 +3796,7 @@ struct AlarmEditorView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Repeat")
+                            Text(powAILocalized("Repeat"))
                                 .font(.caption.bold())
                                 .foregroundStyle(.orange)
 
@@ -2231,7 +3808,7 @@ struct AlarmEditorView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Missions")
+                            Text(powAILocalized("Missions"))
                                 .font(.caption.bold())
                                 .foregroundStyle(.orange)
 
@@ -2244,12 +3821,12 @@ struct AlarmEditorView: View {
 
                         if selectedMissions.contains("barcode") {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Registered QR or barcode")
+                                Text(powAILocalized("Registered QR or barcode"))
                                     .font(.caption.bold())
                                     .foregroundStyle(.orange)
 
                                 HStack(spacing: 10) {
-                                    TextField("Scan or paste code", text: $barcodeValue)
+                                    TextField(powAILocalized("Scan or paste code"), text: $barcodeValue)
                                         .textFieldStyle(.plain)
                                         .foregroundStyle(.white)
                                         .padding(14)
@@ -2270,11 +3847,11 @@ struct AlarmEditorView: View {
 
                         if selectedMissions.contains("typing") {
                             VStack(alignment: .leading, spacing: 10) {
-                                Text("Typing phrase")
+                                Text(powAILocalized("Typing phrase"))
                                     .font(.caption.bold())
                                     .foregroundStyle(.orange)
 
-                                TextField("I am awake and ready", text: $typingPhrase)
+                                TextField(powAILocalized("I am awake and ready"), text: $typingPhrase)
                                     .textFieldStyle(.plain)
                                     .foregroundStyle(.white)
                                     .padding(14)
@@ -2283,26 +3860,26 @@ struct AlarmEditorView: View {
                         }
 
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("Difficulty")
+                            Text(powAILocalized("Difficulty"))
                                 .font(.caption.bold())
                                 .foregroundStyle(.orange)
 
-                            Picker("Difficulty", selection: $difficulty) {
+                            Picker(powAILocalized("Difficulty"), selection: $difficulty) {
                                 ForEach(difficulties, id: \.self) { option in
-                                    Text(option.capitalized).tag(option)
+                                    Text(powAILocalized(option.capitalized)).tag(option)
                                 }
                             }
                             .pickerStyle(.segmented)
                         }
 
                         VStack(alignment: .leading, spacing: 12) {
-                            Toggle("Wake-up check", isOn: $wakeCheckEnabled)
+                            Toggle(powAILocalized("Wake-up check"), isOn: $wakeCheckEnabled)
                                 .font(.headline.weight(.semibold))
                                 .foregroundStyle(.white)
                                 .tint(.orange)
 
                             if wakeCheckEnabled {
-                                Stepper("\(wakeCheckMinutes) minutes after dismiss", value: $wakeCheckMinutes, in: 1...30)
+                                Stepper(powAILocalizedFormat("%d minutes after dismiss", wakeCheckMinutes), value: $wakeCheckMinutes, in: 1...30)
                                     .foregroundStyle(.white.opacity(0.85))
                             }
                         }
@@ -2316,14 +3893,14 @@ struct AlarmEditorView: View {
                     .padding(20)
                 }
             }
-            .navigationTitle(alarm == nil ? "New Alarm" : "Edit Alarm")
+            .navigationTitle(powAILocalized(alarm == nil ? "New Alarm" : "Edit Alarm"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(powAILocalized("Cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isSaving ? "Saving" : "Save") {
+                    Button(powAILocalized(isSaving ? "Saving" : "Save")) {
                         Task { await save() }
                     }
                     .disabled(isSaving)
@@ -2365,7 +3942,7 @@ struct AlarmEditorView: View {
                 selectedMissions.insert(mission.id)
             }
         } label: {
-            Label(mission.title, systemImage: mission.icon)
+            Label(powAILocalized(mission.title), systemImage: mission.icon)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(isSelected ? .black : .white)
                 .frame(maxWidth: .infinity)
@@ -2378,7 +3955,7 @@ struct AlarmEditorView: View {
         editorError = nil
         let orderedMissions = missions.map(\.id).filter { selectedMissions.contains($0) }
         if orderedMissions.contains("barcode"), barcodeValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-            editorError = "Scan or paste a QR/barcode before saving."
+            editorError = powAILocalized("Scan or paste a QR/barcode before saving.")
             return
         }
 
@@ -2407,7 +3984,7 @@ struct AlarmEditorView: View {
         return Button {
             alarmSound = sound.id
         } label: {
-            Label(sound.title, systemImage: sound.systemImage)
+            Label(sound.localizedTitle, systemImage: sound.systemImage)
                 .font(.subheadline.weight(.bold))
                 .foregroundStyle(isSelected ? .black : .white)
                 .frame(maxWidth: .infinity)
@@ -2457,7 +4034,7 @@ struct ActiveAlarmView: View {
                 }
 
                 VStack(spacing: 14) {
-                    Text("Mission \(missionIndex + 1) of \(alarm.missions.count)")
+                    Text(powAILocalizedFormat("Mission %d of %d", missionIndex + 1, alarm.missions.count))
                         .font(.headline.weight(.bold))
                         .foregroundStyle(.white.opacity(0.75))
 
@@ -2474,7 +4051,7 @@ struct ActiveAlarmView: View {
                 Button {
                     submit()
                 } label: {
-                    Text(missionIndex == alarm.missions.count - 1 ? "Turn Off Alarm" : "Next Mission")
+                    Text(powAILocalized(missionIndex == alarm.missions.count - 1 ? "Turn Off Alarm" : "Next Mission"))
                         .font(.headline.bold())
                         .foregroundStyle(.black)
                         .frame(maxWidth: .infinity)
@@ -2501,12 +4078,12 @@ struct ActiveAlarmView: View {
     private var missionContent: some View {
         switch currentMission {
         case "typing":
-            Text(alarm.typingPhrase?.isEmpty == false ? alarm.typingPhrase! : "I am awake and ready")
+            Text(alarm.typingPhrase?.isEmpty == false ? alarm.typingPhrase! : powAILocalized("I am awake and ready"))
                 .font(.title2.bold())
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
 
-            TextField("Type the phrase exactly", text: $answer)
+            TextField(powAILocalized("Type the phrase exactly"), text: $answer)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
                 .multilineTextAlignment(.center)
@@ -2516,11 +4093,11 @@ struct ActiveAlarmView: View {
                 .background(Color.white.opacity(0.14), in: RoundedRectangle(cornerRadius: 14))
 
         case "memory":
-            Text(showMemorySequence ? memorySequence : "Enter the sequence")
+            Text(showMemorySequence ? memorySequence : powAILocalized("Enter the sequence"))
                 .font(.system(size: 42, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
 
-            TextField("Sequence", text: $answer)
+            TextField(powAILocalized("Sequence"), text: $answer)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.title.bold())
@@ -2533,7 +4110,7 @@ struct ActiveAlarmView: View {
                 .font(.system(size: 54, weight: .bold))
                 .foregroundStyle(.white)
 
-            Text("Scan the registered QR code or barcode.")
+            Text(powAILocalized("Scan the registered QR code or barcode."))
                 .font(.title3.bold())
                 .multilineTextAlignment(.center)
                 .foregroundStyle(.white)
@@ -2541,7 +4118,7 @@ struct ActiveAlarmView: View {
             Button {
                 showBarcodeScanner = true
             } label: {
-                Label("Scan Code", systemImage: "camera.fill")
+                Label(powAILocalized("Scan Code"), systemImage: "camera.fill")
                     .font(.headline.bold())
                     .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
@@ -2554,7 +4131,7 @@ struct ActiveAlarmView: View {
                 .font(.system(size: 44, weight: .black, design: .rounded))
                 .foregroundStyle(.white)
 
-            TextField("Answer", text: $answer)
+            TextField(powAILocalized("Answer"), text: $answer)
                 .keyboardType(.numberPad)
                 .multilineTextAlignment(.center)
                 .font(.title.bold())
@@ -2589,7 +4166,7 @@ struct ActiveAlarmView: View {
         switch currentMission {
         case "typing":
             let phrase = alarm.typingPhrase?.trimmingCharacters(in: .whitespacesAndNewlines)
-            isCorrect = normalizedAnswer == (phrase?.isEmpty == false ? phrase! : "I am awake and ready")
+            isCorrect = normalizedAnswer == (phrase?.isEmpty == false ? phrase! : powAILocalized("I am awake and ready"))
         case "memory":
             isCorrect = normalizedAnswer == memorySequence
         case "barcode":
@@ -2599,7 +4176,7 @@ struct ActiveAlarmView: View {
         }
 
         guard isCorrect else {
-            errorText = "Not yet. Try again."
+            errorText = powAILocalized("Not yet. Try again.")
             startCurrentMission()
             return
         }

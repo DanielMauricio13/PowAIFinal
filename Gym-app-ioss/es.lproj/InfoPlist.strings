@@ -1,0 +1,4 @@
+"NSAlarmKitUsageDescription" = "PowAI usa alarmas para sonar cuando tu teléfono está bloqueado y pedir una misión antes de apagarlas.";
+"NSCalendarsFullAccessUsageDescription" = "PowAI usa acceso al calendario para mostrar tus eventos de Apple Calendar dentro del plan del día.";
+"NSCalendarsUsageDescription" = "PowAI usa acceso al calendario para mostrar tus eventos de Apple Calendar dentro del plan del día.";
+"NSCameraUsageDescription" = "PowAI usa la cámara para escanear códigos QR y códigos de barras en las misiones para apagar alarmas.";
