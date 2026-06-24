@@ -20,6 +20,11 @@
 		43A1B0232FE9100100A1B023 /* powai_rekordbox_horn.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0222FE9100100A1B022 /* powai_rekordbox_horn.wav */; };
 		43A1B0252FE9100100A1B025 /* powai_rekordbox_noise.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0242FE9100100A1B024 /* powai_rekordbox_noise.wav */; };
 		43A1B0272FE9100100A1B027 /* powai_rekordbox_sinewave.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0262FE9100100A1B026 /* powai_rekordbox_sinewave.wav */; };
+		43A1B0312FE9200100A1B031 /* powai_alarm_klaxon.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0302FE9200100A1B030 /* powai_alarm_klaxon.wav */; };
+		43A1B0332FE9200100A1B033 /* powai_alarm_air_raid.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0322FE9200100A1B032 /* powai_alarm_air_raid.wav */; };
+		43A1B0352FE9200100A1B035 /* powai_alarm_panic_buzzer.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0342FE9200100A1B034 /* powai_alarm_panic_buzzer.wav */; };
+		43A1B0372FE9200100A1B037 /* powai_alarm_wake_cannon.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0362FE9200100A1B036 /* powai_alarm_wake_cannon.wav */; };
+		43A1B0392FE9200100A1B039 /* powai_alarm_soft_awake.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0382FE9200100A1B038 /* powai_alarm_soft_awake.wav */; };
 		43B1943F2AC760F5002CF64D /* MainWindow2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B1943E2AC760F5002CF64D /* MainWindow2.swift */; };
 		43BEEF012FEA000100000001 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43BEEF042FEA000100000001 /* Localizable.strings */; };
 		43BEEF052FEA000100000001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43BEEF082FEA000100000001 /* InfoPlist.strings */; };
@@ -124,6 +129,11 @@
 		43A1B0222FE9100100A1B022 /* powai_rekordbox_horn.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_rekordbox_horn.wav; sourceTree = "<group>"; };
 		43A1B0242FE9100100A1B024 /* powai_rekordbox_noise.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_rekordbox_noise.wav; sourceTree = "<group>"; };
 		43A1B0262FE9100100A1B026 /* powai_rekordbox_sinewave.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_rekordbox_sinewave.wav; sourceTree = "<group>"; };
+		43A1B0302FE9200100A1B030 /* powai_alarm_klaxon.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_klaxon.wav; sourceTree = "<group>"; };
+		43A1B0322FE9200100A1B032 /* powai_alarm_air_raid.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_air_raid.wav; sourceTree = "<group>"; };
+		43A1B0342FE9200100A1B034 /* powai_alarm_panic_buzzer.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_panic_buzzer.wav; sourceTree = "<group>"; };
+		43A1B0362FE9200100A1B036 /* powai_alarm_wake_cannon.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_wake_cannon.wav; sourceTree = "<group>"; };
+		43A1B0382FE9200100A1B038 /* powai_alarm_soft_awake.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_soft_awake.wav; sourceTree = "<group>"; };
 		43B1943E2AC760F5002CF64D /* MainWindow2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow2.swift; sourceTree = "<group>"; };
 		43BEEF022FEA000100000001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		43BEEF032FEA000100000001 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -218,6 +228,11 @@
 				43A1B0122FE9000100A1B012 /* powai_alarm_radar.wav */,
 				43A1B0142FE9000100A1B014 /* powai_alarm_siren.wav */,
 				43A1B0162FE9000100A1B016 /* powai_alarm_pulse.wav */,
+				43A1B0302FE9200100A1B030 /* powai_alarm_klaxon.wav */,
+				43A1B0322FE9200100A1B032 /* powai_alarm_air_raid.wav */,
+				43A1B0342FE9200100A1B034 /* powai_alarm_panic_buzzer.wav */,
+				43A1B0362FE9200100A1B036 /* powai_alarm_wake_cannon.wav */,
+				43A1B0382FE9200100A1B038 /* powai_alarm_soft_awake.wav */,
 				43A1B0202FE9100100A1B020 /* powai_rekordbox_siren.wav */,
 				43A1B0222FE9100100A1B022 /* powai_rekordbox_horn.wav */,
 				43A1B0242FE9100100A1B024 /* powai_rekordbox_noise.wav */,
@@ -484,6 +499,11 @@
 				43A1B0232FE9100100A1B023 /* powai_rekordbox_horn.wav in Resources */,
 				43A1B0152FE9000100A1B015 /* powai_alarm_siren.wav in Resources */,
 				43A1B0172FE9000100A1B017 /* powai_alarm_pulse.wav in Resources */,
+				43A1B0312FE9200100A1B031 /* powai_alarm_klaxon.wav in Resources */,
+				43A1B0332FE9200100A1B033 /* powai_alarm_air_raid.wav in Resources */,
+				43A1B0352FE9200100A1B035 /* powai_alarm_panic_buzzer.wav in Resources */,
+				43A1B0372FE9200100A1B037 /* powai_alarm_wake_cannon.wav in Resources */,
+				43A1B0392FE9200100A1B039 /* powai_alarm_soft_awake.wav in Resources */,
 				43A1B0252FE9100100A1B025 /* powai_rekordbox_noise.wav in Resources */,
 				43A1B0272FE9100100A1B027 /* powai_rekordbox_sinewave.wav in Resources */,
 				43F8170E2FD0000100CDFAA5 /* Localizable.strings in Resources */,
@@ -606,7 +626,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = PowAI_WidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -639,7 +659,7 @@
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = PowAI_WidgetExtension.entitlements;
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -792,7 +812,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;
@@ -835,7 +855,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 15;
+				CURRENT_PROJECT_VERSION = 18;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;

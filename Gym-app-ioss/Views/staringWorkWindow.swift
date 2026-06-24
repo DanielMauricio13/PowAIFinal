@@ -1426,6 +1426,7 @@ struct StaringWorkWindow: View {
     private func shareWorkoutCompletionIfNeeded() async {
         guard !didPostWorkoutCompletion else { return }
         didPostWorkoutCompletion = true
+        guard let challengeID, let challengeDay = routineDay else { return }
 
         let group = (currentWorkout?.muscle_group ?? exToday).trimmingCharacters(in: .whitespacesAndNewlines)
         let duration = isHIITWorkout ? hiitElapsedSeconds : max(0, Int(Date().timeIntervalSince(workoutStartedAt)))
@@ -1437,7 +1438,7 @@ struct StaringWorkWindow: View {
             calories: displayedCalories,
             completedDate: FriendshipAPI.localDayFormatter.string(from: Date()),
             challengeID: challengeID,
-            challengeDay: challengeID == nil ? nil : routineDay
+            challengeDay: challengeDay
         )
 
         do {

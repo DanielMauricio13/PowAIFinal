@@ -21,6 +21,8 @@ struct TimeTrackingAttributes: ActivityAttributes{
         var dayPlanCategory: String? = nil
         var dayPlanEndTime: Date? = nil
         var dayPlanNextStartTime: Date? = nil
+        var dayPlanLeaveTime: Date? = nil
+        var dayPlanIsCurrentBlock: Bool? = nil
     }
     var Initial: Date
     

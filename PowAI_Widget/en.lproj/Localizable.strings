@@ -1,11 +1,17 @@
 "Day Plan" = "Day Plan";
 "LEFT" = "LEFT";
+"LEAVE" = "LEAVE";
 "NEXT" = "NEXT";
+"LEAVE BY" = "LEAVE BY";
+"NEXT IN" = "NEXT IN";
+"STARTS" = "STARTS";
 "IN" = "IN";
 "Now" = "Now";
 "Next" = "Next";
 "Next:" = "Next:";
+"Leave for:" = "Leave for:";
 "None" = "None";
 "No next activity" = "No next activity";
 "Plan" = "Plan";
 "in" = "in";
+"by" = "by";

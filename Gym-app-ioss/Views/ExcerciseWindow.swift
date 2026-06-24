@@ -95,6 +95,8 @@ struct ExcerciseWindow: View {
                             }
                         } else if whichWin == 4 {
                             ProductivityView(pendingAlarmID: $pendingAlarmID)
+                        } else if whichWin == 5 {
+                            FriendshipCenterView()
                         }
 
                         Spacer()
@@ -110,10 +112,12 @@ struct ExcerciseWindow: View {
                             Spacer()
                             tabButton(icon: "alarm",                     tab: 4, activeColor: .mint)
                             Spacer()
+                            tabButton(icon: "person.2.fill",             tab: 5, activeColor: .cyan)
+                            Spacer()
                             tabButton(icon: "gear",                      tab: 3, activeColor: .red)
                             Spacer()
                         }
-                        .padding(.horizontal, AdaptiveLayout.isCompactPhone ? 10 : 16)
+                        .padding(.horizontal, AdaptiveLayout.isCompactPhone ? 8 : 14)
                         .padding(.vertical, 10)
                         .frame(height: AdaptiveLayout.scaled(70, compact: 64))
                         .background(RoundedRectangle(cornerRadius: 30).fill(.ultraThinMaterial))
@@ -151,8 +155,8 @@ struct ExcerciseWindow: View {
         Button { whichWin = tab } label: {
             Image(systemName: icon)
                 .frame(
-                    width: AdaptiveLayout.scaled(52, compact: 44),
-                    height: AdaptiveLayout.scaled(52, compact: 44)
+                    width: AdaptiveLayout.scaled(50, compact: 42),
+                    height: AdaptiveLayout.scaled(50, compact: 42)
                 )
                 .foregroundColor(whichWin == tab ? activeColor : .white)
                 .background(Color.black)

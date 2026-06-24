@@ -1,11 +1,17 @@
 "Day Plan" = "Plan del día";
 "LEFT" = "FALTA";
+"LEAVE" = "SALIR";
 "NEXT" = "SIGUE";
+"LEAVE BY" = "SALIR ANTES";
+"NEXT IN" = "SIGUE EN";
+"STARTS" = "EMPIEZA";
 "IN" = "EN";
 "Now" = "Ahora";
 "Next" = "Siguiente";
 "Next:" = "Sigue:";
+"Leave for:" = "Salir a:";
 "None" = "Nada";
 "No next activity" = "Sin siguiente actividad";
 "Plan" = "Plan";
 "in" = "en";
+"by" = "antes";

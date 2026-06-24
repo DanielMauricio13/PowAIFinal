@@ -145,6 +145,11 @@ struct recoverAccount: View {
                     removal:   .move(edge: .leading).combined(with: .opacity)
                 ))
                 .animation(.spring(response: 0.38, dampingFraction: 0.82), value: step)
+
+                if step != .success {
+                    supportLink
+                        .padding(.top, 12)
+                }
             }
             .frame(width: contentWidth)
         }
@@ -170,10 +175,25 @@ struct recoverAccount: View {
     }
     private var cardHeight: CGFloat {
         switch step {
-        case .email:       AdaptiveLayout.scaled(340, compact: 330)
-        case .code:        AdaptiveLayout.scaled(380, compact: 370)
-        case .newPassword: AdaptiveLayout.scaled(420, compact: 408)
+        case .email:       AdaptiveLayout.scaled(382, compact: 372)
+        case .code:        AdaptiveLayout.scaled(422, compact: 412)
+        case .newPassword: AdaptiveLayout.scaled(462, compact: 450)
         case .success:     AdaptiveLayout.scaled(300, compact: 290)
+        }
+    }
+
+    private var supportLink: some View {
+        Link(destination: Constants.supportURL) {
+            HStack(spacing: 8) {
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.caption)
+                Text("Need help? Visit powai.net")
+                    .font(.caption.weight(.semibold))
+            }
+            .foregroundStyle(Color.white.opacity(0.75))
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.08), in: Capsule())
         }
     }
 

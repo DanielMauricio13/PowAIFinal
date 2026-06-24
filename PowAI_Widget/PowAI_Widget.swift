@@ -66,8 +66,8 @@ struct PowAI_Widget: Widget {
                 }
                 
             } compactTrailing: {
-                if let endTime = context.state.dayPlanEndTime {
-                    Text(endTime, style: .timer)
+                if let dayPlanTimerTime = dayPlanPrimaryCountdownTime(context.state) {
+                    Text(dayPlanTimerTime, style: .timer)
                         .font(.caption2.weight(.black))
                         .monospacedDigit()
                         .lineLimit(1)
@@ -81,8 +81,8 @@ struct PowAI_Widget: Widget {
                         .minimumScaleFactor(0.75)
                 }
             } minimal: {
-                if let endTime = context.state.dayPlanEndTime {
-                    Text(endTime, style: .timer)
+                if let dayPlanTimerTime = dayPlanPrimaryCountdownTime(context.state) {
+                    Text(dayPlanTimerTime, style: .timer)
                         .bold()
                         .font(.caption2)
                         .foregroundStyle(.cyan)
@@ -105,68 +105,93 @@ struct PowAI_Widget: Widget {
     
 }
 
+private func dayPlanPrimaryCountdownTime(_ state: TimeTrackingAttributes.ContentState) -> Date? {
+    if state.dayPlanIsCurrentBlock == true {
+        return state.dayPlanEndTime
+    }
+    return state.dayPlanLeaveTime ?? state.dayPlanEndTime
+}
+
+private func dayPlanPrimaryCountdownLabel(_ state: TimeTrackingAttributes.ContentState) -> String {
+    if state.dayPlanIsCurrentBlock == true {
+        return widgetLocalized("LEFT")
+    }
+    return widgetLocalized(state.dayPlanLeaveTime != nil ? "LEAVE" : "STARTS")
+}
+
 struct DayPlanLockScreenView: View {
     let context: ActivityViewContext<TimeTrackingAttributes>
-
-    private var endTime: Date {
-        context.state.dayPlanEndTime ?? Date()
-    }
 
     private var nextStartTime: Date? {
         context.state.dayPlanNextStartTime
     }
 
+    private var hasLeaveTime: Bool {
+        context.state.dayPlanLeaveTime != nil
+    }
+
+    private var primaryCountdownTime: Date? {
+        dayPlanPrimaryCountdownTime(context.state)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
                 VStack(alignment: .leading, spacing: 4) {
                     Label(context.state.dayPlanStatus ?? widgetLocalized("Now"), systemImage: "calendar.badge.clock")
                         .font(.caption.weight(.black))
                         .foregroundStyle(.cyan)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
 
                     Text(context.state.dayPlanTitle ?? widgetLocalized("Day Plan"))
-                        .font(.title3.weight(.black))
+                        .font(.system(size: 21, weight: .black, design: .rounded))
                         .foregroundStyle(.primary)
                         .lineLimit(1)
+                        .minimumScaleFactor(0.65)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(widgetLocalized("LEFT"))
+                    Text(dayPlanPrimaryCountdownLabel(context.state))
                         .font(.caption2.weight(.black))
                         .foregroundStyle(.secondary)
-                    Text(endTime, style: .timer)
-                        .font(.system(size: 24, weight: .black, design: .rounded))
-                        .foregroundStyle(.cyan)
-                        .monospacedDigit()
+                        .lineLimit(1)
+                    if let primaryCountdownTime {
+                        Text(primaryCountdownTime, style: .timer)
+                            .font(.system(size: 22, weight: .black, design: .rounded))
+                            .foregroundStyle(.cyan)
+                            .monospacedDigit()
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.65)
+                    }
                 }
+                .frame(width: 96, alignment: .trailing)
             }
 
             Divider()
 
-            HStack(spacing: 8) {
+            HStack(alignment: .center, spacing: 8) {
                 Image(systemName: "arrow.right.circle.fill")
                     .foregroundStyle(.secondary)
+                    .frame(width: 20)
                 VStack(alignment: .leading, spacing: 2) {
-                    HStack(spacing: 6) {
-                        Text(widgetLocalized("NEXT"))
-                            .font(.caption2.weight(.black))
-                            .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
                         if let nextStartTime {
-                            Text(widgetLocalized("IN"))
-                                .font(.caption2.weight(.black))
-                                .foregroundStyle(.secondary)
-                            Text(nextStartTime, style: .timer)
-                                .font(.caption2.weight(.black))
-                                .foregroundStyle(.cyan)
-                                .monospacedDigit()
+                            countdownPill(label: widgetLocalized("NEXT IN"), date: nextStartTime)
+                        }
+                        if hasLeaveTime, let leaveTime = context.state.dayPlanLeaveTime {
+                            countdownPill(label: widgetLocalized("LEAVE BY"), date: leaveTime)
                         }
                     }
                     Text(context.state.dayPlanNextTitle ?? widgetLocalized("No next activity"))
                         .font(.subheadline.weight(.bold))
                         .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                 }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
                 Spacer()
 
@@ -176,9 +201,28 @@ struct DayPlanLockScreenView: View {
                     .padding(.vertical, 5)
                     .background(.cyan.opacity(0.16), in: Capsule())
                     .foregroundStyle(.cyan)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
             }
         }
         .padding(.vertical, 8)
+        .padding(.horizontal, 14)
+        .activityBackgroundTint(Color.black.opacity(0.48))
+    }
+
+    private func countdownPill(label: String, date: Date) -> some View {
+        HStack(spacing: 4) {
+            Text(label)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.secondary)
+            Text(date, style: .timer)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.cyan)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
+        }
+        .lineLimit(1)
     }
 }
 
@@ -222,31 +266,48 @@ struct DayPlanIslandTitleView: View {
 struct DayPlanIslandNextView: View {
     let context: ActivityViewContext<TimeTrackingAttributes>
 
+    private var hasLeaveTime: Bool {
+        context.state.dayPlanLeaveTime != nil
+    }
+
     var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "arrow.right.circle.fill")
-                .font(.caption.weight(.black))
-                .foregroundStyle(.secondary)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 8) {
+                if let nextStartTime = context.state.dayPlanNextStartTime {
+                    islandCountdown(label: widgetLocalized("NEXT IN"), date: nextStartTime)
+                }
+                if hasLeaveTime, let leaveTime = context.state.dayPlanLeaveTime {
+                    islandCountdown(label: widgetLocalized("LEAVE BY"), date: leaveTime)
+                }
+            }
 
-            Text("\(widgetLocalized("Next:")) \(context.state.dayPlanNextTitle ?? widgetLocalized("None"))")
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.75)
-
-            if let nextStartTime = context.state.dayPlanNextStartTime {
-                Text(widgetLocalized("in"))
-                    .font(.caption2.weight(.bold))
-                    .foregroundStyle(.secondary)
-                Text(nextStartTime, style: .timer)
+            HStack(spacing: 5) {
+                Image(systemName: "arrow.right.circle.fill")
                     .font(.caption.weight(.black))
-                    .foregroundStyle(.cyan)
-                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+                Text(context.state.dayPlanNextTitle ?? widgetLocalized("None"))
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
                     .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .minimumScaleFactor(0.75)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func islandCountdown(label: String, date: Date) -> some View {
+        HStack(spacing: 3) {
+            Text(label)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.secondary)
+            Text(date, style: .timer)
+                .font(.caption2.weight(.black))
+                .foregroundStyle(.cyan)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.65)
+        }
+        .lineLimit(1)
     }
 }
 
@@ -255,11 +316,11 @@ struct DayPlanIslandCountdownView: View {
 
     var body: some View {
         VStack(alignment: .trailing, spacing: 2) {
-            Text(widgetLocalized("LEFT"))
+            Text(dayPlanPrimaryCountdownLabel(context.state))
                 .font(.caption2.weight(.black))
                 .foregroundStyle(.secondary)
-            if let endTime = context.state.dayPlanEndTime {
-                Text(endTime, style: .timer)
+            if let countdownTime = dayPlanPrimaryCountdownTime(context.state) {
+                Text(countdownTime, style: .timer)
                     .font(.system(size: 15, weight: .black, design: .rounded))
                     .foregroundStyle(.cyan)
                     .monospacedDigit()

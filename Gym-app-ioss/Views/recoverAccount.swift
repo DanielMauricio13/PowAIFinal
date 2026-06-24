@@ -65,7 +65,7 @@ struct recoverAccountS: View {
             RoundedRectangle(cornerRadius: 30, style: .continuous).frame(width: 500, height: 500).foregroundStyle(LinearGradient(colors: [Color.purple, .mint], startPoint: .top, endPoint: .bottom)).offset(x: 300, y: -200).blur(radius: 30).rotationEffect(.degrees(170))
             RiveViewModel(fileName: "shapes").view().ignoresSafeArea().blur(radius: 30)
             ZStack {
-                RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial).frame(width: 350, height: 250)
+                RoundedRectangle(cornerRadius: 20).fill(.ultraThinMaterial).frame(width: 350, height: 300)
                 VStack(spacing: 20) {
                     Text("Recover Account").font(.title2).bold()
                     TextField("Your email", text: $email).padding().frame(width: 300, height: 50).background(Color.black.opacity(0.05)).cornerRadius(10)
@@ -75,6 +75,11 @@ struct recoverAccountS: View {
                         } else { showAlert = true }
                     }) {
                         Text("Send Recovery Email").padding().frame(width: 300, height: 50).background(Color.blue).foregroundColor(.white).cornerRadius(10)
+                    }
+                    Link(destination: Constants.supportURL) {
+                        Label("Need help? Visit powai.net", systemImage: "questionmark.circle.fill")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(Color.white.opacity(0.8))
                     }
                 }
             }

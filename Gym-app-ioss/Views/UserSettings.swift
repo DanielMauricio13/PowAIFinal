@@ -273,6 +273,8 @@ struct UserSettings: View {
                 showLanguageSettings = true
             }
 
+            supportLink
+
             actionButton(
                 title: "Delete account",
                 systemImage: "trash.fill",
@@ -356,8 +358,43 @@ struct UserSettings: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 24)
                         .stroke(Color.red.opacity(0.25), lineWidth: 1)
-                )
+            )
         )
+    }
+
+    private var supportLink: some View {
+        Link(destination: Constants.supportURL) {
+            HStack(spacing: 12) {
+                Image(systemName: "questionmark.circle.fill")
+                    .font(.title3)
+                    .foregroundStyle(Color.cyan)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Need help?")
+                        .font(.subheadline.bold())
+                        .foregroundStyle(Color.white)
+                    Text("Visit powai.net for support")
+                        .font(.caption)
+                        .foregroundStyle(Color.white.opacity(0.62))
+                }
+
+                Spacer()
+
+                Image(systemName: "arrow.up.right")
+                    .font(.caption.bold())
+                    .foregroundStyle(Color.white.opacity(0.55))
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(Color.white.opacity(0.07))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14)
+                            .stroke(Color.cyan.opacity(0.28), lineWidth: 1)
+                    )
+            )
+        }
     }
 
     private func actionButton(title: String, systemImage: String,
