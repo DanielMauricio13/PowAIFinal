@@ -25,6 +25,7 @@
 		43A1B0352FE9200100A1B035 /* powai_alarm_panic_buzzer.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0342FE9200100A1B034 /* powai_alarm_panic_buzzer.wav */; };
 		43A1B0372FE9200100A1B037 /* powai_alarm_wake_cannon.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0362FE9200100A1B036 /* powai_alarm_wake_cannon.wav */; };
 		43A1B0392FE9200100A1B039 /* powai_alarm_soft_awake.wav in Resources */ = {isa = PBXBuildFile; fileRef = 43A1B0382FE9200100A1B038 /* powai_alarm_soft_awake.wav */; };
+		43AA00012FF1000100AA0001 /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 43AA00002FF1000100AA0001 /* PrivacyInfo.xcprivacy */; };
 		43B1943F2AC760F5002CF64D /* MainWindow2.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43B1943E2AC760F5002CF64D /* MainWindow2.swift */; };
 		43BEEF012FEA000100000001 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43BEEF042FEA000100000001 /* Localizable.strings */; };
 		43BEEF052FEA000100000001 /* InfoPlist.strings in Resources */ = {isa = PBXBuildFile; fileRef = 43BEEF082FEA000100000001 /* InfoPlist.strings */; };
@@ -34,10 +35,7 @@
 		43C27BFC2BF246FE00A73F0F /* UserSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27BFB2BF246FE00A73F0F /* UserSettings.swift */; };
 		43C27BFE2BF24A7300A73F0F /* FisrtWindow.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27BFD2BF24A7300A73F0F /* FisrtWindow.swift */; };
 		43C27C002BF24DEC00A73F0F /* Calories.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27BFF2BF24DEC00A73F0F /* Calories.swift */; };
-		43C27C052BF2D5AC00A73F0F /* Gemini.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27C042BF2D5AC00A73F0F /* Gemini.swift */; };
-		43C27C082BF2D5EC00A73F0F /* GoogleGenerativeAI in Frameworks */ = {isa = PBXBuildFile; productRef = 43C27C072BF2D5EC00A73F0F /* GoogleGenerativeAI */; };
 		43C27C0A2BF2D6DD00A73F0F /* geminii.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C27C092BF2D6DD00A73F0F /* geminii.swift */; };
-		43C27C0C2BF2DA0200A73F0F /* GenerativeAi-Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 43C27C0B2BF2DA0200A73F0F /* GenerativeAi-Info.plist */; };
 		43C393872C14DEB500060774 /* KeychainAccess in Frameworks */ = {isa = PBXBuildFile; productRef = 43C393862C14DEB500060774 /* KeychainAccess */; };
 		43C393892C1B57B200060774 /* TimeTrackingAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43C393882C1B57B200060774 /* TimeTrackingAttributes.swift */; };
 		43C393912C1F95EF00060774 /* WidgetKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 43C393902C1F95EF00060774 /* WidgetKit.framework */; };
@@ -65,8 +63,6 @@
 		43CDA0252A8D85A3000BCA3B /* ModalType.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CDA0242A8D85A3000BCA3B /* ModalType.swift */; };
 		43CDA0272A8D85D8000BCA3B /* HttpClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CDA0262A8D85D8000BCA3B /* HttpClient.swift */; };
 		43CDA02B2A8D8733000BCA3B /* ExcercisesViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CDA02A2A8D8733000BCA3B /* ExcercisesViewModel.swift */; };
-		43CDA0302A9446C7000BCA3B /* OpenAIKit in Frameworks */ = {isa = PBXBuildFile; productRef = 43CDA02F2A9446C7000BCA3B /* OpenAIKit */; };
-		43CDA0332A9446DA000BCA3B /* OpenAISwift in Frameworks */ = {isa = PBXBuildFile; productRef = 43CDA0322A9446DA000BCA3B /* OpenAISwift */; };
 		43CDA0372AA56D74000BCA3B /* LogedInUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43CDA0362AA56D74000BCA3B /* LogedInUser.swift */; };
 		43D59B1D2DDA6E8500250F98 /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 43D59B1C2DDA6E8500250F98 /* RiveRuntime */; };
 		43D59B1F2DDA6EA800250F98 /* RiveRuntime in Frameworks */ = {isa = PBXBuildFile; productRef = 43D59B1E2DDA6EA800250F98 /* RiveRuntime */; };
@@ -134,6 +130,7 @@
 		43A1B0342FE9200100A1B034 /* powai_alarm_panic_buzzer.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_panic_buzzer.wav; sourceTree = "<group>"; };
 		43A1B0362FE9200100A1B036 /* powai_alarm_wake_cannon.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_wake_cannon.wav; sourceTree = "<group>"; };
 		43A1B0382FE9200100A1B038 /* powai_alarm_soft_awake.wav */ = {isa = PBXFileReference; lastKnownFileType = audio.wav; path = powai_alarm_soft_awake.wav; sourceTree = "<group>"; };
+		43AA00002FF1000100AA0001 /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		43B1943E2AC760F5002CF64D /* MainWindow2.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWindow2.swift; sourceTree = "<group>"; };
 		43BEEF022FEA000100000001 /* en */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = en; path = en.lproj/Localizable.strings; sourceTree = "<group>"; };
 		43BEEF032FEA000100000001 /* es */ = {isa = PBXFileReference; lastKnownFileType = text.plist.strings; name = es; path = es.lproj/Localizable.strings; sourceTree = "<group>"; };
@@ -145,9 +142,7 @@
 		43C27BFB2BF246FE00A73F0F /* UserSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UserSettings.swift; sourceTree = "<group>"; };
 		43C27BFD2BF24A7300A73F0F /* FisrtWindow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FisrtWindow.swift; sourceTree = "<group>"; };
 		43C27BFF2BF24DEC00A73F0F /* Calories.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Calories.swift; sourceTree = "<group>"; };
-		43C27C042BF2D5AC00A73F0F /* Gemini.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Gemini.swift; sourceTree = "<group>"; };
 		43C27C092BF2D6DD00A73F0F /* geminii.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = geminii.swift; sourceTree = "<group>"; };
-		43C27C0B2BF2DA0200A73F0F /* GenerativeAi-Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "GenerativeAi-Info.plist"; sourceTree = "<group>"; };
 		43C393882C1B57B200060774 /* TimeTrackingAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimeTrackingAttributes.swift; sourceTree = "<group>"; };
 		43C3938E2C1F95EF00060774 /* PowAI_WidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = PowAI_WidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		43C393902C1F95EF00060774 /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
@@ -212,9 +207,6 @@
 			files = (
 				43D59B1D2DDA6E8500250F98 /* RiveRuntime in Frameworks */,
 				43C393872C14DEB500060774 /* KeychainAccess in Frameworks */,
-				43C27C082BF2D5EC00A73F0F /* GoogleGenerativeAI in Frameworks */,
-				43CDA0332A9446DA000BCA3B /* OpenAISwift in Frameworks */,
-				43CDA0302A9446C7000BCA3B /* OpenAIKit in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -289,6 +281,7 @@
 				43D59B152DDA6C0000250F98 /* RiveAssets */,
 				43A1B0182FE9000100A1B018 /* AlarmSounds */,
 				4376F40A2C03F49300937885 /* Info.plist */,
+				43AA00002FF1000100AA0001 /* PrivacyInfo.xcprivacy */,
 				43CDA0082A8C479C000BCA3B /* Gym_app_iossApp.swift */,
 				43CDA0212A8D852E000BCA3B /* Utilities */,
 				43CDA01E2A8D8438000BCA3B /* Model */,
@@ -296,7 +289,6 @@
 				43CDA0292A8D86FB000BCA3B /* ViewModel */,
 				43CDA00C2A8C479D000BCA3B /* Assets.xcassets */,
 				43CDA00E2A8C479D000BCA3B /* Preview Content */,
-				43C27C0B2BF2DA0200A73F0F /* GenerativeAi-Info.plist */,
 				43C393AA2C20FB1A00060774 /* appDelegate.swift */,
 				43F817112FD0000100CDFAA5 /* Localizable.strings */,
 				43BEEF082FEA000100000001 /* InfoPlist.strings */,
@@ -321,7 +313,6 @@
 				43CDA01F2A8D8444000BCA3B /* User.swift */,
 				43CDA0362AA56D74000BCA3B /* LogedInUser.swift */,
 				43C27BF92BEC5EC600A73F0F /* Food.swift */,
-				43C27C042BF2D5AC00A73F0F /* Gemini.swift */,
 				43C27C092BF2D6DD00A73F0F /* geminii.swift */,
 				43F0C0012EAB000100000001 /* BarcodeService.swift */,
 			);
@@ -421,9 +412,6 @@
 			);
 			name = "Gym-app-ioss";
 			packageProductDependencies = (
-				43CDA02F2A9446C7000BCA3B /* OpenAIKit */,
-				43CDA0322A9446DA000BCA3B /* OpenAISwift */,
-				43C27C072BF2D5EC00A73F0F /* GoogleGenerativeAI */,
 				43C393862C14DEB500060774 /* KeychainAccess */,
 				43D59B1C2DDA6E8500250F98 /* RiveRuntime */,
 			);
@@ -460,9 +448,6 @@
 			);
 			mainGroup = 43CD9FFC2A8C479C000BCA3B;
 			packageReferences = (
-				43CDA02E2A9446C7000BCA3B /* XCRemoteSwiftPackageReference "OpenAIKit" */,
-				43CDA0312A9446DA000BCA3B /* XCRemoteSwiftPackageReference "OpenAISwift" */,
-				43C27C062BF2D5EC00A73F0F /* XCRemoteSwiftPackageReference "generative-ai-swift" */,
 				43C393852C14DEB500060774 /* XCRemoteSwiftPackageReference "KeychainAccess" */,
 				439EF2B12DD933E300BC3034 /* XCRemoteSwiftPackageReference "rive-ios" */,
 			);
@@ -491,7 +476,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				43A1B0112FE9000100A1B011 /* powai_alarm_beacon.wav in Resources */,
-				43C27C0C2BF2DA0200A73F0F /* GenerativeAi-Info.plist in Resources */,
 				43A1B0132FE9000100A1B013 /* powai_alarm_radar.wav in Resources */,
 				43A1B0212FE9100100A1B021 /* powai_rekordbox_siren.wav in Resources */,
 				43CDA0102A8C479D000BCA3B /* Preview Assets.xcassets in Resources */,
@@ -506,6 +490,7 @@
 				43A1B0392FE9200100A1B039 /* powai_alarm_soft_awake.wav in Resources */,
 				43A1B0252FE9100100A1B025 /* powai_rekordbox_noise.wav in Resources */,
 				43A1B0272FE9100100A1B027 /* powai_rekordbox_sinewave.wav in Resources */,
+				43AA00012FF1000100AA0001 /* PrivacyInfo.xcprivacy in Resources */,
 				43F8170E2FD0000100CDFAA5 /* Localizable.strings in Resources */,
 				43BEEF052FEA000100000001 /* InfoPlist.strings in Resources */,
 			);
@@ -566,7 +551,6 @@
 				43C27BFE2BF24A7300A73F0F /* FisrtWindow.swift in Sources */,
 				43C393A82C20981100060774 /* staringWorkWindow.swift in Sources */,
 				43A1A0012FE0000100A1A001 /* AlarmView.swift in Sources */,
-				43C27C052BF2D5AC00A73F0F /* Gemini.swift in Sources */,
 				43E43D0A2E0381E7000256A0 /* Terms of Use.swift in Sources */,
 				43CDA0202A8D8444000BCA3B /* User.swift in Sources */,
 				43F816EC2FC1A20500CDFAA5 /* WorkoutDTO.swift in Sources */,
@@ -621,12 +605,14 @@
 		43C393A02C1F95F000060774 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = PowAI_WidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -654,12 +640,14 @@
 		43C393A12C1F95F000060774 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				ASSETCATALOG_COMPILER_WIDGET_BACKGROUND_COLOR_NAME = WidgetBackground;
 				CODE_SIGN_ENTITLEMENTS = PowAI_WidgetExtension.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				GCC_C_LANGUAGE_STANDARD = gnu17;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -676,6 +664,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ios.PowAIWidget";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -808,11 +797,13 @@
 		43CDA0142A8C479D000BCA3B /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = development;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;
@@ -821,8 +812,9 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "POW AI";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to scan food barcodes and let you take food photos for nutrition evaluation.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Used to display your live heart rate during workouts";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Used to save workout sessions to Health";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "PowAI reads your heart rate only during active workouts to display it in the app and Live Activity. Heart rate is not stored or sent to our server.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "PowAI does not write data to Apple Health. This permission string is included because HealthKit is enabled for read-only heart-rate display during active workouts.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PowAI uses selected food photos to estimate nutrition when camera capture is unavailable or when you choose a photo.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -851,11 +843,13 @@
 		43CDA0152A8C479D000BCA3B /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				APS_ENVIRONMENT = production;
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				CODE_SIGN_ENTITLEMENTS = "Gym-app-ioss/Gym-app-ioss.entitlements";
+				CODE_SIGN_IDENTITY = "Apple Development";
 				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 18;
+				CURRENT_PROJECT_VERSION = 20;
 				DEVELOPMENT_ASSET_PATHS = "\"Gym-app-ioss/Preview Content\"";
 				DEVELOPMENT_TEAM = 25894QX2NX;
 				ENABLE_PREVIEWS = YES;
@@ -864,8 +858,9 @@
 				INFOPLIST_KEY_CFBundleDisplayName = "POW AI";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.healthcare-fitness";
 				INFOPLIST_KEY_NSCameraUsageDescription = "This app uses the camera to scan food barcodes and let you take food photos for nutrition evaluation.";
-				INFOPLIST_KEY_NSHealthShareUsageDescription = "Used to display your live heart rate during workouts";
-				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "Used to save workout sessions to Health";
+				INFOPLIST_KEY_NSHealthShareUsageDescription = "PowAI reads your heart rate only during active workouts to display it in the app and Live Activity. Heart rate is not stored or sent to our server.";
+				INFOPLIST_KEY_NSHealthUpdateUsageDescription = "PowAI does not write data to Apple Health. This permission string is included because HealthKit is enabled for read-only heart-rate display during active workouts.";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "PowAI uses selected food photos to estimate nutrition when camera capture is unavailable or when you choose a photo.";
 				INFOPLIST_KEY_NSSupportsLiveActivities = YES;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
@@ -881,6 +876,7 @@
 				MARKETING_VERSION = 1.0;
 				PRODUCT_BUNDLE_IDENTIFIER = "io.Mauro.Gym-app-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator";
 				SUPPORTS_MACCATALYST = NO;
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
@@ -932,14 +928,6 @@
 				minimumVersion = 6.8.2;
 			};
 		};
-		43C27C062BF2D5EC00A73F0F /* XCRemoteSwiftPackageReference "generative-ai-swift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/google/generative-ai-swift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 0.5.3;
-			};
-		};
 		43C393852C14DEB500060774 /* XCRemoteSwiftPackageReference "KeychainAccess" */ = {
 			isa = XCRemoteSwiftPackageReference;
 			repositoryURL = "https://github.com/kishikawakatsumi/KeychainAccess.git";
@@ -948,44 +936,13 @@
 				kind = branch;
 			};
 		};
-		43CDA02E2A9446C7000BCA3B /* XCRemoteSwiftPackageReference "OpenAIKit" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/MarcoDotIO/OpenAIKit";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
-		43CDA0312A9446DA000BCA3B /* XCRemoteSwiftPackageReference "OpenAISwift" */ = {
-			isa = XCRemoteSwiftPackageReference;
-			repositoryURL = "https://github.com/adamrushy/OpenAISwift";
-			requirement = {
-				kind = upToNextMajorVersion;
-				minimumVersion = 1.0.0;
-			};
-		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
-		43C27C072BF2D5EC00A73F0F /* GoogleGenerativeAI */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 43C27C062BF2D5EC00A73F0F /* XCRemoteSwiftPackageReference "generative-ai-swift" */;
-			productName = GoogleGenerativeAI;
-		};
 		43C393862C14DEB500060774 /* KeychainAccess */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = 43C393852C14DEB500060774 /* XCRemoteSwiftPackageReference "KeychainAccess" */;
 			productName = KeychainAccess;
-		};
-		43CDA02F2A9446C7000BCA3B /* OpenAIKit */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 43CDA02E2A9446C7000BCA3B /* XCRemoteSwiftPackageReference "OpenAIKit" */;
-			productName = OpenAIKit;
-		};
-		43CDA0322A9446DA000BCA3B /* OpenAISwift */ = {
-			isa = XCSwiftPackageProductDependency;
-			package = 43CDA0312A9446DA000BCA3B /* XCRemoteSwiftPackageReference "OpenAISwift" */;
-			productName = OpenAISwift;
 		};
 		43D59B1C2DDA6E8500250F98 /* RiveRuntime */ = {
 			isa = XCSwiftPackageProductDependency;

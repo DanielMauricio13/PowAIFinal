@@ -11,15 +11,19 @@ import UserNotifications
 import ActivityKit
 class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
    var activity: Activity<TimeTrackingAttributes>?
+    private static let timerBackgroundTaskIdentifier = "io.Mauro.Gym-app-ios.timer"
     
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
-        BGTaskScheduler.shared.register(forTaskWithIdentifier: "com.yourapp.timer", using: nil) { task in
+        BGTaskScheduler.shared.register(forTaskWithIdentifier: Self.timerBackgroundTaskIdentifier, using: nil) { task in
             self.handleBackgroundTask(task: task as! BGProcessingTask)
         }
         
         UNUserNotificationCenter.current().delegate = self
         requestNotificationPermission()
         PushNotificationRegistrar.uploadStoredDeviceTokenIfPossible()
+        Task { @MainActor in
+            HealthKitManager.shared.resumeBackgroundMonitoringIfNeeded()
+        }
 
 //        NotificationCenter.default.addObserver(
 //                   self,
@@ -53,7 +57,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     }
 
     private func scheduleBackgroundTask() {
-        let request = BGProcessingTaskRequest(identifier: "com.yourapp.timer")
+        let request = BGProcessingTaskRequest(identifier: Self.timerBackgroundTaskIdentifier)
         request.requiresNetworkConnectivity = false
         request.requiresExternalPower = false
 

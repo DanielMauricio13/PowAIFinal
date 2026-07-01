@@ -1,200 +1,396 @@
 # PowAI
 
-PowAI is an AI-assisted iOS fitness companion for training, nutrition, and progress tracking. It combines account-based onboarding, personalized workout plans, custom sessions, food logging, charts, HealthKit heart-rate support, Live Activities, and a dedicated ActivityKit widget.
+PowAI is an AI-assisted iOS fitness, nutrition, alarm, and day-planning companion. The app combines account-based onboarding, personalized workout generation, custom training sessions, food logging, progress charts, wake-up missions, time-block planning, HealthKit heart-rate display, Live Activities, Dynamic Island support, and a WidgetKit extension.
 
-The app is built with SwiftUI and targets iOS 17+. The main app target is `Gym-app-ioss`; the Live Activity/widget target is `PowAI_Widget`.
+The app is built with SwiftUI. The current project target is iOS 26.0+ because the app uses newer APIs such as AlarmKit. The main app target is `Gym-app-ioss`; the Live Activity/widget extension target is `PowAI_WidgetExtension`.
 
-## What the App Does
+## Feature Overview
 
-### Account, Onboarding, and Profile
+### Account, Login, and Recovery
 
-- Login with saved session support and bearer-token authenticated requests.
-- Create an account with validation for names, email format, password length, password confirmation, and password strength.
-- Recover an account through a multi-step password reset flow:
+- User login with saved session support.
+- Bearer-token authenticated backend requests.
+- JWT/session token storage through KeychainAccess.
+- Account creation with validation for:
+  - first and last name
+  - email format
+  - password length
+  - password confirmation
+  - password strength
+- Multi-step account recovery:
   - email entry
   - 6-digit verification code
   - resend cooldown
-  - new password + strength feedback
-- Complete a fitness questionnaire that captures:
+  - new password entry
+  - password strength feedback
+- Logout with local session cleanup.
+- Account deletion from settings.
+- Push notification device-token registration and backend upload when notification permission is granted.
+
+### Onboarding and Fitness Profile
+
+- Fitness questionnaire for personalization.
+- Captures and stores:
   - gender
   - body type
-  - goal
+  - fitness goal
   - training days per week
-  - session duration
-  - training location
+  - workout duration
+  - workout location
   - experience level
-- Enter final onboarding data including age, height, and weight, with metric/imperial conversion.
-- Accept the app terms before account creation.
-- Update account settings after signup:
-  - email address
-  - full profile and fitness-goal data
-  - daily macro targets
-  - app background/theme
-  - app language
-- Log out, clear local session state, and delete the account.
+- Final onboarding step for:
+  - age
+  - height
+  - weight
+  - metric/imperial conversion
+- Terms and privacy notice acceptance before account creation.
+- Explicit consent text for backend and third-party AI processing of fitness inputs, nutrition entries, food photos, activity data, and AI prompts.
 
-### Training
+### Home and Navigation
 
-- Shows a workout home tab with the user's generated training plan.
-- Lets the user choose a workout day and preview:
-  - muscle group
+- Authenticated main app shell with tabs for:
+  - workouts
+  - nutrition
+  - alarms/day plan
+  - progress
+  - user settings
+- Welcome screen for signed-in users.
+- Personalized copy and localized UI strings.
+- App-wide background/theme handling.
+
+### Training Plans and Workout Selection
+
+- Workout home screen showing the user's generated training plan.
+- Routine mode for a saved 30-day workout plan.
+- Day selection with preview of:
+  - target muscle group
   - exercise list
-  - sets and reps
+  - set and rep targets
   - estimated calories
-- Supports a saved 30-day routine view with routine progress.
-- Lets users create a custom workout from the full exercise catalog:
-  - category browsing
-  - search by exercise or muscle
-  - exercise cards with cached remote images
-  - selected-exercise strip
-  - local save before starting the session
-- Generates HIIT workouts on demand by difficulty:
+- "Make Your Own" workout builder.
+- Saved custom-workout list with start-later support.
+- Delete saved custom workouts.
+- HIIT workout generation by difficulty:
   - Beginner
   - Medium
   - Expert
-- Requests alternate workouts from the backend when the user wants a different routine for the same muscle group.
-- During a workout session, users can:
-  - view the current exercise, description, reps, set count, and estimated calories
-  - load exercise images from the backend
-  - run set/rest timers
-  - receive local rest notifications
-  - trigger haptic feedback
-  - add an extra set
-  - log set weight and reps
-  - mark set completion
-  - switch set-weight display between pounds and kilograms
-  - replace the current exercise through the backend
-  - add one more generated exercise
-  - update routine exercise weight
-- Workout completion summarizes the calories burned and offers a route back home.
+- Regenerate HIIT workouts.
+- Request alternate routines from the backend for the same muscle group.
+
+### Custom Workout Builder
+
+- Browse the exercise catalog by category.
+- Search by exercise name or muscle group.
+- View exercise cards with remote/cached exercise images.
+- Select exercises into a custom workout.
+- Save custom workouts to the backend.
+- Start custom workouts from saved plans.
+- Track custom workout exercise count and estimated total calories.
+
+### Active Workout Sessions
+
+- Exercise-by-exercise workout session flow.
+- Displays:
+  - current exercise
+  - exercise description
+  - reps
+  - set count
+  - estimated calories
+  - remote exercise imagery
+- Set/rest timer support.
+- Local rest notifications.
+- Haptic feedback.
+- Add extra sets.
+- Log set weight and reps.
+- Mark sets complete.
+- Switch set-weight display between pounds and kilograms.
+- Save set weights to the backend.
+- Fetch previous set weights.
+- Replace the current exercise through the backend.
+- Add one more generated exercise during a session.
+- Share workout completion/challenge data.
+- Completion summary with calories burned and navigation back home.
 
 ### Live Activities, Dynamic Island, and Heart Rate
 
-- Starts ActivityKit Live Activities during recovery/rest timing.
-- Updates the Lock Screen and Dynamic Island with:
-  - elapsed rest time
+- ActivityKit Live Activities for workout rest/recovery timing.
+- Lock Screen and Dynamic Island presentation through `PowAI_WidgetExtension`.
+- Workout Live Activity shows:
+  - rest/recovery status
+  - elapsed timer
   - current set
   - latest heart-rate reading when available
-- Uses HealthKit to request and monitor heart-rate samples.
-- Displays heart-rate zone color feedback in the widget/Live Activity UI.
-- Includes a `PowAI_Widget` target that renders the Live Activity presentation.
+- HealthKit read-only heart-rate support during active workouts.
+- Heart-rate monitoring can resume when an active workout Live Activity exists.
+- Heart-rate zone coloring in app/widget UI.
+- Workout Live Activity is prioritized over day-plan Live Activity when both exist.
 
-### Nutrition
+### Nutrition Tracking
 
-- Logs today's food locally and resets daily food entries by date.
-- Tracks daily nutrition totals for:
+- Daily food log stored locally and synced with backend flows where applicable.
+- Daily reset by date.
+- Daily nutrition totals for:
   - calories
   - protein
   - carbohydrates
   - sugars
-- Shows compact daily-goal rings using the user's macro targets.
-- Supports multiple food-entry modes:
+- Daily macro-goal rings using user targets.
+- Add food through:
   - Smart AI text entry
-  - Manual macro entry
-  - Barcode scanning
-  - Camera/photo food analysis
+  - manual macro entry
+  - barcode scanning
+  - camera/photo food analysis
 - Smart entry sends food name, quantity, and serving context to the backend for macro estimation.
-- Camera entry resizes/compresses food photos, sends them to the backend, and logs the decoded food result.
-- Barcode entry uses Open Food Facts to read packaged-food nutrition.
-- Users can remove food entries and keep totals clamped at zero.
-- Favorites support:
-  - favorite logged foods
-  - remove favorites
-  - quick-add favorites later
-  - send favorites to the backend
-- Meal ideas support:
-  - fetch meal options from the backend
-  - generate meals from ingredients
-  - filter by meal type and difficulty
-  - add generated meals to today's nutrition
-  - respect English/Spanish language selection
+- Camera entry resizes/compresses selected food photos and sends them to the backend for nutrition analysis.
+- Barcode entry uses Open Food Facts for packaged-food nutrition.
+- Remove food entries.
+- Clamp totals at zero when entries are removed.
+- Save and remove favorite foods.
+- Quick-add favorite foods later.
+- Upload favorites to the backend.
+
+### Meal Ideas
+
+- Fetch meal ideas from the backend.
+- Generate meal options from user-provided ingredients.
+- Filter meal ideas by:
+  - meal type
+  - difficulty
+- Add generated meals to the daily nutrition log.
+- Respect English/Spanish app language selection.
 
 ### Progress Tracking
 
-- Progress tab includes two modes:
-  - Lifts
-  - Body weight
-- Lift progress dashboard:
-  - fetches saved exercise set weights from the backend
-  - groups history by exercise
-  - shows total logged weight, top lift, logged set count, and exercise count
-  - renders Swift Charts line graphs by set number
-  - supports tapping chart points for details
-  - shows set history
-  - deletes saved set-weight entries
+- Progress area with two modes:
+  - lift history
+  - body-weight history
+- Lift dashboard:
+  - fetch saved exercise set weights from the backend
+  - group history by exercise
+  - show total logged weight
+  - show top lift
+  - show logged set count
+  - show exercise count
+  - render Swift Charts line graphs
+  - tap chart points for details
+  - show set history
+  - delete saved set-weight entries
 - Body-weight dashboard:
-  - fetches user weight history from the backend
-  - logs today's weight
-  - deletes weight entries
-  - shows latest, peak, low, and total change
-  - charts body-weight history
-  - toggles display between pounds and kilograms
+  - fetch body-weight history from the backend
+  - log today's weight
+  - delete weight entries
+  - show latest weight
+  - show peak and low
+  - show total change
+  - render body-weight chart history
+  - switch display between pounds and kilograms
+
+### Alarms
+
+- Alarm list and alarm editor.
+- Create, edit, enable/disable, and delete alarms.
+- Alarm configuration includes:
+  - alarm name
+  - time
+  - repeat days
+  - alarm sound
+  - soft awakening
+  - hide snooze button
+  - wake-up check after dismissal
+  - challenge difficulty
+- Bundled custom alarm sounds.
+- Alarm sound preview.
+- AlarmKit scheduling with local-notification fallback behavior.
+- Challenge missions for dismissing alarms:
+  - math
+  - typing phrase
+  - memory sequence
+  - QR/barcode scan
+- Multiple missions can be combined on one alarm.
+- Barcode/QR mission can scan or store a registered code.
+- Active alarm screen requires successful mission completion before dismissal.
+- Wake-up check scheduling after the alarm is dismissed.
+
+### Day Plan
+
+- Day planner for time-block scheduling.
+- Date navigation for past, today, and future plans.
+- Create, edit, delete, and mark time blocks complete.
+- Time blocks include:
+  - title
+  - notes
+  - start and end time
+  - category
+  - reminder before start
+  - leave-time reminder
+  - optional start alarm
+  - recurrence
+  - repeat days
+  - recurrence end date
+- Repeating block deletion options:
+  - only this day
+  - this and future days
+  - all occurrences
+- Backend caching for recently loaded day plans.
+- Local scheduling for day-plan notifications and start alarms.
+- Share day-plan blocks with friends/challenges.
+- Apple Calendar integration:
+  - request calendar access
+  - load events for the selected date
+  - show calendar title and event timing
+  - import calendar events as day-plan blocks
+  - prevent duplicate imports
+- Day-plan Live Activity updates for:
+  - current block
+  - next block
+  - status
+  - category
+  - block end time
+  - leave time
+  - next start time
+- Day-plan Live Activity ends automatically when there is no current/upcoming block for today.
+
+### Widget and Live Activity Extension
+
+- `PowAI_WidgetExtension` renders ActivityKit presentations.
+- Supports workout rest/recovery UI.
+- Supports day-plan Lock Screen and Dynamic Island UI.
+- Shows current/next day-plan information.
+- Shows day-plan countdowns for block end, leave time, or next start.
+- Uses shared `TimeTrackingAttributes` state.
 
 ### Localization and Personalization
 
-- Ships English and Spanish localization files.
-- Uses an app-level language manager to apply locale changes across SwiftUI.
-- Supports custom app backgrounds:
+- English localization.
+- Spanish localization.
+- Runtime app-language selection through `AppLanguageManager`.
+- Localized app permission strings.
+- Localized widget strings.
+- Custom app backgrounds:
   - default theme
   - solid color
   - two-color gradient
-- Stores appearance preferences in `UserDefaults`.
-- Uses Rive animations and bundled visual assets for the login/onboarding experience.
+- Appearance preferences stored in `UserDefaults`.
+- Rive animation assets for login/onboarding UI.
+- Bundled body-type visual assets.
+
+### Privacy and Safety
+
+- Privacy manifest included at `Gym-app-ioss/PrivacyInfo.xcprivacy`.
+- App Store privacy worksheet included at `APP_STORE_PRIVACY.md`.
+- Discloses collection/processing for:
+  - account info
+  - user identifiers
+  - push device token
+  - fitness profile
+  - workouts
+  - food logs
+  - body-weight entries
+  - selected food photos
+  - alarms/day-plan/user-entered content
+  - backend request metadata
+- HealthKit heart-rate data is read only during active workouts for on-device display and Live Activity updates.
+- HealthKit heart-rate samples are not stored on PowAI servers.
+- AI-generated workouts, meal estimates, and nutrition analysis are guidance tools only and are not medical advice.
+
+## Integrations
+
+- PowAI backend API: configured in `Gym-app-ioss/Utilities/Constants.swift`.
+- Open Food Facts: barcode nutrition lookup.
+- HealthKit: read-only heart-rate monitoring during active workouts.
+- ActivityKit: workout and day-plan Live Activities.
+- WidgetKit: Lock Screen and Dynamic Island extension UI.
+- AlarmKit: alarm scheduling and alarm permission usage.
+- EventKit: Apple Calendar event import for Day Plan.
+- UserNotifications: local notifications, alarm backups, reminders, and push registration.
+- BackgroundTasks: registered processing task for timer-related background behavior.
+- AVFoundation: alarm audio/sound preview and camera scanning support.
+- Swift Charts: lift and body-weight progress charts.
+- Rive: bundled animated UI assets.
+- KeychainAccess: secure session token storage.
+
+## Permissions and Capabilities
+
+The app declares or uses permissions/capabilities for:
+
+- Camera access for barcode/QR scanning and food-photo capture.
+- Photo library access for selected food-photo nutrition analysis.
+- Calendar access for Apple Calendar import into Day Plan.
+- HealthKit read access for live heart-rate display.
+- HealthKit background delivery entitlement.
+- Live Activities.
+- Push notifications.
+- Time-sensitive notifications.
+- AlarmKit usage.
+- Background audio/processing modes.
+- Portrait orientation.
 
 ## Project Structure
 
 - `Gym-app-ioss/` - main iOS app source.
-- `Gym-app-ioss/Views/` - SwiftUI screens for login, onboarding, workouts, nutrition, progress, and settings.
-- `Gym-app-ioss/Model/` - app data models and services such as HealthKit, food, workout DTOs, Gemini/API-key helpers, and Live Activity support.
-- `Gym-app-ioss/ViewModel/` - observable view models for exercise/workout lists.
-- `Gym-app-ioss/Utilities/` - persistence, authentication session, HTTP helpers, constants, app language, ActivityKit attributes, and shared layout/theme utilities.
-- `Gym-app-ioss/Assets.xcassets/` - app icon, colors, body-type images, and visual assets.
+- `Gym-app-ioss/Views/` - SwiftUI screens for login, onboarding, workouts, nutrition, alarms, day plan, progress, and settings.
+- `Gym-app-ioss/Model/` - app data models and services such as HealthKit, food, workout DTOs, Live Activity management, and heart-rate UI.
+- `Gym-app-ioss/ViewModel/` - observable view models for exercise and workout data.
+- `Gym-app-ioss/Utilities/` - persistence, authentication, HTTP helpers, constants, language management, ActivityKit attributes, notifications, and shared utilities.
+- `Gym-app-ioss/Assets.xcassets/` - app icon, accent color, body-type images, and visual assets.
 - `Gym-app-ioss/RiveAssets/` - Rive animation files.
-- `Gym-app-ioss/en.lproj/` and `Gym-app-ioss/es.lproj/` - localized strings.
+- `Gym-app-ioss/AlarmSounds/` - bundled custom alarm sounds.
+- `Gym-app-ioss/en.lproj/` and `Gym-app-ioss/es.lproj/` - localized app strings.
 - `PowAI_Widget/` - WidgetKit and ActivityKit Live Activity UI.
-- `Gym-app-ioss.xcodeproj/` - Xcode project, schemes, package references, and workspace metadata.
+- `Gym-app-ioss.xcodeproj/` - Xcode project, schemes, Swift package references, and workspace metadata.
+- `APP_STORE_PRIVACY.md` - App Store privacy-label worksheet and review-note wording.
 
-## Integrations
+## Current Build Settings
 
-- Backend API: configured in `Gym-app-ioss/Utilities/Constants.swift`.
-- Google Generative AI: included through `generative-ai-swift` and `GenerativeAi-Info.plist`.
-- Open Food Facts: used for barcode nutrition lookup.
-- HealthKit: used for heart-rate monitoring during workout sessions.
-- ActivityKit and WidgetKit: used for Live Activities, Lock Screen, and Dynamic Island workout timing.
-- Swift Charts: used for lift and body-weight progress graphs.
-- Rive: used for animated UI backgrounds/buttons.
-- KeychainAccess, OpenAIKit, and OpenAISwift are present as Swift package dependencies.
-
-## Permissions and Capabilities
-
-The app declares permissions/capabilities for:
-
-- Camera access for barcode scanning and food-photo analysis.
-- HealthKit read access for live heart-rate display.
-- HealthKit capability/background delivery in entitlements.
-- Live Activities support.
-- Portrait orientation.
+- Main app bundle identifier: `io.Mauro.Gym-app-ios`.
+- Widget extension bundle identifier: `io.Mauro.Gym-app-ios.PowAIWidget`.
+- Display name: `POW AI`.
+- Marketing version: `1.0`.
+- Current build number: `20`.
+- Minimum iOS version: `26.0`.
+- App category: Health & Fitness.
+- Swift version: 5.
+- Swift packages:
+  - KeychainAccess
+  - RiveRuntime
 
 ## Getting Started
 
 1. Open `Gym-app-ioss.xcodeproj` in Xcode.
 2. Select the `Gym-app-ioss` scheme.
-3. Confirm signing for both the main app and `PowAI_Widget` targets.
+3. Confirm signing for both `Gym-app-ioss` and `PowAI_WidgetExtension`.
 4. Confirm the backend URL in `Gym-app-ioss/Utilities/Constants.swift`.
-5. Confirm any required API keys/configuration in `GenerativeAi-Info.plist`.
-6. Build and run on an iOS 17+ simulator or physical device.
+5. Build and run on an iOS 26+ simulator or physical device.
+6. Test HealthKit, Live Activities, Dynamic Island, camera scanning, AlarmKit, notifications, and real heart-rate behavior on a physical device whenever possible.
 
-For HealthKit, Live Activities, Dynamic Island, camera scanning, and real heart-rate data, test on a capable physical device whenever possible.
+## App Store Distribution Checklist
 
-## Notes for Developers
+- Archive the `Gym-app-ioss` scheme in Release.
+- Upload through Xcode Organizer or App Store Connect.
+- Confirm App Store Connect build selection for version `1.0` build `20` or the next incremented build.
+- Complete App Store privacy answers using `APP_STORE_PRIVACY.md`.
+- Provide a hosted privacy policy URL.
+- Provide support URL.
+- Provide screenshots for required device sizes.
+- Complete age rating.
+- Complete export compliance.
+- Provide Review Notes with:
+  - demo account credentials
+  - backend availability note
+  - HealthKit read-only heart-rate explanation
+  - AI/photo nutrition processing explanation
+  - AlarmKit and notification behavior explanation
+  - calendar import explanation
+- Confirm production APNs setup and notification behavior.
+- Confirm all paid features, if any are added later, use Apple's in-app purchase rules.
 
-- The app relies on bearer tokens saved through `AuthSession`; authenticated endpoints call `applyBearerToken()`.
-- Today's food entries and favorite foods are persisted in `UserDefaults`.
-- Daily nutrition totals are persisted locally and reset/saved around midnight.
-- Exercise images are fetched from the backend and cached on disk for custom-workout catalog cards.
-- Several app flows depend on the backend returning workout, routine, meal, and set-weight DTOs in the expected shape.
+## Developer Notes
+
+- Authenticated endpoints rely on `AuthSession` and `applyBearerToken()`.
+- Food entries and favorites use `UserDefaults` persistence.
+- Daily nutrition totals reset/save around midnight.
+- Custom workouts, alarms, day-plan blocks, weight entries, and set weights depend on backend DTOs matching the app's expected shape.
+- Exercise images are fetched from the backend and cached locally.
+- Day-plan data has a short in-memory cache to avoid repeated backend loads.
 - Some filenames preserve historical spelling, such as `FisrtWindow.swift`, `staringWorkWindow.swift`, and `PersiatnceCalories.swift`.
-
-## Privacy and Safety
-
-PowAI handles account, workout, food, body-weight, and heart-rate-related data to power its training and nutrition features. AI-generated workouts, meal estimates, and nutrition analysis are guidance tools only and are not medical advice. Users should consult a qualified healthcare professional before changing diet, training intensity, or health routines.
+- The repository may contain local Xcode state files; avoid committing user-specific workspace state unless intentionally needed.

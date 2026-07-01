@@ -2,6 +2,7 @@ import SwiftUI
 import UserNotifications
 import AudioToolbox
 import AlarmKit
+import AppIntents
 import ActivityKit
 import AVFoundation
 import EventKit
@@ -145,6 +146,30 @@ private struct MissionTextField: View {
 
 extension Notification.Name {
     static let powAIAlarmNotificationTapped = Notification.Name("powAIAlarmNotificationTapped")
+}
+
+struct PowAIAlarmOpenIntent: LiveActivityIntent {
+    static var title: LocalizedStringResource = "Open PowAI Alarm"
+    static var supportedModes: IntentModes = .foreground(.immediate)
+
+    @Parameter(title: "Alarm ID")
+    var alarmID: String
+
+    init() {
+        alarmID = ""
+    }
+
+    init(alarmID: String) {
+        self.alarmID = alarmID
+    }
+
+    func perform() async throws -> some IntentResult {
+        guard !alarmID.isEmpty else { return .result() }
+        await MainActor.run {
+            NotificationCenter.default.post(name: .powAIAlarmNotificationTapped, object: alarmID)
+        }
+        return .result()
+    }
 }
 
 struct AlarmSoundOption: Identifiable, Equatable {
@@ -357,8 +382,11 @@ final class AlarmRuntime: ObservableObject {
     private var volumeView: MPVolumeView?
     private weak var volumeSlider: UISlider?
     private var outputVolumeObservation: NSKeyValueObservation?
+    private var notificationObservers: [NSObjectProtocol] = []
+    private var alarmAudioSessionConfigured = false
     private var previousOutputVolume: Float?
     private let alarmOutputVolume: Float = 1
+    private let volumeGuardInterval: TimeInterval = 0.25
 
     private init() {}
 
@@ -375,7 +403,9 @@ final class AlarmRuntime: ObservableObject {
 
     private func startSound(for alarm: AlarmItem) {
         stopSound()
+        configureAlarmAudioSession()
         startVolumeGuard()
+        forceAlarmVolumeRepeatedly()
         if playBundledSound(alarm.soundOption, softAwakening: alarm.usesSoftAwakening) == false {
             playSystemAlert()
             soundTimer = Timer.scheduledTimer(withTimeInterval: 1.2, repeats: true) { _ in
@@ -399,14 +429,15 @@ final class AlarmRuntime: ObservableObject {
         stopVolumeGuard()
         audioPlayer?.stop()
         audioPlayer = nil
+        removeAlarmRecoveryObservers()
+        try? AVAudioSession.sharedInstance().setActive(false, options: [.notifyOthersOnDeactivation])
+        alarmAudioSessionConfigured = false
     }
 
     private func playBundledSound(_ sound: AlarmSoundOption, softAwakening: Bool) -> Bool {
         guard let url = sound.bundleURL else { return false }
 
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, options: [.duckOthers])
-            try AVAudioSession.sharedInstance().setActive(true)
             let player = try AVAudioPlayer(contentsOf: url)
             player.volume = softAwakening ? 0.12 : 1
             player.numberOfLoops = -1
@@ -423,12 +454,25 @@ final class AlarmRuntime: ObservableObject {
         }
     }
 
+    private func configureAlarmAudioSession() {
+        guard !alarmAudioSessionConfigured else { return }
+        let session = AVAudioSession.sharedInstance()
+        do {
+            try session.setCategory(.playback, mode: .default, options: [.duckOthers])
+            try session.setActive(true)
+            alarmAudioSessionConfigured = true
+        } catch {
+            print("Alarm audio session failed: \(error)")
+        }
+    }
+
     private func startVolumeGuard() {
         let session = AVAudioSession.sharedInstance()
         if previousOutputVolume == nil {
             previousOutputVolume = session.outputVolume
         }
 
+        installAlarmRecoveryObserversIfNeeded()
         installVolumeViewIfNeeded()
         forceSystemVolume(alarmOutputVolume)
 
@@ -436,7 +480,7 @@ final class AlarmRuntime: ObservableObject {
         outputVolumeObservation = session.observe(\.outputVolume, options: [.new]) { [weak self] _, change in
             guard let self, self.activeAlarm != nil else { return }
             let newVolume = change.newValue ?? 0
-            if newVolume < 0.95 {
+            if newVolume < self.alarmOutputVolume {
                 DispatchQueue.main.async {
                     self.forceSystemVolume(self.alarmOutputVolume)
                     self.recoverPlaybackIfNeeded()
@@ -445,7 +489,7 @@ final class AlarmRuntime: ObservableObject {
         }
 
         volumeGuardTimer?.invalidate()
-        volumeGuardTimer = Timer.scheduledTimer(withTimeInterval: 0.75, repeats: true) { [weak self] _ in
+        volumeGuardTimer = Timer.scheduledTimer(withTimeInterval: volumeGuardInterval, repeats: true) { [weak self] _ in
             guard let self, self.activeAlarm != nil else { return }
             self.forceSystemVolume(self.alarmOutputVolume)
             self.recoverPlaybackIfNeeded()
@@ -466,6 +510,16 @@ final class AlarmRuntime: ObservableObject {
         volumeView?.removeFromSuperview()
         volumeView = nil
         volumeSlider = nil
+    }
+
+    private func forceAlarmVolumeRepeatedly() {
+        for delay in stride(from: 0.0, through: 2.0, by: 0.2) {
+            DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+                guard let self, self.activeAlarm != nil else { return }
+                self.forceSystemVolume(self.alarmOutputVolume)
+                self.recoverPlaybackIfNeeded()
+            }
+        }
     }
 
     private func installVolumeViewIfNeeded() {
@@ -501,11 +555,43 @@ final class AlarmRuntime: ObservableObject {
     private func recoverPlaybackIfNeeded() {
         if let audioPlayer {
             if !audioPlayer.isPlaying {
+                audioPlayer.currentTime = 0
                 audioPlayer.play()
             }
         } else if activeAlarm != nil {
             playSystemAlert()
         }
+    }
+
+    private func recoverAfterAudioSessionChange() {
+        alarmAudioSessionConfigured = false
+        configureAlarmAudioSession()
+        forceAlarmVolumeRepeatedly()
+    }
+
+    private func installAlarmRecoveryObserversIfNeeded() {
+        guard notificationObservers.isEmpty else { return }
+        let center = NotificationCenter.default
+        let names: [Notification.Name] = [
+            AVAudioSession.interruptionNotification,
+            AVAudioSession.routeChangeNotification,
+            AVAudioSession.mediaServicesWereResetNotification,
+            UIApplication.didBecomeActiveNotification,
+            UIApplication.willEnterForegroundNotification
+        ]
+
+        notificationObservers = names.map { name in
+            center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
+                guard let self, self.activeAlarm != nil else { return }
+                self.recoverAfterAudioSessionChange()
+            }
+        }
+    }
+
+    private func removeAlarmRecoveryObservers() {
+        let center = NotificationCenter.default
+        notificationObservers.forEach { center.removeObserver($0) }
+        notificationObservers.removeAll()
     }
 
     private func startVolumeRamp(for player: AVAudioPlayer) {
@@ -536,6 +622,9 @@ final class AlarmRuntime: ObservableObject {
 }
 
 enum AlarmScheduler {
+    private static let backupAlertOffsets: [TimeInterval] = [1, 10, 20, 30, 45, 60, 90, 120, 180, 300]
+    private static let systemBackupAlarmOffsets: [TimeInterval] = [10, 30, 60, 120, 300]
+
     static func requestPermission() {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .sound, .badge]) { _, error in
             if let error {
@@ -554,7 +643,7 @@ enum AlarmScheduler {
         scheduleNotification(alarm)
 
         Task {
-            cancelSystemAlarmIfPresent(alarm)
+            cancelSystemAlarmsIfPresent(alarm)
 
             do {
                 try await scheduleSystemAlarm(alarm)
@@ -566,30 +655,51 @@ enum AlarmScheduler {
 
     static func cancel(_ alarm: AlarmItem) {
         Task {
-            cancelSystemAlarmIfPresent(alarm)
+            cancelSystemAlarmsIfPresent(alarm)
         }
 
         cancelLocalNotifications(for: alarm)
     }
 
-    private static func cancelSystemAlarmIfPresent(_ alarm: AlarmItem) {
+    static func markCompleted(_ alarm: AlarmItem) {
+        cancelLocalNotifications(for: alarm)
+        cancelBackupSystemAlarmsIfPresent(alarm)
+        guard alarm.isEnabled, !alarm.repeatDays.isEmpty else { return }
+        scheduleNotification(alarm, after: Date().addingTimeInterval(backupAlertOffsets.last ?? 300))
+        Task {
+            await scheduleBackupSystemAlarmsIfPossible(
+                alarm,
+                after: Date().addingTimeInterval(systemBackupAlarmOffsets.last ?? 300)
+            )
+        }
+    }
+
+    private static func cancelSystemAlarmsIfPresent(_ alarm: AlarmItem) {
+        cancelSystemAlarmIfPresent(id: alarm.id)
+        cancelBackupSystemAlarmsIfPresent(alarm)
+    }
+
+    private static func cancelBackupSystemAlarmsIfPresent(_ alarm: AlarmItem) {
+        systemBackupAlarmOffsets.indices.forEach { index in
+            cancelSystemAlarmIfPresent(id: backupSystemAlarmID(for: alarm, index: index))
+        }
+    }
+
+    private static func cancelSystemAlarmIfPresent(id: UUID) {
         do {
-            try cancelSystemAlarm(alarm)
+            try AlarmManager.shared.cancel(id: id)
         } catch {
             // AlarmKit throws when the alarm is already gone; local notification cleanup still runs.
         }
     }
 
-    private static func cancelSystemAlarm(_ alarm: AlarmItem) throws {
-        try AlarmManager.shared.cancel(id: alarm.id)
-    }
-
     private static func cancelLocalNotifications(for alarm: AlarmItem) {
-        UNUserNotificationCenter.current().getPendingNotificationRequests { requests in
-            let prefix = "powai-alarm-\(alarm.id.uuidString)"
-            let ids = requests.map(\.identifier).filter { $0.hasPrefix(prefix) }
-            UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: ids)
-        }
+        let currentBackupIDs = backupAlertOffsets.indices.map { notificationID(for: alarm, index: $0) }
+        let legacyIDs = Array(0...7).map { "powai-alarm-\(alarm.id.uuidString)-\($0)" }
+        let wakeCheckID = "powai-alarm-\(alarm.id.uuidString)-wake-check"
+        UNUserNotificationCenter.current().removePendingNotificationRequests(
+            withIdentifiers: currentBackupIDs + legacyIDs + [wakeCheckID]
+        )
     }
 
     static func scheduleWakeCheck(for alarm: AlarmItem) {
@@ -614,12 +724,11 @@ enum AlarmScheduler {
         }
     }
 
-    private static func scheduleNotification(_ alarm: AlarmItem) {
+    private static func scheduleNotification(_ alarm: AlarmItem, after date: Date = Date()) {
         requestPermission()
 
-        let backupDelay: TimeInterval = 1
-        let days = alarm.repeatDays.isEmpty ? [0] : alarm.repeatDays
-        for day in days {
+        let alarmDate = nextScheduledDate(for: alarm, after: date)
+        for (index, offset) in backupAlertOffsets.enumerated() {
             let content = UNMutableNotificationContent()
             content.title = alarm.title
             content.body = "Solve the challenge to turn this alarm off."
@@ -627,30 +736,14 @@ enum AlarmScheduler {
             content.interruptionLevel = .timeSensitive
             content.userInfo = ["alarmID": alarm.id.uuidString]
 
-            var components = DateComponents()
-            components.hour = alarm.hour
-            components.minute = alarm.minute
-
-            let repeats = day != 0
-            if repeats {
-                components.weekday = day
-            }
-
-            let trigger: UNNotificationTrigger
-            if repeats {
-                components.second = Int(backupDelay)
-                trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: true)
-            } else {
-                let nextDate = nextOneTimeDate(hour: alarm.hour, minute: alarm.minute)
-                let interval = max(nextDate.addingTimeInterval(backupDelay).timeIntervalSinceNow, 1)
-                trigger = UNTimeIntervalNotificationTrigger(
-                    timeInterval: interval,
-                    repeats: false
-                )
-            }
+            let interval = max(alarmDate.addingTimeInterval(offset).timeIntervalSinceNow, 1)
+            let trigger = UNTimeIntervalNotificationTrigger(
+                timeInterval: interval,
+                repeats: false
+            )
 
             let request = UNNotificationRequest(
-                identifier: notificationID(for: alarm, day: day),
+                identifier: notificationID(for: alarm, index: index),
                 content: content,
                 trigger: trigger
             )
@@ -662,8 +755,8 @@ enum AlarmScheduler {
         }
     }
 
-    private static func notificationID(for alarm: AlarmItem, day: Int) -> String {
-        "powai-alarm-\(alarm.id.uuidString)-\(day)"
+    private static func notificationID(for alarm: AlarmItem, index: Int) -> String {
+        "powai-alarm-\(alarm.id.uuidString)-backup-\(index)"
     }
 
     private static func nextOneTimeDate(hour: Int, minute: Int) -> Date {
@@ -677,6 +770,31 @@ enum AlarmScheduler {
             return today
         }
         return calendar.date(byAdding: .day, value: 1, to: today) ?? now
+    }
+
+    private static func nextScheduledDate(for alarm: AlarmItem, after date: Date = Date()) -> Date {
+        guard !alarm.repeatDays.isEmpty else {
+            return nextOneTimeDate(hour: alarm.hour, minute: alarm.minute)
+        }
+
+        let calendar = Calendar.current
+        let start = date.addingTimeInterval(-1)
+        return alarm.repeatDays
+            .compactMap { weekday -> Date? in
+                var components = DateComponents()
+                components.weekday = weekday
+                components.hour = alarm.hour
+                components.minute = alarm.minute
+                components.second = 0
+                return calendar.nextDate(
+                    after: start,
+                    matching: components,
+                    matchingPolicy: .nextTime,
+                    repeatedTimePolicy: .first,
+                    direction: .forward
+                )
+            }
+            .min() ?? nextOneTimeDate(hour: alarm.hour, minute: alarm.minute)
     }
 
     private static func scheduleSystemAlarm(_ alarm: AlarmItem) async throws {
@@ -693,6 +811,11 @@ enum AlarmScheduler {
             throw URLError(.unknown)
         }
 
+        try await schedulePrimarySystemAlarm(alarm, manager: manager)
+        await scheduleBackupSystemAlarmsIfPossible(alarm)
+    }
+
+    private static func schedulePrimarySystemAlarm(_ alarm: AlarmItem, manager: AlarmManager) async throws {
         let presentation = AlarmPresentation(
             alert: AlarmPresentation.Alert(
                 title: LocalizedStringResource(stringLiteral: alarm.title),
@@ -700,7 +823,13 @@ enum AlarmScheduler {
                     text: "Stop",
                     textColor: .white,
                     systemImageName: "stop.fill"
-                )
+                ),
+                secondaryButton: AlarmButton(
+                    text: "Open",
+                    textColor: .white,
+                    systemImageName: "arrow.up.forward.app.fill"
+                ),
+                secondaryButtonBehavior: .custom
             )
         )
         let attributes = AlarmAttributes<PowAIAlarmMetadata>(
@@ -724,12 +853,81 @@ enum AlarmScheduler {
         }
 
         let alarmKitSound = alarm.soundOption.alarmKitSound(softAwakening: alarm.usesSoftAwakening)
+        let openIntent = PowAIAlarmOpenIntent(alarmID: alarm.id.uuidString)
         let configuration = AlarmManager.AlarmConfiguration.alarm(
             schedule: schedule,
             attributes: attributes,
+            secondaryIntent: openIntent,
             sound: alarmKitSound
         )
         _ = try await manager.schedule(id: alarm.id, configuration: configuration)
+    }
+
+    private static func scheduleBackupSystemAlarmsIfPossible(_ alarm: AlarmItem, after date: Date = Date()) async {
+        for (index, offset) in systemBackupAlarmOffsets.enumerated() {
+            do {
+                try await scheduleBackupSystemAlarm(alarm, index: index, offset: offset, after: date)
+            } catch {
+                print("AlarmKit backup scheduling failed for \(alarm.id) #\(index): \(error)")
+            }
+        }
+    }
+
+    private static func scheduleBackupSystemAlarm(_ alarm: AlarmItem, index: Int, offset: TimeInterval, after date: Date) async throws {
+        let fireDate = nextScheduledDate(for: alarm, after: date).addingTimeInterval(offset)
+        let presentation = AlarmPresentation(
+            alert: AlarmPresentation.Alert(
+                title: LocalizedStringResource(stringLiteral: alarm.title),
+                stopButton: AlarmButton(
+                    text: "Stop",
+                    textColor: .white,
+                    systemImageName: "stop.fill"
+                ),
+                secondaryButton: AlarmButton(
+                    text: "Open",
+                    textColor: .white,
+                    systemImageName: "arrow.up.forward.app.fill"
+                ),
+                secondaryButtonBehavior: .custom
+            )
+        )
+        let attributes = AlarmAttributes<PowAIAlarmMetadata>(
+            presentation: presentation,
+            metadata: PowAIAlarmMetadata(alarmID: alarm.id.uuidString, title: alarm.title),
+            tintColor: .orange
+        )
+        let configuration = AlarmManager.AlarmConfiguration.alarm(
+            schedule: .fixed(fireDate),
+            attributes: attributes,
+            secondaryIntent: PowAIAlarmOpenIntent(alarmID: alarm.id.uuidString),
+            sound: alarm.soundOption.alarmKitSound(softAwakening: alarm.usesSoftAwakening)
+        )
+        _ = try await AlarmManager.shared.schedule(
+            id: backupSystemAlarmID(for: alarm, index: index),
+            configuration: configuration
+        )
+    }
+
+    private static func backupSystemAlarmID(for alarm: AlarmItem, index: Int) -> UUID {
+        let source = alarm.id.uuid
+        return UUID(uuid: (
+            source.0 ^ 0xA1,
+            source.1,
+            source.2,
+            source.3,
+            source.4,
+            source.5,
+            source.6,
+            source.7,
+            source.8,
+            source.9,
+            source.10,
+            source.11,
+            source.12,
+            source.13,
+            source.14,
+            source.15 ^ UInt8(index + 1)
+        ))
     }
 
     private static func localeWeekday(_ day: Int) -> Locale.Weekday? {
@@ -3248,6 +3446,8 @@ struct DayPlanCategory: Identifiable, Equatable {
 enum DayPlanRecurrence: String, CaseIterable, Identifiable, Codable {
     case none
     case daily
+    case weekdays
+    case weekends
     case weekly
     case custom
 
@@ -3257,6 +3457,8 @@ enum DayPlanRecurrence: String, CaseIterable, Identifiable, Codable {
         switch self {
         case .none: return powAILocalized("Does not repeat")
         case .daily: return powAILocalized("Every day")
+        case .weekdays: return powAILocalized("Weekdays")
+        case .weekends: return powAILocalized("Weekends")
         case .weekly: return powAILocalized("Every week")
         case .custom: return powAILocalized("Custom days")
         }
@@ -3322,6 +3524,10 @@ struct DayPlanBlock: Codable, Equatable, Identifiable {
             return powAILocalized("Does not repeat")
         case .daily:
             return powAILocalized("Every day")
+        case .weekdays:
+            return powAILocalized("Weekdays")
+        case .weekends:
+            return powAILocalized("Weekends")
         case .weekly:
             return powAILocalizedFormat("Weekly on %@", repeatDaysText)
         case .custom:
@@ -3420,6 +3626,17 @@ struct DayPlanSaveRequest: Encodable {
     var repeatDays: [Int]?
     var recurrenceEndDate: String?
     var isDone: Bool?
+}
+
+struct DayPlanCompletionRequest: Encodable {
+    var scheduledDate: String
+    var isDone: Bool
+}
+
+enum DayPlanDeleteScope: String {
+    case all
+    case single
+    case future
 }
 
 enum DayPlanScheduler {
@@ -3526,6 +3743,28 @@ enum DayPlanScheduler {
         }
     }
 
+    static func cancelOccurrence(_ block: DayPlanBlock) {
+        var identifiers: [String] = []
+
+        if let reminder = block.reminderMinutesBefore,
+           let fireDate = occurrenceFireDate(for: block, minutesBeforeStart: reminder) {
+            identifiers.append("\(reminderNotificationPrefix(for: block))-\(Int(fireDate.timeIntervalSince1970))")
+        }
+
+        if let leaveReminder = block.leaveReminderMinutesBefore,
+           let fireDate = occurrenceFireDate(for: block, minutesBeforeStart: leaveReminder) {
+            identifiers.append("\(leaveReminderNotificationPrefix(for: block))-\(Int(fireDate.timeIntervalSince1970))")
+        }
+
+        if block.startAlarmEnabled,
+           let fireDate = occurrenceFireDate(for: block, minutesBeforeStart: 0) {
+            identifiers.append("\(startAlarmNotificationPrefix(for: block))-\(Int(fireDate.timeIntervalSince1970))")
+            cancelStartSystemAlarmIfPresent(block)
+        }
+
+        UNUserNotificationCenter.current().removePendingNotificationRequests(withIdentifiers: identifiers)
+    }
+
     private static func startDate(for block: DayPlanBlock, on date: Date) -> Date? {
         Calendar.current.date(
             bySettingHour: block.startHour,
@@ -3538,6 +3777,11 @@ enum DayPlanScheduler {
     private static func startDate(for block: DayPlanBlock) -> Date? {
         guard let blockDate = DayPlanDateFormatter.date(from: block.scheduledDate) else { return nil }
         return startDate(for: block, on: blockDate)
+    }
+
+    private static func occurrenceFireDate(for block: DayPlanBlock, minutesBeforeStart: Int) -> Date? {
+        guard let startDate = startDate(for: block) else { return nil }
+        return Calendar.current.date(byAdding: .minute, value: -minutesBeforeStart, to: startDate)
     }
 
     private static func scheduleNotifications(
@@ -3587,7 +3831,7 @@ enum DayPlanScheduler {
         switch recurrence {
         case .none:
             appendIfValid(firstDate)
-        case .daily, .weekly, .custom:
+        case .daily, .weekdays, .weekends, .weekly, .custom:
             var cursor = calendar.startOfDay(for: firstDate)
             let weekdays = Set(block.repeatDays)
             var inspectedDays = 0
@@ -3809,18 +4053,36 @@ final class DayPlanViewModel: ObservableObject {
         }
     }
 
-    func delete(_ block: DayPlanBlock) async {
+    func delete(_ block: DayPlanBlock, scope: DayPlanDeleteScope = .all) async {
         do {
-            var request = try makeRequest(path: "day-schedule/\(block.id.uuidString)")
+            var path = "day-schedule/\(block.id.uuidString)"
+            if block.recurrenceOption != .none, scope != .all {
+                path += "?scope=\(scope.rawValue)&date=\(block.scheduledDate)"
+            }
+
+            var request = try makeRequest(path: path)
             request.httpMethod = "DELETE"
             let (_, response) = try await URLSession.shared.data(for: request)
             guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
                 throw URLError(.badServerResponse)
             }
-            blocks.removeAll { $0.id == block.id }
-            Self.cachedBlocksByDate[block.scheduledDate] = blocks
+
+            switch scope {
+            case .single:
+                blocks.removeAll { $0.id == block.id && $0.scheduledDate == block.scheduledDate }
+                Self.cachedBlocksByDate[block.scheduledDate] = blocks
+                DayPlanScheduler.cancelOccurrence(block)
+            case .future:
+                blocks.removeAll { $0.id == block.id }
+                Self.removeCachedBlocks(matching: block, onOrAfter: block.scheduledDate)
+                DayPlanScheduler.cancel(block)
+            case .all:
+                blocks.removeAll { $0.id == block.id }
+                Self.removeCachedBlocks(matching: block, onOrAfter: nil)
+                DayPlanScheduler.cancel(block)
+            }
+
             Self.cachedAtByDate[block.scheduledDate] = Date()
-            DayPlanScheduler.cancel(block)
             message = blocks.isEmpty ? powAILocalized("No time blocks yet.") : nil
         } catch {
             message = powAILocalized("Could not delete time block.")
@@ -3829,24 +4091,32 @@ final class DayPlanViewModel: ObservableObject {
     }
 
     func setDone(_ block: DayPlanBlock, isDone: Bool) async {
-        let payload = DayPlanSaveRequest(
-            scheduledDate: block.scheduledDate,
-            title: block.title,
-            notes: block.notes,
-            startHour: block.startHour,
-            startMinute: block.startMinute,
-            endHour: block.endHour,
-            endMinute: block.endMinute,
-            category: block.category,
-            reminderMinutesBefore: block.reminderMinutesBefore,
-            leaveReminderMinutesBefore: block.leaveReminderMinutesBefore,
-            startAlarmEnabled: block.startAlarmEnabled,
-            recurrence: block.recurrence,
-            repeatDays: block.repeatDays,
-            recurrenceEndDate: block.recurrenceEndDate,
-            isDone: isDone
-        )
-        await save(existing: block, request: payload)
+        do {
+            var request = try makeRequest(path: "day-schedule/\(block.id.uuidString)/completion")
+            request.httpMethod = "PUT"
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(
+                DayPlanCompletionRequest(scheduledDate: block.scheduledDate, isDone: isDone)
+            )
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let httpResponse = response as? HTTPURLResponse, (200...299).contains(httpResponse.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+
+            let saved = try JSONDecoder().decode(DayPlanBlock.self, from: data)
+            if let index = blocks.firstIndex(where: { $0.id == saved.id && $0.scheduledDate == saved.scheduledDate }) {
+                blocks[index] = saved
+            } else if let index = blocks.firstIndex(where: { $0.id == saved.id }) {
+                blocks[index] = saved
+            }
+            Self.cachedBlocksByDate[saved.scheduledDate] = blocks
+            Self.cachedAtByDate[saved.scheduledDate] = Date()
+            message = nil
+        } catch {
+            message = powAILocalized("Could not save time block.")
+            print("Save day plan completion failed: \(error)")
+        }
     }
 
     private func makeRequest(path: String) throws -> URLRequest {
@@ -3875,6 +4145,14 @@ final class DayPlanViewModel: ObservableObject {
     private static func isFresh(_ date: Date?) -> Bool {
         guard let date else { return false }
         return Date().timeIntervalSince(date) < 20
+    }
+
+    private static func removeCachedBlocks(matching block: DayPlanBlock, onOrAfter date: String?) {
+        for key in cachedBlocksByDate.keys {
+            if let date, key < date { continue }
+            cachedBlocksByDate[key]?.removeAll { $0.id == block.id }
+            cachedAtByDate[key] = Date()
+        }
     }
 
     private func ensureCalendarAccess() async throws -> Bool {
@@ -3908,8 +4186,10 @@ struct DayPlanView: View {
     @State private var selectedDate = Date()
     @State private var editingBlock: DayPlanBlock?
     @State private var sharingBlock: DayPlanBlock?
+    @State private var pendingDeleteBlock: DayPlanBlock?
     @State private var showingEditor = false
     @State private var showingCalendarEvents = false
+    @State private var showingDeleteOptions = false
     let loadOnAppear: Bool
     private let liveActivityTimer = Timer.publish(every: 30, on: .main, in: .common).autoconnect()
 
@@ -3979,6 +4259,26 @@ struct DayPlanView: View {
                 title: powAILocalized("Share Event"),
                 target: .dayPlan(block.id)
             )
+        }
+        .confirmationDialog(
+            powAILocalized("Delete Repeating Event?"),
+            isPresented: $showingDeleteOptions,
+            titleVisibility: .visible,
+            presenting: pendingDeleteBlock
+        ) { block in
+            Button(powAILocalized("Only This Day"), role: .destructive) {
+                Task { await viewModel.delete(block, scope: .single) }
+                pendingDeleteBlock = nil
+            }
+            Button(powAILocalized("This and Future Days"), role: .destructive) {
+                Task { await viewModel.delete(block, scope: .future) }
+                pendingDeleteBlock = nil
+            }
+            Button(powAILocalized("Cancel"), role: .cancel) {
+                pendingDeleteBlock = nil
+            }
+        } message: { _ in
+            Text(powAILocalized("Choose how much of this repeating event to remove."))
         }
     }
 
@@ -4199,7 +4499,12 @@ struct DayPlanView: View {
                             showingEditor = true
                         },
                         onDelete: {
-                            Task { await viewModel.delete(block) }
+                            if block.recurrenceOption == .none {
+                                Task { await viewModel.delete(block) }
+                            } else {
+                                pendingDeleteBlock = block
+                                showingDeleteOptions = true
+                            }
                         },
                         onShare: {
                             sharingBlock = block
@@ -4678,6 +4983,10 @@ struct DayPlanEditorView: View {
             return []
         case .daily:
             return Array(1...7)
+        case .weekdays:
+            return Array(2...6)
+        case .weekends:
+            return [1, 7]
         case .weekly:
             return [calendar.component(.weekday, from: startTime)]
         case .custom:
@@ -5291,6 +5600,7 @@ struct ActiveAlarmView: View {
             startCurrentMission()
         } else {
             AlarmScheduler.scheduleWakeCheck(for: alarm)
+            AlarmScheduler.markCompleted(alarm)
             runtime.dismissActiveAlarm()
         }
     }

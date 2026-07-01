@@ -2,3 +2,6 @@
 "NSCalendarsFullAccessUsageDescription" = "PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.";
 "NSCalendarsUsageDescription" = "PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.";
 "NSCameraUsageDescription" = "PowAI uses the camera to scan QR codes and barcodes for alarm dismissal missions.";
+"NSHealthShareUsageDescription" = "PowAI reads your heart rate only during active workouts to display it in the app and Live Activity. Heart rate is not stored or sent to our server.";
+"NSHealthUpdateUsageDescription" = "PowAI does not write data to Apple Health. This permission string is included because HealthKit is enabled for read-only heart-rate display during active workouts.";
+"NSPhotoLibraryUsageDescription" = "PowAI uses selected food photos to estimate nutrition when camera capture is unavailable or when you choose a photo.";

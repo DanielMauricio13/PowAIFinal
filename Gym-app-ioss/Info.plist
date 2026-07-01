@@ -6,9 +6,20 @@
 	<string>PowAI uses alarms to ring when your phone is locked and require a challenge before dismissing.</string>
 	<key>NSCameraUsageDescription</key>
 	<string>PowAI uses the camera to scan QR codes and barcodes for alarm dismissal missions.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>PowAI uses selected food photos to estimate nutrition when camera capture is unavailable or when you choose a photo.</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
 	<string>PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.</string>
 	<key>NSCalendarsUsageDescription</key>
 	<string>PowAI uses calendar access to show your Apple Calendar events inside your Day Plan.</string>
+	<key>BGTaskSchedulerPermittedIdentifiers</key>
+	<array>
+		<string>io.Mauro.Gym-app-ios.timer</string>
+	</array>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>audio</string>
+		<string>processing</string>
+	</array>
 </dict>
 </plist>

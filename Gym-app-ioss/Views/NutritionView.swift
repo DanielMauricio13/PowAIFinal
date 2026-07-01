@@ -284,7 +284,7 @@ struct NutritionView: View {
                 NavigationLink {
                     NutritionTrackerView(
                         email: mainUser?.email ?? "",
-                        user: mainUser ?? User(id: nil, firstName: "", lastName: "", membershipStatus: "trial")
+                        user: mainUser ?? User(id: nil, firstName: "", lastName: "", membershipStatus: "free")
                     )
                 } label: {
                     Label("Tracker", systemImage: "chart.line.uptrend.xyaxis")
@@ -1497,12 +1497,9 @@ private struct MealOptionCard: View {
 
                     Spacer()
 
-                    Text("\(meal.macros.calories)")
+                    Text("\(meal.macros.calories) kcal")
                         .font(.title3.bold())
                         .foregroundStyle(.orange)
-                        + Text(" kcal")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.75))
                 }
 
                 HStack(spacing: 8) {

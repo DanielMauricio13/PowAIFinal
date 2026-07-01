@@ -11,6 +11,7 @@ import Foundation
 import BackgroundTasks
 import UserNotifications
 import AudioToolbox
+import WebKit
 
 private struct SetWeightLookupResponse: Decodable {
     let weight: Double
@@ -31,7 +32,7 @@ struct StaringWorkWindow: View {
     @State private var timerIsRunning = false
     @State private var timeRemaining2 = 60
     @State private var timerIsRunning2 = false
-    @StateObject private var hkManager = HealthKitManager()
+    @StateObject private var hkManager = HealthKitManager.shared
     @State var totalTime = 5
     @State var totalTime2 = 60
     let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
@@ -77,6 +78,7 @@ struct StaringWorkWindow: View {
     @State private var hiitStopwatchRunning = false
     @State private var workoutStartedAt = Date()
     @State private var didPostWorkoutCompletion = false
+    @State private var showingExerciseTutorial = false
     
     @State var activity: Activity<TimeTrackingAttributes>? = nil
     @State var isTrackingTime: Bool = false
@@ -128,23 +130,6 @@ struct StaringWorkWindow: View {
 	                }
                 Spacer()
                 } .onDisappear { hkManager.stopMonitoring() }
-                    .onChange(of: hkManager.latestBPM) { _, newBPM in   // ← add here
-                          guard let activity else { return }
-                          let updatedState = TimeTrackingAttributes.ContentState(
-                              startTime: activity.content.state.startTime,
-                              set: activity.content.state.set,
-                              heartRate: newBPM
-                          )
-                          Task {
-                              await activity.update(
-                                  ActivityContent(
-                                      state: updatedState,
-                                      staleDate: nil,
-                                      relevanceScore: LiveActivityRelevance.workout
-                                  )
-                              )
-                          }
-                      }
             }
             else {
                 VStack {
@@ -224,6 +209,10 @@ struct StaringWorkWindow: View {
         .sheet(isPresented: $showSetLogMenu) {
             setLogMenu
                 .presentationDetents([.height(360)])
+        }
+        .sheet(isPresented: $showingExerciseTutorial) {
+            ExerciseTutorialSheet(exerciseName: currentExercise?.name ?? "")
+                .presentationDetents([.large])
         }
         .alert("Couldn’t Update Weight", isPresented: $showRoutineWeightError) {
             Button("OK", role: .cancel) { }
@@ -466,6 +455,14 @@ struct StaringWorkWindow: View {
                 Label("Log", systemImage: "square.and.pencil")
             }
             .buttonStyle(WorkoutChipButtonStyle(tint: .orange))
+            .disabled(currentExercise == nil)
+
+            Button {
+                showingExerciseTutorial = true
+            } label: {
+                Label("How to perform", systemImage: "play.rectangle.fill")
+            }
+            .buttonStyle(WorkoutChipButtonStyle(tint: .green))
             .disabled(currentExercise == nil)
 
             Button {
@@ -860,6 +857,9 @@ struct StaringWorkWindow: View {
 
             Task {
                 await activity?.end(finalContent, dismissalPolicy: .immediate)
+                await MainActor.run {
+                    hkManager.stopMonitoring(force: true)
+                }
             }
 
             startTime = nil
@@ -1467,7 +1467,7 @@ struct StaringWorkWindow: View {
     }
 
     private func localizedExerciseDescription(english: String?, spanish: String?) -> String? {
-        let prefersSpanish = languageManager.locale.languageCode?.lowercased().hasPrefix("es") == true
+        let prefersSpanish = languageManager.locale.language.languageCode?.identifier.lowercased().hasPrefix("es") == true
         let preferred = prefersSpanish ? spanish : english
         let fallback = prefersSpanish ? english : nil
 
@@ -1546,6 +1546,597 @@ private struct WorkoutChipButtonStyle: ButtonStyle {
             .overlay(Capsule().stroke(tint.opacity(0.34), lineWidth: 1))
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(.easeOut(duration: 0.16), value: configuration.isPressed)
+    }
+}
+
+private struct ExerciseDBSearchResponse: Decodable {
+    let success: Bool
+    let data: [ExerciseDBExercise]
+}
+
+private struct ExerciseDBExercise: Decodable, Identifiable {
+    let exerciseId: String
+    let name: String
+    let gifUrl: String
+
+    var id: String { exerciseId }
+}
+
+private struct YouTubeTutorialVideo: Decodable, Identifiable {
+    let videoId: String
+    let title: String
+    let channelTitle: String
+    let thumbnailURL: String?
+    let durationSeconds: Int
+    let url: String
+    let embedURL: String
+
+    var id: String { videoId }
+
+    var durationText: String {
+        let minutes = durationSeconds / 60
+        let seconds = durationSeconds % 60
+        return String(format: "%d:%02d", minutes, seconds)
+    }
+}
+
+@MainActor
+private final class ExerciseTutorialLoader: ObservableObject {
+    @Published var exercise: ExerciseDBExercise?
+    @Published var youtubeVideo: YouTubeTutorialVideo?
+    @Published var isLoading = false
+    @Published var isLoadingYouTube = false
+    @Published var message: String?
+    @Published var youtubeMessage: String?
+
+    private static var cache: [String: ExerciseDBExercise] = [:]
+    private static var misses: Set<String> = []
+    private static var youtubeCache: [String: YouTubeTutorialVideo] = [:]
+    private static var youtubeMisses: Set<String> = []
+
+    func load(exerciseName: String, forceRefresh: Bool = false) async {
+        let trimmedName = exerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else {
+            message = "No exercise selected."
+            return
+        }
+
+        let cacheKey = Self.normalizedName(trimmedName)
+        if !forceRefresh, let cached = Self.cache[cacheKey] {
+            exercise = cached
+            message = nil
+            return
+        }
+        if !forceRefresh, Self.misses.contains(cacheKey) {
+            message = "No ExerciseDB tutorial found for this exercise."
+            await loadYouTubeFallback(exerciseName: trimmedName)
+            return
+        }
+
+        isLoading = true
+        message = nil
+        youtubeMessage = nil
+        defer { isLoading = false }
+
+        do {
+            let candidates = try await fetchCandidates(for: trimmedName)
+            guard let best = Self.bestMatch(for: trimmedName, from: candidates) else {
+                Self.misses.insert(cacheKey)
+                exercise = nil
+                message = "No ExerciseDB tutorial found for this exercise."
+                await loadYouTubeFallback(exerciseName: trimmedName)
+                return
+            }
+
+            Self.cache[cacheKey] = best
+            exercise = best
+        } catch {
+            exercise = nil
+            message = "Could not load the ExerciseDB tutorial."
+            await loadYouTubeFallback(exerciseName: trimmedName)
+        }
+    }
+
+    func loadYouTubeFallback(exerciseName: String, forceRefresh: Bool = false) async {
+        let trimmedName = exerciseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmedName.isEmpty else { return }
+
+        let cacheKey = Self.normalizedName(trimmedName)
+        if !forceRefresh, let cached = Self.youtubeCache[cacheKey] {
+            youtubeVideo = cached
+            youtubeMessage = nil
+            return
+        }
+        if !forceRefresh, Self.youtubeMisses.contains(cacheKey) {
+            youtubeMessage = "No YouTube fallback found for this exercise."
+            return
+        }
+
+        isLoadingYouTube = true
+        youtubeMessage = nil
+        defer { isLoadingYouTube = false }
+
+        do {
+            var components = URLComponents(string: Constants.baseURL + "exercise-tutorials/youtube")
+            components?.queryItems = [URLQueryItem(name: "exerciseName", value: trimmedName)]
+            guard let url = components?.url else { throw URLError(.badURL) }
+
+            var request = URLRequest(url: url)
+            request.applyBearerToken()
+
+            let (data, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw URLError(.badServerResponse)
+            }
+
+            let video = try JSONDecoder().decode(YouTubeTutorialVideo.self, from: data)
+            Self.youtubeCache[cacheKey] = video
+            youtubeVideo = video
+        } catch {
+            Self.youtubeMisses.insert(cacheKey)
+            youtubeVideo = nil
+            youtubeMessage = "No YouTube fallback found for this exercise."
+        }
+    }
+
+    private func fetchCandidates(for exerciseName: String) async throws -> [ExerciseDBExercise] {
+        var lastError: Error?
+
+        for query in Self.searchQueries(for: exerciseName) {
+            guard var components = URLComponents(string: "https://oss.exercisedb.dev/api/v1/exercises/search") else {
+                throw URLError(.badURL)
+            }
+            components.queryItems = [
+                URLQueryItem(name: "search", value: query),
+                URLQueryItem(name: "threshold", value: "0.35")
+            ]
+            guard let url = components.url else { throw URLError(.badURL) }
+
+            var request = URLRequest(url: url)
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+            request.setValue("PowAI-iOS/1.0", forHTTPHeaderField: "User-Agent")
+
+            do {
+                let (data, response) = try await URLSession.shared.data(for: request)
+                guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                    throw URLError(.badServerResponse)
+                }
+
+                let decoded = try JSONDecoder().decode(ExerciseDBSearchResponse.self, from: data)
+                if decoded.success, !decoded.data.isEmpty {
+                    return decoded.data
+                }
+            } catch {
+                lastError = error
+            }
+        }
+
+        if let lastError {
+            throw lastError
+        }
+        return []
+    }
+
+    private static func bestMatch(for exerciseName: String, from candidates: [ExerciseDBExercise]) -> ExerciseDBExercise? {
+        let query = normalizedName(exerciseName)
+        guard !query.isEmpty else { return candidates.first }
+
+        if let exact = candidates.first(where: { normalizedName($0.name) == query }) {
+            return exact
+        }
+
+        let queryTokens = Set(query.split(separator: " ").map(String.init))
+        return candidates
+            .map { candidate -> (ExerciseDBExercise, Double) in
+                let candidateName = normalizedName(candidate.name)
+                let candidateTokens = Set(candidateName.split(separator: " ").map(String.init))
+                let overlap = queryTokens.intersection(candidateTokens).count
+                let union = max(1, queryTokens.union(candidateTokens).count)
+                var score = Double(overlap) / Double(union)
+                if candidateName.contains(query) || query.contains(candidateName) {
+                    score += 0.5
+                }
+                return (candidate, score)
+            }
+            .sorted { $0.1 > $1.1 }
+            .first?
+            .0
+    }
+
+    private static func searchQueries(for exerciseName: String) -> [String] {
+        let normalized = normalizedName(exerciseName)
+        let simplified = normalized
+            .split(separator: " ")
+            .filter { !["finisher", "interval", "intervals", "exercise"].contains(String($0)) }
+            .joined(separator: " ")
+
+        var queries: [String] = []
+        for query in [exerciseName, normalized, simplified] {
+            let trimmed = query.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !trimmed.isEmpty && !queries.contains(trimmed) {
+                queries.append(trimmed)
+            }
+        }
+        return queries
+    }
+
+    private static func normalizedName(_ value: String) -> String {
+        value
+            .folding(options: [.caseInsensitive, .diacriticInsensitive], locale: .current)
+            .lowercased()
+            .replacingOccurrences(of: "&", with: " and ")
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: #"[^a-z0-9\s]"#, with: " ", options: .regularExpression)
+            .replacingOccurrences(of: #"\s+"#, with: " ", options: .regularExpression)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+}
+
+private struct ExerciseTutorialSheet: View {
+    let exerciseName: String
+
+    @Environment(\.dismiss) private var dismiss
+    @StateObject private var loader = ExerciseTutorialLoader()
+
+    var body: some View {
+        NavigationStack {
+            ZStack {
+                AppBackgroundView()
+
+                ScrollView(showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 18) {
+                        header
+
+        Group {
+            if loader.isLoading {
+                loadingView
+            } else if let exercise = loader.exercise, let url = URL(string: exercise.gifUrl), loader.youtubeVideo == nil {
+                VStack(alignment: .leading, spacing: 12) {
+                    ExerciseTutorialMediaView(url: url, mediaType: .image) {
+                        guard loader.youtubeVideo == nil, !loader.isLoadingYouTube else { return }
+                        loader.message = "ExerciseDB GIF could not load. Opening YouTube fallback."
+                        Task { await loader.loadYouTubeFallback(exerciseName: exerciseName) }
+                    }
+                        .frame(height: AdaptiveLayout.scaled(420, compact: 320))
+                                        .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                                                .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                                        )
+
+                                    Text("Matched: \(exercise.name)")
+                                        .font(.subheadline.weight(.bold))
+                                        .foregroundStyle(Color.white.opacity(0.82))
+
+                    Text("ExerciseDB media by AscendAPI")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(Color.white.opacity(0.55))
+
+                    Button {
+                        Task { await loader.loadYouTubeFallback(exerciseName: exerciseName) }
+                    } label: {
+                        if loader.isLoadingYouTube {
+                            Label("Finding YouTube fallback...", systemImage: "hourglass")
+                        } else {
+                            Label("Try YouTube video", systemImage: "play.tv.fill")
+                        }
+                    }
+                    .buttonStyle(WorkoutSecondaryButtonStyle(tint: .red))
+                    .disabled(loader.isLoadingYouTube)
+                }
+            } else if let video = loader.youtubeVideo, let embedURL = URL(string: video.embedURL) {
+                youtubeVideoView(video: video, embedURL: embedURL)
+            } else {
+                emptyView
+            }
+        }
+                        .frame(maxWidth: .infinity)
+                    }
+                    .padding(20)
+                }
+            }
+            .navigationTitle("How to perform")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button("Close") { dismiss() }
+                }
+
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        Task {
+                            await loader.load(exerciseName: exerciseName, forceRefresh: true)
+                            if loader.exercise == nil {
+                                await loader.loadYouTubeFallback(exerciseName: exerciseName, forceRefresh: true)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: "arrow.clockwise")
+                    }
+                    .disabled(loader.isLoading || loader.isLoadingYouTube)
+                }
+            }
+            .task(id: exerciseName) {
+                await loader.load(exerciseName: exerciseName)
+            }
+        }
+    }
+
+    private var header: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(exerciseName)
+                .font(.system(size: AdaptiveLayout.scaled(28, compact: 24), weight: .heavy, design: .rounded))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+                .minimumScaleFactor(0.75)
+
+            Text(loader.youtubeVideo == nil ? "Animated tutorial from ExerciseDB" : "Video tutorial from YouTube")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(loader.youtubeVideo == nil ? Color.orange : Color.red)
+        }
+    }
+
+    private var loadingView: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .progressViewStyle(CircularProgressViewStyle(tint: .orange))
+                .scaleEffect(1.2)
+
+            Text("Finding tutorial...")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+        }
+        .frame(maxWidth: .infinity, minHeight: 320)
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private var emptyView: some View {
+        VStack(spacing: 14) {
+            Image(systemName: "figure.strengthtraining.traditional")
+                .font(.system(size: 46, weight: .bold))
+                .foregroundStyle(Color.orange)
+
+            Text(loader.message ?? "No tutorial found.")
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+
+            if loader.isLoadingYouTube {
+                ProgressView()
+                    .progressViewStyle(CircularProgressViewStyle(tint: .red))
+                    .scaleEffect(1.1)
+
+                Text("Checking YouTube...")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(Color.white.opacity(0.74))
+            } else {
+                Text(loader.youtubeMessage ?? "Try a more common exercise name if this was generated with a custom variation.")
+                    .font(.subheadline.weight(.medium))
+                    .foregroundStyle(Color.white.opacity(0.62))
+                    .multilineTextAlignment(.center)
+
+                Button {
+                    Task { await loader.loadYouTubeFallback(exerciseName: exerciseName, forceRefresh: true) }
+                } label: {
+                    Label("Try YouTube video", systemImage: "play.tv.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(WorkoutSecondaryButtonStyle(tint: .red))
+                .disabled(loader.isLoadingYouTube)
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 320)
+        .padding()
+        .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 20, style: .continuous))
+    }
+
+    private func youtubeVideoView(video: YouTubeTutorialVideo, embedURL: URL) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            ExerciseTutorialMediaView(url: embedURL, mediaType: .youtubeEmbed)
+                .frame(height: AdaptiveLayout.scaled(420, compact: 320))
+                .clipShape(RoundedRectangle(cornerRadius: 20, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(Color.white.opacity(0.16), lineWidth: 1)
+                )
+
+            Text(video.title)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+                .lineLimit(2)
+
+            HStack(spacing: 10) {
+                Label(video.durationText, systemImage: "clock.fill")
+                Text(video.channelTitle)
+            }
+            .font(.caption.weight(.bold))
+            .foregroundStyle(Color.white.opacity(0.65))
+
+            Button {
+                loader.youtubeVideo = nil
+            } label: {
+                Label("Back to ExerciseDB GIF", systemImage: "arrow.left")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(WorkoutSecondaryButtonStyle(tint: .orange))
+            .disabled(loader.exercise == nil)
+
+            Link(destination: URL(string: video.url) ?? embedURL) {
+                Label("Open in YouTube", systemImage: "safari.fill")
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(WorkoutSecondaryButtonStyle(tint: .red))
+        }
+    }
+}
+
+private struct ExerciseTutorialMediaView: UIViewRepresentable {
+    enum MediaType {
+        case image
+        case youtubeEmbed
+    }
+
+    let url: URL
+    let mediaType: MediaType
+    var onLoadFailure: (() -> Void)? = nil
+
+    func makeUIView(context: Context) -> WKWebView {
+        let configuration = WKWebViewConfiguration()
+        configuration.allowsInlineMediaPlayback = true
+        configuration.mediaTypesRequiringUserActionForPlayback = []
+        configuration.userContentController.add(context.coordinator, name: "mediaStatus")
+
+        let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.navigationDelegate = context.coordinator
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.scrollView.isScrollEnabled = false
+        return webView
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator(onLoadFailure: onLoadFailure)
+    }
+
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        context.coordinator.onLoadFailure = onLoadFailure
+        let loadKey = "\(mediaType)-\(url.absoluteString)"
+        guard context.coordinator.loadedKey != loadKey else { return }
+        context.coordinator.loadedKey = loadKey
+
+        let presentationURL = mediaType == .youtubeEmbed
+            ? Self.youtubeEmbedURLWithOrigin(url)
+            : url
+        let escapedURL = presentationURL.absoluteString
+            .replacingOccurrences(of: "&", with: "&amp;")
+            .replacingOccurrences(of: "\"", with: "&quot;")
+        let bodyHTML: String
+        switch mediaType {
+        case .image:
+            bodyHTML = """
+              <img
+                src="\(escapedURL)"
+                alt="Exercise tutorial"
+                onload="window.webkit.messageHandlers.mediaStatus.postMessage('loaded')"
+                onerror="window.webkit.messageHandlers.mediaStatus.postMessage('failed')">
+            """
+        case .youtubeEmbed:
+            bodyHTML = """
+              <iframe
+                src="\(escapedURL)"
+                title="Exercise video tutorial"
+                frameborder="0"
+                referrerpolicy="strict-origin-when-cross-origin"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                allowfullscreen>
+              </iframe>
+            """
+        }
+
+        let html = """
+        <!doctype html>
+        <html>
+        <head>
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <meta name="referrer" content="strict-origin-when-cross-origin">
+          <style>
+            html, body {
+              margin: 0;
+              height: 100%;
+              background: transparent;
+              overflow: hidden;
+            }
+            body {
+              display: flex;
+              align-items: center;
+              justify-content: center;
+            }
+            img {
+              max-width: 100%;
+              max-height: 100%;
+              object-fit: contain;
+              border-radius: 20px;
+            }
+            iframe {
+              width: 100%;
+              height: 100%;
+              border: 0;
+              border-radius: 20px;
+              background: #050505;
+            }
+          </style>
+        </head>
+        <body>
+        \(bodyHTML)
+        </body>
+        </html>
+        """
+        webView.loadHTMLString(html, baseURL: Self.embedPageBaseURL)
+    }
+
+    private static var embedPageBaseURL: URL {
+        URL(string: Constants.baseURL) ?? URL(string: "https://www.youtube.com")!
+    }
+
+    private static var embedPageOrigin: String {
+        guard let components = URLComponents(url: embedPageBaseURL, resolvingAgainstBaseURL: false),
+              let scheme = components.scheme,
+              let host = components.host else {
+            return "https://www.youtube.com"
+        }
+
+        if let port = components.port {
+            return "\(scheme)://\(host):\(port)"
+        }
+        return "\(scheme)://\(host)"
+    }
+
+    private static func youtubeEmbedURLWithOrigin(_ url: URL) -> URL {
+        guard var components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return url
+        }
+
+        var queryItems = components.queryItems ?? []
+        queryItems.removeAll { $0.name == "origin" }
+        queryItems.append(URLQueryItem(name: "origin", value: embedPageOrigin))
+        components.queryItems = queryItems
+        return components.url ?? url
+    }
+
+    static func dismantleUIView(_ uiView: WKWebView, coordinator: Coordinator) {
+        uiView.configuration.userContentController.removeScriptMessageHandler(forName: "mediaStatus")
+    }
+
+    final class Coordinator: NSObject, WKScriptMessageHandler, WKNavigationDelegate {
+        var loadedKey: String?
+        var onLoadFailure: (() -> Void)?
+
+        init(onLoadFailure: (() -> Void)?) {
+            self.onLoadFailure = onLoadFailure
+        }
+
+        func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+            guard message.name == "mediaStatus",
+                  let status = message.body as? String,
+                  status == "failed" else { return }
+
+            DispatchQueue.main.async { [weak self] in
+                self?.onLoadFailure?()
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            DispatchQueue.main.async { [weak self] in
+                self?.onLoadFailure?()
+            }
+        }
+
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            DispatchQueue.main.async { [weak self] in
+                self?.onLoadFailure?()
+            }
+        }
     }
 }
 

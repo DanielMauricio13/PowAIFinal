@@ -2,3 +2,6 @@
 "NSCalendarsFullAccessUsageDescription" = "PowAI usa acceso al calendario para mostrar tus eventos de Apple Calendar dentro del plan del día.";
 "NSCalendarsUsageDescription" = "PowAI usa acceso al calendario para mostrar tus eventos de Apple Calendar dentro del plan del día.";
 "NSCameraUsageDescription" = "PowAI usa la cámara para escanear códigos QR y códigos de barras en las misiones para apagar alarmas.";
+"NSHealthShareUsageDescription" = "PowAI lee tu frecuencia cardiaca solo durante entrenamientos activos para mostrarla en la app y en Live Activity. La frecuencia cardiaca no se guarda ni se envía a nuestro servidor.";
+"NSHealthUpdateUsageDescription" = "PowAI no escribe datos en Apple Health. Este texto se incluye porque HealthKit está activado para mostrar la frecuencia cardiaca en modo solo lectura durante entrenamientos activos.";
+"NSPhotoLibraryUsageDescription" = "PowAI usa fotos de comida seleccionadas para estimar la nutrición cuando la cámara no está disponible o cuando eliges una foto.";

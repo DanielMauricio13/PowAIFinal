@@ -88,7 +88,7 @@ struct Calories: View {
                 NavigationLink {
                     NutritionTrackerView(
                         email: mainUser?.email ?? "",
-                        user: mainUser ?? User(id: nil, firstName: "", lastName: "", membershipStatus: "trial")
+                        user: mainUser ?? User(id: nil, firstName: "", lastName: "", membershipStatus: "free")
                     )
                 } label: {
                     HStack(spacing: 6) {

@@ -139,12 +139,18 @@ struct AppBackgroundView: View {
 }
 
 enum AdaptiveLayout {
+    private static var sceneBounds: CGRect {
+        UIApplication.shared.connectedScenes
+            .compactMap { ($0 as? UIWindowScene)?.screen.bounds }
+            .first ?? CGRect(x: 0, y: 0, width: 390, height: 844)
+    }
+
     static var screenWidth: CGFloat {
-        UIScreen.main.bounds.width
+        sceneBounds.width
     }
 
     static var screenHeight: CGFloat {
-        UIScreen.main.bounds.height
+        sceneBounds.height
     }
 
     static var isCompactPhone: Bool {

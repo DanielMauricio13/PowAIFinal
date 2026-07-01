@@ -6,7 +6,6 @@
 //
 
 import SwiftUI
-import GoogleGenerativeAI
 import RiveRuntime
 struct finalData: View {
     let firstName: String
@@ -26,7 +25,6 @@ struct finalData: View {
     let numDays: Int
     let numHours: String
     @State var prompt: String?
-    let model = GenerativeModel(name: "gemini-pro", apiKey: APIKey.default)
     @State var excersise: userExcersise?
     @State var responseInString: String = "valve"
     @State private var selectedOption = "Kg"
@@ -85,13 +83,19 @@ struct finalData: View {
                                                 .foregroundColor(.blue)
                                             Text("I agree to the")
                                             NavigationLink(destination: Terms_of_Use()){
-                                                Text("Privacy Policy").bold().underline()
+                                                Text("Terms & Privacy Notice").bold().underline()
                                             }
                                         }
                                     }
                                     .buttonStyle(.plain)
 
                         }
+
+                        Text("I consent to PowAI processing my fitness profile, nutrition entries, food photos, activity data, and AI prompts through PowAI's backend and third-party AI services to provide app features.")
+                            .font(.caption)
+                            .foregroundColor(.white.opacity(0.75))
+                            .multilineTextAlignment(.center)
+                            .padding(.horizontal)
 
                         Button{
                             if isChecked{
@@ -301,7 +305,7 @@ struct finalData: View {
             "heightUnit":    selectedOption2,
             "heightFt":      heightFt,
             "heightIn":     heightIn,
-            "membership_status": "trial",
+            "membership_status": "free",
             "goal":          goal,
             "bodyStructure": bodyStructure,
             "whereWork":     whereWork,

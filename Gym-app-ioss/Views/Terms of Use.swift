@@ -36,7 +36,7 @@ struct Terms_of_Use: View {
         .init(
             icon: "lock.shield.fill",
             title: "Privacy & Data",
-            body: "PowAI may collect account info, fitness profile details, nutrition logs, food images, barcode scans, activity data, and Apple Health data (only if you grant permission). Health data is used solely to provide app features — never sold to data brokers or used for advertising."
+            body: "PowAI may collect account info, fitness profile details, nutrition logs, food images, barcode scans, and activity data to provide app features. This app data may be processed by PowAI's backend and third-party AI services when you request AI-powered features. Apple Health heart-rate data is read only on your device during active workouts and is not stored on PowAI servers, sent to third-party AI services, sold to data brokers, or used for advertising."
         ),
         .init(
             icon: "cpu.fill",
@@ -47,11 +47,6 @@ struct Terms_of_Use: View {
             icon: "exclamationmark.triangle.fill",
             title: "Safety Warning",
             body: "If you experience pain, dizziness, shortness of breath, allergic reactions, or any other concerning symptoms, stop using the relevant workout or nutrition recommendation immediately and seek appropriate medical help."
-        ),
-        .init(
-            icon: "creditcard.fill",
-            title: "Subscriptions",
-            body: "PowAI subscriptions and in-app purchases are handled through Apple. Auto-renewable subscriptions renew automatically unless canceled through your Apple account settings before the renewal date."
         ),
         .init(
             icon: "hand.raised.fill",

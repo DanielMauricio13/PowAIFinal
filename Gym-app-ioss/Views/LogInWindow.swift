@@ -119,39 +119,53 @@ struct LogInWindow: View {
         request.httpBody = try? JSONEncoder().encode(["email": user, "password": password])
         
         let task = URLSession.shared.dataTask(with: request) { data, response, error in
-            if let response = response as? HTTPURLResponse {
-                switch response.statusCode {
-                case 200:
-                    
-                    
+            if let error {
+                print("Login request failed: \(error)")
+                return
+            }
+
+            guard let response = response as? HTTPURLResponse else { return }
+
+            switch response.statusCode {
+            case 200:
+                let token = authToken(from: data)
+                DispatchQueue.main.async {
+                    if let token {
+                        AuthSession.saveToken(token)
+                        PushNotificationRegistrar.uploadStoredDeviceTokenIfPossible()
+                    }
+                    UserDefaults.standard.set(true, forKey: "isAuthenticated")
+                    UserDefaults.standard.set(username, forKey: "username")
+                    UserDefaults.standard.set(username, forKey: "email")
+                    isAuthenticated = true
                     userFound = true
-                                    isAuthenticated = true
-                                    UserDefaults.standard.set(true, forKey: "isAuthenticated")
-                                    UserDefaults.standard.set(username, forKey: "username")
-                                UserDefaults.standard.set(username, forKey: "email")
+                    wrongPassword = 0
+                    wrongUsername = 0
+                }
 
-                                    if let data = data {
-                                        if let response = try? JSONDecoder().decode([String: String].self, from: data),
-                                           let token = response["token"] ?? response["jwt"] {
-                                            AuthSession.saveToken(token)
-                                            PushNotificationRegistrar.uploadStoredDeviceTokenIfPossible()
-                                        } else if let token = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines), !token.isEmpty {
-                                            AuthSession.saveToken(token)
-                                            PushNotificationRegistrar.uploadStoredDeviceTokenIfPossible()
-                                        }
-                                    }
-
-                    
-                case 401, 404:
-                    print("Credentials do not match")
+            case 401, 404:
+                print("Credentials do not match")
+                DispatchQueue.main.async {
                     wrongPassword = 1
                     wrongUsername = 1
-                default:
-                    print("Unknown response status: \(response.statusCode)")
                 }
+
+            default:
+                print("Unknown response status: \(response.statusCode)")
             }
         }
         task.resume()
+    }
+
+    private func authToken(from data: Data?) -> String? {
+        guard let data else { return nil }
+        if let response = try? JSONDecoder().decode([String: String].self, from: data),
+           let token = response["token"] ?? response["jwt"],
+           !token.isEmpty {
+            return token
+        }
+        let token = String(data: data, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines)
+        return token?.isEmpty == false ? token : nil
     }
     
 }

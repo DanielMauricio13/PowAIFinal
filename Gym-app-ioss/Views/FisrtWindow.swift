@@ -22,6 +22,11 @@ struct FisrtWindow: View {
     @State private var showHIITError = false
     @State private var showRoutineWindow = false
     @State private var showMakeYourOwnWindow = false
+    @State private var showSavedCustomWorkouts = false
+    @State private var savedCustomWorkouts: [SavedCustomWorkout] = []
+    @State private var selectedSavedCustomSession: MakeYourOwnWorkoutSession?
+    @State private var savedCustomWorkoutMessage: String?
+    @State private var showSavedCustomWorkoutMessage = false
 
     var body: some View {
         ZStack {
@@ -144,6 +149,8 @@ struct FisrtWindow: View {
                         .padding(.horizontal)
                         .padding(.bottom, 10)
 
+                        savedCustomWorkoutsSection
+
                         // ── HIIT section ──────────────────────────────────────
                         Text("Short On Time? Do a HIIT!")
                             .font(.title3)
@@ -234,13 +241,24 @@ struct FisrtWindow: View {
             }
         }
         .onAppear {
+            refreshSavedCustomWorkouts()
             guard viewModel.items.isEmpty else { return }
             buildRegularWorkout()
+        }
+        .onChange(of: showMakeYourOwnWindow) { _, isPresented in
+            if !isPresented {
+                refreshSavedCustomWorkouts()
+            }
         }
         .alert("HIIT Error", isPresented: $showHIITError) {
             Button("OK", role: .cancel) {}
         } message: {
             Text(hiitError ?? "Something went wrong generating your HIIT workout.")
+        }
+        .alert("Saved Workouts", isPresented: $showSavedCustomWorkoutMessage) {
+            Button("OK", role: .cancel) {}
+        } message: {
+            Text(savedCustomWorkoutMessage ?? "")
         }
         .sheet(isPresented: $showRoutineWindow) {
             RoutineView(mainUser: mainUser) {
@@ -248,9 +266,174 @@ struct FisrtWindow: View {
             }
         }
         .sheet(isPresented: $showMakeYourOwnWindow) {
-            MakeYourOwnWorkoutView {
-                showMakeYourOwnWindow = false
+            MakeYourOwnWorkoutView(
+                savedWorkoutCount: savedCustomWorkouts.count,
+                onReturnHome: {
+                    showMakeYourOwnWindow = false
+                },
+                onSaved: {
+                    refreshSavedCustomWorkouts()
+                    showSavedCustomWorkouts = true
+                }
+            )
+        }
+        .fullScreenCover(item: $selectedSavedCustomSession) { session in
+            MakeYourOwnWorkoutSessionView(session: session) {
+                selectedSavedCustomSession = nil
             }
+        }
+    }
+
+    @ViewBuilder
+    private var savedCustomWorkoutsSection: some View {
+        if !savedCustomWorkouts.isEmpty {
+            VStack(spacing: 10) {
+                Button {
+                    withAnimation(.easeInOut) {
+                        showSavedCustomWorkouts.toggle()
+                    }
+                } label: {
+                    HStack(spacing: 14) {
+                        ZStack {
+                            Circle()
+                                .fill(Color.green.opacity(0.2))
+                                .frame(width: 48, height: 48)
+
+                            Image(systemName: "bookmark.fill")
+                                .font(.title2)
+                                .foregroundColor(.green)
+                        }
+
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Saved Own Workouts")
+                                .font(.system(size: 20, weight: .bold, design: .rounded))
+                                .foregroundColor(.white)
+
+                            Text("\(savedCustomWorkouts.count) saved - show and start later")
+                                .font(.caption)
+                                .foregroundColor(.white.opacity(0.7))
+                        }
+
+                        Spacer()
+
+                        Image(systemName: showSavedCustomWorkouts ? "chevron.up" : "chevron.down")
+                            .font(.headline)
+                            .foregroundColor(.green.opacity(0.9))
+                    }
+                    .padding()
+                    .background(Color.white.opacity(0.08))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(Color.green.opacity(0.35), lineWidth: 1)
+                    )
+                    .cornerRadius(12)
+                    .shadow(color: .green.opacity(0.1), radius: 8)
+                }
+                .buttonStyle(.plain)
+
+                if showSavedCustomWorkouts {
+                    ForEach(savedCustomWorkouts) { savedWorkout in
+                        savedCustomWorkoutRow(savedWorkout)
+                    }
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 10)
+        }
+    }
+
+    private func savedCustomWorkoutRow(_ savedWorkout: SavedCustomWorkout) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .top, spacing: 12) {
+                Image(systemName: "dumbbell.fill")
+                    .font(.headline)
+                    .foregroundColor(.orange)
+                    .frame(width: 34, height: 34)
+                    .background(Color.orange.opacity(0.16))
+                    .clipShape(Circle())
+
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(savedWorkout.name)
+                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+                        .lineLimit(1)
+
+                    Text("\(savedWorkout.exerciseCount) exercises - ~\(savedWorkout.totalCalories) cal")
+                        .font(.caption)
+                        .foregroundColor(.white.opacity(0.65))
+                }
+
+                Spacer()
+
+                Button(role: .destructive) {
+                    Task { await deleteSavedCustomWorkout(savedWorkout) }
+                } label: {
+                    Image(systemName: "trash")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundColor(.red.opacity(0.9))
+                        .frame(width: 34, height: 34)
+                        .background(Color.red.opacity(0.13))
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button {
+                selectedSavedCustomSession = MakeYourOwnWorkoutSession(
+                    plan: savedWorkout.plan,
+                    totalCalories: savedWorkout.totalCalories
+                )
+            } label: {
+                Label("Start Saved Workout", systemImage: "play.fill")
+                    .font(.caption)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 11)
+                    .background(Color.green.opacity(0.85))
+                    .cornerRadius(8)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding()
+        .background(Color.black.opacity(0.18))
+        .overlay(
+            RoundedRectangle(cornerRadius: 10)
+                .stroke(Color.white.opacity(0.12), lineWidth: 1)
+        )
+        .cornerRadius(10)
+    }
+
+    private func refreshSavedCustomWorkouts() {
+        savedCustomWorkouts = MakeYourOwnRoutineStore.loadLocal()
+        if savedCustomWorkouts.isEmpty {
+            showSavedCustomWorkouts = false
+        }
+
+        Task {
+            do {
+                let serverWorkouts = try await MakeYourOwnRoutineStore.fetchFromBackend()
+                savedCustomWorkouts = serverWorkouts
+                if savedCustomWorkouts.isEmpty {
+                    showSavedCustomWorkouts = false
+                }
+            } catch {
+                savedCustomWorkoutMessage = "Could not refresh saved workouts from the database."
+                showSavedCustomWorkoutMessage = true
+            }
+        }
+    }
+
+    private func deleteSavedCustomWorkout(_ savedWorkout: SavedCustomWorkout) async {
+        do {
+            try await MakeYourOwnRoutineStore.deleteFromBackend(id: savedWorkout.id)
+            savedCustomWorkouts = MakeYourOwnRoutineStore.loadLocal()
+            if savedCustomWorkouts.isEmpty {
+                showSavedCustomWorkouts = false
+            }
+        } catch {
+            savedCustomWorkoutMessage = "Could not delete this saved workout from the database."
+            showSavedCustomWorkoutMessage = true
         }
     }
 
@@ -543,14 +726,222 @@ private struct MakeYourOwnWorkoutSession: Identifiable {
     let totalCalories: Int
 }
 
+private struct SavedCustomWorkout: Identifiable, Codable {
+    let id: UUID
+    var name: String
+    var plan: workout_plans
+    var createdAt: Date
+
+    var exerciseCount: Int {
+        plan.exercises.count
+    }
+
+    var totalCalories: Int {
+        plan.exercises.reduce(0) { $0 + $1.calories_burned }
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case name
+        case plan
+        case createdAt
+        case createdAtSnake = "created_at"
+    }
+
+    init(id: UUID, name: String, plan: workout_plans, createdAt: Date) {
+        self.id = id
+        self.name = name
+        self.plan = plan
+        self.createdAt = createdAt
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(UUID.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        plan = try container.decode(workout_plans.self, forKey: .plan)
+
+        if let decodedDate = try? container.decode(Date.self, forKey: .createdAt) {
+            createdAt = decodedDate
+        } else if let decodedDate = try? container.decode(Date.self, forKey: .createdAtSnake) {
+            createdAt = decodedDate
+        } else if let dateString = try? container.decode(String.self, forKey: .createdAt) {
+            createdAt = Self.parseDate(dateString) ?? Date()
+        } else if let dateString = try? container.decode(String.self, forKey: .createdAtSnake) {
+            createdAt = Self.parseDate(dateString) ?? Date()
+        } else {
+            createdAt = Date()
+        }
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(id, forKey: .id)
+        try container.encode(name, forKey: .name)
+        try container.encode(plan, forKey: .plan)
+        try container.encode(createdAt, forKey: .createdAt)
+    }
+
+    private static func parseDate(_ value: String) -> Date? {
+        let fractionalFormatter = ISO8601DateFormatter()
+        fractionalFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+        if let date = fractionalFormatter.date(from: value) {
+            return date
+        }
+
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return formatter.date(from: value)
+    }
+}
+
 private enum MakeYourOwnRoutineStore {
     static let primaryKey = "all_muscle_custom_routine"
     static let legacyTypoKey = "all_mucle_routine"
+    static let maxSavedWorkouts = 5
+    private static let savedListKey = "saved_make_your_own_workouts"
+    private static let migrationKey = "saved_make_your_own_workouts_migrated"
 
-    static func save(_ plan: workout_plans) {
+    static func saveToBackend(_ plan: workout_plans, named rawName: String) async throws -> SavedCustomWorkout {
+        let existing = try await fetchFromBackend()
+        guard existing.count < maxSavedWorkouts else {
+            throw SavedCustomWorkoutStoreError.limitReached
+        }
+
+        let fallbackNumber = min(existing.count + 1, maxSavedWorkouts)
+        let requestBody = SavedCustomWorkoutCreateRequest(
+            name: normalizedName(rawName, fallbackNumber: fallbackNumber),
+            plan: plan
+        )
+        guard let url = URL(string: Constants.baseURL + "training/custom-workouts") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url, timeoutInterval: 45)
+        request.httpMethod = HttpMethods.POST.rawValue
+        request.setValue(MIMEType.JSON.rawValue, forHTTPHeaderField: HttpHeaders.contentType.rawValue)
+        request.applyBearerToken()
+        request.httpBody = try JSONEncoder().encode(requestBody)
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse else {
+            throw URLError(.badServerResponse)
+        }
+
+        if http.statusCode == 409 {
+            throw SavedCustomWorkoutStoreError.limitReached
+        }
+
+        guard (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let savedWorkout = try JSONDecoder().decode(SavedCustomWorkout.self, from: data)
+        persist([savedWorkout] + existing.filter { $0.id != savedWorkout.id })
+        saveLegacyPlan(plan)
+        return savedWorkout
+    }
+
+    static func fetchFromBackend() async throws -> [SavedCustomWorkout] {
+        guard let url = URL(string: Constants.baseURL + "training/custom-workouts") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url, timeoutInterval: 45)
+        request.httpMethod = HttpMethods.GET.rawValue
+        request.applyBearerToken()
+
+        let (data, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        let savedWorkouts = try JSONDecoder().decode([SavedCustomWorkout].self, from: data)
+            .sorted { $0.createdAt > $1.createdAt }
+            .prefix(maxSavedWorkouts)
+        let limitedWorkouts = Array(savedWorkouts)
+        persist(limitedWorkouts)
+        return limitedWorkouts
+    }
+
+    static func deleteFromBackend(id: UUID) async throws {
+        guard let url = URL(string: Constants.baseURL + "training/custom-workouts/\(id.uuidString)") else {
+            throw URLError(.badURL)
+        }
+
+        var request = URLRequest(url: url, timeoutInterval: 45)
+        request.httpMethod = HttpMethods.DELETE.rawValue
+        request.applyBearerToken()
+
+        let (_, response) = try await URLSession.shared.data(for: request)
+        guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+            throw URLError(.badServerResponse)
+        }
+
+        persist(loadLocal().filter { $0.id != id })
+    }
+
+    static func loadLocal() -> [SavedCustomWorkout] {
+        if let data = UserDefaults.standard.data(forKey: savedListKey),
+           let savedWorkouts = try? JSONDecoder().decode([SavedCustomWorkout].self, from: data) {
+            return Array(savedWorkouts.sorted { $0.createdAt > $1.createdAt }.prefix(maxSavedWorkouts))
+        }
+
+        guard !UserDefaults.standard.bool(forKey: migrationKey),
+              let legacyPlan = loadLegacyPlan() else {
+            return []
+        }
+
+        let migratedWorkout = SavedCustomWorkout(
+            id: UUID(),
+            name: "Saved Custom Workout",
+            plan: legacyPlan,
+            createdAt: Date()
+        )
+        persist([migratedWorkout])
+        UserDefaults.standard.set(true, forKey: migrationKey)
+        return [migratedWorkout]
+    }
+
+    private static func persist(_ savedWorkouts: [SavedCustomWorkout]) {
+        let limitedWorkouts = Array(savedWorkouts.sorted { $0.createdAt > $1.createdAt }.prefix(maxSavedWorkouts))
+        guard let data = try? JSONEncoder().encode(limitedWorkouts) else { return }
+        UserDefaults.standard.set(data, forKey: savedListKey)
+        UserDefaults.standard.set(true, forKey: migrationKey)
+    }
+
+    private static func saveLegacyPlan(_ plan: workout_plans) {
         guard let data = try? JSONEncoder().encode(plan) else { return }
         UserDefaults.standard.set(data, forKey: primaryKey)
         UserDefaults.standard.set(data, forKey: legacyTypoKey)
+    }
+
+    private static func loadLegacyPlan() -> workout_plans? {
+        let defaults = UserDefaults.standard
+        let data = defaults.data(forKey: primaryKey) ?? defaults.data(forKey: legacyTypoKey)
+        guard let data else { return nil }
+        return try? JSONDecoder().decode(workout_plans.self, from: data)
+    }
+
+    private static func normalizedName(_ name: String, fallbackNumber: Int) -> String {
+        let trimmedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmedName.isEmpty ? "Custom Workout \(fallbackNumber)" : trimmedName
+    }
+}
+
+private struct SavedCustomWorkoutCreateRequest: Encodable {
+    let name: String
+    let plan: workout_plans
+}
+
+private enum SavedCustomWorkoutStoreError: LocalizedError {
+    case limitReached
+
+    var errorDescription: String? {
+        switch self {
+        case .limitReached:
+            return "You can save up to 5 make your own workouts. Remove one before saving another."
+        }
     }
 }
 
@@ -579,6 +970,8 @@ private final class MakeYourOwnExerciseViewModel: ObservableObject {
     @Published var searchText = ""
     @Published var isLoading = false
     @Published var message: String?
+    @Published var saveMessage: String?
+    @Published var isSavingWorkout = false
     @Published var startingSession: MakeYourOwnWorkoutSession?
 
     private var cachedExercises: [String: [AllExerciseCatalogItem]] = [:]
@@ -668,28 +1061,61 @@ private final class MakeYourOwnExerciseViewModel: ObservableObject {
     }
 
     func startWorkout() {
-        guard !selectedExercises.isEmpty else { return }
+        guard let plan = selectedWorkoutPlan() else { return }
 
-        let plan = workout_plans(
+        startingSession = MakeYourOwnWorkoutSession(plan: plan, totalCalories: totalCalories)
+    }
+
+    @discardableResult
+    func saveSelectedWorkout(named name: String) async -> SavedCustomWorkout? {
+        guard let plan = selectedWorkoutPlan() else { return nil }
+
+        isSavingWorkout = true
+        defer { isSavingWorkout = false }
+
+        do {
+            let savedWorkout = try await MakeYourOwnRoutineStore.saveToBackend(plan, named: name)
+            saveMessage = "\"\(savedWorkout.name)\" saved for later."
+            return savedWorkout
+        } catch {
+            saveMessage = error.localizedDescription
+            return nil
+        }
+    }
+
+    private func selectedWorkoutPlan() -> workout_plans? {
+        guard !selectedExercises.isEmpty else { return nil }
+
+        return workout_plans(
             day: 1,
             muscle_group: "All Muscle",
             exercises: selectedExercises.map(\.workoutExercise)
         )
-        MakeYourOwnRoutineStore.save(plan)
-        startingSession = MakeYourOwnWorkoutSession(plan: plan, totalCalories: totalCalories)
     }
 }
 
 private struct MakeYourOwnWorkoutView: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var viewModel = MakeYourOwnExerciseViewModel()
+    let savedWorkoutCount: Int
     let onReturnHome: () -> Void
+    let onSaved: () -> Void
+    @State private var showSaveWorkoutPrompt = false
+    @State private var saveWorkoutName = ""
 
     private var exerciseGridColumns: [GridItem] {
         [
-            GridItem(.flexible(), spacing: 12),
-            GridItem(.flexible(), spacing: 12)
+            GridItem(.flexible(), spacing: 10),
+            GridItem(.flexible(), spacing: 10)
         ]
+    }
+
+    private var surfaceColor: Color {
+        Color.white.opacity(0.075)
+    }
+
+    private var surfaceStroke: Color {
+        Color.white.opacity(0.12)
     }
 
     var body: some View {
@@ -699,9 +1125,9 @@ private struct MakeYourOwnWorkoutView: View {
             VStack(spacing: 0) {
                 header
 
-                categoryScroller
-
                 searchField
+
+                categoryScroller
 
                 exerciseList
 
@@ -721,71 +1147,143 @@ private struct MakeYourOwnWorkoutView: View {
                 onReturnHome()
             }
         }
+        .alert("Save Workout", isPresented: $showSaveWorkoutPrompt) {
+            TextField("Workout name", text: $saveWorkoutName)
+            Button("Save") {
+                Task {
+                    if await viewModel.saveSelectedWorkout(named: saveWorkoutName) != nil {
+                        onSaved()
+                    }
+                    saveWorkoutName = ""
+                }
+            }
+            Button("Cancel", role: .cancel) {
+                saveWorkoutName = ""
+            }
+        } message: {
+                Text("Name this custom workout so you can start it from the first screen later.")
+        }
     }
 
     private var header: some View {
-        HStack(spacing: 14) {
-            Button {
-                dismiss()
-            } label: {
-                Image(systemName: "xmark")
-                    .font(.headline)
-                    .foregroundColor(.white)
-                    .frame(width: 38, height: 38)
-                    .background(Color.white.opacity(0.12))
-                    .clipShape(Circle())
+        VStack(spacing: 12) {
+            HStack(spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Make Your Own")
+                        .font(.system(size: 26, weight: .heavy, design: .rounded))
+                        .foregroundColor(.white)
+
+                    Text("Pick exercises across muscle groups")
+                        .font(.subheadline)
+                        .foregroundColor(.white.opacity(0.58))
+                }
+
+                Spacer()
+
+                Button {
+                    dismiss()
+                } label: {
+                    Image(systemName: "xmark")
+                        .font(.headline)
+                        .foregroundColor(.white.opacity(0.88))
+                        .frame(width: 38, height: 38)
+                        .background(surfaceColor)
+                        .overlay(
+                            Circle()
+                                .stroke(surfaceStroke, lineWidth: 1)
+                        )
+                        .clipShape(Circle())
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
 
-            VStack(alignment: .leading, spacing: 3) {
-                Text("Make Your Own")
-                    .font(.system(size: 28, weight: .heavy, design: .rounded))
-                    .foregroundStyle(LinearGradient(
-                        colors: [.white, .orange],
-                        startPoint: .leading,
-                        endPoint: .trailing
-                    ))
+            HStack(spacing: 8) {
+                workoutStatPill(
+                    value: "\(viewModel.selectedExercises.count)",
+                    label: "selected",
+                    systemImage: "checkmark.circle.fill",
+                    tint: .green
+                )
 
-                Text("\(viewModel.selectedExercises.count) selected - ~\(viewModel.totalCalories) cal")
-                    .font(.subheadline)
-                    .foregroundColor(.white.opacity(0.7))
+                workoutStatPill(
+                    value: "~\(viewModel.totalCalories)",
+                    label: "cal",
+                    systemImage: "flame.fill",
+                    tint: .orange
+                )
+
+                workoutStatPill(
+                    value: "\(min(savedWorkoutCount, MakeYourOwnRoutineStore.maxSavedWorkouts))/5",
+                    label: "saved",
+                    systemImage: "bookmark.fill",
+                    tint: .cyan
+                )
             }
-
-            Spacer()
         }
         .padding(.horizontal, 18)
-        .padding(.top, 20)
-        .padding(.bottom, 12)
+        .padding(.top, 18)
+        .padding(.bottom, 10)
+    }
+
+    private func workoutStatPill(value: String, label: String, systemImage: String, tint: Color) -> some View {
+        HStack(spacing: 7) {
+            Image(systemName: systemImage)
+                .font(.caption)
+                .foregroundColor(tint)
+
+            Text(value)
+                .font(.subheadline)
+                .fontWeight(.heavy)
+                .foregroundColor(.white)
+
+            Text(label)
+                .font(.caption2)
+                .fontWeight(.bold)
+                .foregroundColor(.white.opacity(0.58))
+        }
+        .lineLimit(1)
+        .minimumScaleFactor(0.8)
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 9)
+        .padding(.horizontal, 8)
+        .background(surfaceColor)
+        .overlay(
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(surfaceStroke, lineWidth: 1)
+        )
+        .cornerRadius(8)
     }
 
     private var categoryScroller: some View {
         ScrollView(.horizontal, showsIndicators: false) {
-            HStack(spacing: 10) {
+            HStack(spacing: 8) {
                 ForEach(MakeYourOwnExerciseViewModel.categories, id: \.self) { category in
+                    let isSelected = viewModel.selectedCategory == category
+
                     Button {
                         viewModel.selectedCategory = category
                     } label: {
                         Text(category)
-                            .font(.caption)
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
                             .fontWeight(.bold)
-                            .foregroundColor(viewModel.selectedCategory == category ? .white : .orange)
+                            .foregroundColor(isSelected ? .white : .white.opacity(0.68))
                             .lineLimit(1)
-                            .padding(.horizontal, 14)
-                            .padding(.vertical, 10)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 8)
                             .background(
-                                Capsule()
-                                    .fill(viewModel.selectedCategory == category ? Color.orange : Color.orange.opacity(0.13))
+                                RoundedRectangle(cornerRadius: 8)
+                                    .fill(isSelected ? Color.orange.opacity(0.86) : surfaceColor)
                             )
                             .overlay(
-                                Capsule()
-                                    .stroke(Color.orange.opacity(0.4), lineWidth: 1)
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isSelected ? Color.orange.opacity(0.7) : surfaceStroke, lineWidth: 1)
                             )
                     }
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 18)
-            .padding(.vertical, 8)
+            .padding(.bottom, 10)
         }
     }
 
@@ -797,6 +1295,7 @@ private struct MakeYourOwnWorkoutView: View {
             TextField("Search exercises or muscles", text: $viewModel.searchText)
                 .textInputAutocapitalization(.words)
                 .foregroundColor(.white)
+                .font(.subheadline)
 
             if !viewModel.searchText.isEmpty {
                 Button {
@@ -808,15 +1307,16 @@ private struct MakeYourOwnWorkoutView: View {
                 .buttonStyle(.plain)
             }
         }
-        .padding(12)
-        .background(Color.white.opacity(0.08))
+        .padding(.horizontal, 13)
+        .frame(height: 44)
+        .background(surfaceColor)
         .overlay(
-            RoundedRectangle(cornerRadius: 10)
-                .stroke(Color.white.opacity(0.13), lineWidth: 1)
+            RoundedRectangle(cornerRadius: 8)
+                .stroke(surfaceStroke, lineWidth: 1)
         )
-        .cornerRadius(10)
+        .cornerRadius(8)
         .padding(.horizontal, 18)
-        .padding(.bottom, 10)
+        .padding(.bottom, 12)
     }
 
     private var exerciseList: some View {
@@ -848,10 +1348,10 @@ private struct MakeYourOwnWorkoutView: View {
                 }
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 12) {
+                    LazyVStack(spacing: 10) {
                         selectedStrip
 
-                        LazyVGrid(columns: exerciseGridColumns, spacing: 12) {
+                        LazyVGrid(columns: exerciseGridColumns, spacing: 10) {
                             ForEach(viewModel.filteredExercises, id: \.stableID) { exercise in
                                 exerciseCard(exercise)
                             }
@@ -879,12 +1379,16 @@ private struct MakeYourOwnWorkoutView: View {
                                     .lineLimit(1)
                                 Image(systemName: "xmark")
                             }
-                            .font(.caption)
+                            .font(.caption2)
                             .fontWeight(.bold)
                             .foregroundColor(.white)
                             .padding(.horizontal, 10)
-                            .padding(.vertical, 8)
-                            .background(Color.orange.opacity(0.65))
+                            .padding(.vertical, 7)
+                            .background(Color.green.opacity(0.38))
+                            .overlay(
+                                Capsule()
+                                    .stroke(Color.green.opacity(0.45), lineWidth: 1)
+                            )
                             .clipShape(Capsule())
                         }
                         .buttonStyle(.plain)
@@ -909,9 +1413,9 @@ private struct MakeYourOwnWorkoutView: View {
                     .overlay(
                         LinearGradient(
                             colors: [
-                                .black.opacity(0.05),
-                                .black.opacity(0.36),
-                                .black.opacity(0.88)
+                                .black.opacity(0.0),
+                                .black.opacity(0.28),
+                                .black.opacity(0.82)
                             ],
                             startPoint: .top,
                             endPoint: .bottom
@@ -922,7 +1426,7 @@ private struct MakeYourOwnWorkoutView: View {
                     Spacer()
 
                     Text(exercise.exerciseName)
-                        .font(.system(size: 17, weight: .heavy, design: .rounded))
+                        .font(.system(size: 15, weight: .heavy, design: .rounded))
                         .foregroundColor(.white)
                         .lineLimit(2)
                         .minimumScaleFactor(0.72)
@@ -930,91 +1434,167 @@ private struct MakeYourOwnWorkoutView: View {
 
                     Text(exercise.muscle)
                         .font(.system(size: 11, weight: .bold, design: .rounded))
-                        .foregroundColor(.orange)
+                        .foregroundColor(.orange.opacity(0.95))
                         .lineLimit(1)
                         .minimumScaleFactor(0.78)
 
-                    Text("10-12 reps x 3 sets")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.white.opacity(0.86))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-
-                    Text("~\(exercise.expectedCaloriesBurned) cal")
-                        .font(.caption2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.white.opacity(0.58))
-                        .lineLimit(1)
+                    HStack(spacing: 6) {
+                        Text("3 x 10-12")
+                        Text("~\(exercise.expectedCaloriesBurned) cal")
+                    }
+                    .font(.caption2)
+                    .fontWeight(.bold)
+                    .foregroundColor(.white.opacity(0.68))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.75)
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                .padding(12)
+                .padding(10)
 
                 Image(systemName: isSelected ? "checkmark" : "plus")
-                    .font(.headline)
+                    .font(.subheadline.weight(.heavy))
                     .foregroundColor(.white)
-                    .frame(width: 34, height: 34)
-                    .background(isSelected ? Color.green.opacity(0.94) : Color.orange.opacity(0.94))
+                    .frame(width: 30, height: 30)
+                    .background(isSelected ? Color.green.opacity(0.94) : Color.black.opacity(0.48))
+                    .overlay(
+                        Circle()
+                            .stroke(Color.white.opacity(0.22), lineWidth: 1)
+                    )
                     .clipShape(Circle())
-                    .shadow(color: .black.opacity(0.28), radius: 6, x: 0, y: 3)
-                    .padding(10)
+                    .padding(8)
             }
             .aspectRatio(1, contentMode: .fit)
-            .background(Color.white.opacity(0.08))
+            .background(surfaceColor)
             .overlay(
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(isSelected ? Color.orange.opacity(0.8) : Color.white.opacity(0.13), lineWidth: isSelected ? 2 : 1)
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(isSelected ? Color.green.opacity(0.72) : surfaceStroke, lineWidth: isSelected ? 2 : 1)
             )
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .shadow(color: isSelected ? Color.orange.opacity(0.24) : Color.black.opacity(0.2), radius: 8, x: 0, y: 4)
+            .clipShape(RoundedRectangle(cornerRadius: 8))
         }
         .buttonStyle(.plain)
         .accessibilityLabel(isSelected ? "Remove \(exercise.exerciseName)" : "Add \(exercise.exerciseName)")
     }
 
     private var readyBar: some View {
-        VStack(spacing: 10) {
-            HStack(spacing: 12) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("\(viewModel.selectedExercises.count) exercises")
-                        .font(.headline)
-                        .fontWeight(.heavy)
-                        .fontDesign(.rounded)
-                        .foregroundColor(.white)
+        VStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("\(viewModel.selectedExercises.count) exercises")
+                    .font(.subheadline)
+                    .fontWeight(.heavy)
+                    .fontDesign(.rounded)
+                    .foregroundColor(.white)
 
-                    Text("Saved locally when you start")
-                        .font(.caption)
-                        .foregroundColor(.white.opacity(0.6))
-                }
+                Text(viewModel.saveMessage ?? "Save this workout for later or start now")
+                    .font(.caption)
+                    .foregroundColor(.white.opacity(0.6))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
-                Spacer()
+            HStack(spacing: 10) {
+                saveForLaterButton
 
                 Button {
                     viewModel.startWorkout()
                 } label: {
                     Label("I'm ready!", systemImage: "play.fill")
-                        .font(.headline)
+                        .font(.subheadline)
                         .fontWeight(.bold)
                         .foregroundColor(.white)
-                        .padding(.horizontal, 18)
-                        .padding(.vertical, 13)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.82)
+                        .frame(maxWidth: .infinity, minHeight: 48)
                         .background(viewModel.selectedExercises.isEmpty ? Color.gray.opacity(0.55) : Color.orange)
-                        .cornerRadius(10)
+                        .cornerRadius(8)
                 }
                 .buttonStyle(.plain)
                 .disabled(viewModel.selectedExercises.isEmpty)
             }
         }
         .padding(.horizontal, 18)
-        .padding(.top, 12)
+        .padding(.top, 14)
         .padding(.bottom, 18)
-        .background(Color.black.opacity(0.35))
+        .background(Color.black.opacity(0.42))
         .overlay(
             Rectangle()
                 .fill(Color.white.opacity(0.1))
                 .frame(height: 1),
             alignment: .top
         )
+    }
+
+    private var saveForLaterButton: some View {
+        Button {
+            if savedWorkoutCount >= MakeYourOwnRoutineStore.maxSavedWorkouts {
+                viewModel.saveMessage = "You can save up to 5 make your own workouts. Remove one before saving another."
+            } else {
+                saveWorkoutName = defaultWorkoutName()
+                showSaveWorkoutPrompt = true
+            }
+        } label: {
+            HStack(spacing: 8) {
+                if viewModel.isSavingWorkout {
+                    ProgressView()
+                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
+                } else {
+                    Image(systemName: savedWorkoutCount >= MakeYourOwnRoutineStore.maxSavedWorkouts ? "bookmark.slash" : "bookmark.fill")
+                        .font(.headline)
+                }
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Save")
+                        .font(.subheadline)
+                        .fontWeight(.heavy)
+
+                    Text("\(min(savedWorkoutCount, MakeYourOwnRoutineStore.maxSavedWorkouts))/5")
+                        .font(.caption2)
+                        .fontWeight(.bold)
+                        .opacity(0.78)
+                }
+            }
+            .foregroundColor(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.82)
+            .frame(maxWidth: .infinity, minHeight: 48)
+            .background(saveButtonBackground)
+            .overlay(
+                RoundedRectangle(cornerRadius: 8)
+                    .stroke(saveButtonStroke, lineWidth: 1)
+            )
+            .cornerRadius(8)
+        }
+        .buttonStyle(.plain)
+        .disabled(viewModel.selectedExercises.isEmpty || viewModel.isSavingWorkout || savedWorkoutCount >= MakeYourOwnRoutineStore.maxSavedWorkouts)
+        .accessibilityLabel("Save workout for later")
+    }
+
+    private var saveButtonBackground: Color {
+        if viewModel.selectedExercises.isEmpty || savedWorkoutCount >= MakeYourOwnRoutineStore.maxSavedWorkouts {
+            return Color.gray.opacity(0.45)
+        }
+
+        return Color.green.opacity(0.24)
+    }
+
+    private var saveButtonStroke: Color {
+        if viewModel.selectedExercises.isEmpty || savedWorkoutCount >= MakeYourOwnRoutineStore.maxSavedWorkouts {
+            return Color.white.opacity(0.14)
+        }
+
+        return Color.green.opacity(0.55)
+    }
+
+    private func defaultWorkoutName() -> String {
+        guard let firstExercise = viewModel.selectedExercises.first?.exerciseName else {
+            return ""
+        }
+
+        if viewModel.selectedExercises.count == 1 {
+            return firstExercise
+        }
+
+        return "\(firstExercise) + \(viewModel.selectedExercises.count - 1)"
     }
 }
 
@@ -1223,6 +1803,7 @@ private final class RoutineViewModel: ObservableObject {
     @Published var routine: RoutineUserResponse?
     @Published var isLoading = false
     @Published var isRequestingNewRoutine = false
+    @Published var isRefreshingDescriptions = false
     @Published var message: String?
 
     private let decoder = JSONDecoder()
@@ -1233,6 +1814,15 @@ private final class RoutineViewModel: ObservableObject {
 
     var hasRoutine: Bool {
         !routineDays.isEmpty
+    }
+
+    private var routineNeedsDescriptions: Bool {
+        routineDays.contains { day in
+            day.exercises.contains { exercise in
+                isMissingDescription(exercise.descriptionEng)
+                    || isMissingDescription(exercise.descriptionEsp)
+            }
+        }
     }
 
     func fetchRoutine() async {
@@ -1252,6 +1842,9 @@ private final class RoutineViewModel: ObservableObject {
             switch http.statusCode {
             case 200..<300:
                 routine = try decoder.decode(RoutineUserResponse.self, from: data)
+                if routineNeedsDescriptions {
+                    Task { await refreshRoutineDescriptions() }
+                }
             case 404:
                 routine = nil
                 message = "No routine has been saved yet."
@@ -1294,14 +1887,61 @@ private final class RoutineViewModel: ObservableObject {
 
             if (200..<300).contains(http.statusCode) {
                 routine = try decoder.decode(RoutineUserResponse.self, from: data)
+                if routineNeedsDescriptions {
+                    message = "Routine ready. Adding exercise descriptions..."
+                    Task { await refreshRoutineDescriptions(showProgressMessage: true) }
+                }
             } else if http.statusCode == 401 {
                 message = "Please sign in again before requesting a routine."
+            } else if http.statusCode == 503 {
+                message = "Routine generation is busy. Please try again in a moment."
             } else {
                 message = "Routine request failed. Status \(http.statusCode)."
             }
         } catch {
             message = error.localizedDescription
         }
+    }
+
+    func refreshRoutineDescriptions(showProgressMessage: Bool = false) async {
+        guard hasRoutine, routineNeedsDescriptions, !isRefreshingDescriptions else { return }
+
+        isRefreshingDescriptions = true
+        if showProgressMessage {
+            message = "Routine ready. Adding exercise descriptions..."
+        }
+        defer { isRefreshingDescriptions = false }
+
+        do {
+            let (data, response) = try await sendRoutineRequest(
+                path: "routine/descriptions",
+                method: "POST",
+                timeout: 120
+            )
+            guard let http = response as? HTTPURLResponse else {
+                message = "Routine is ready. Exercise descriptions will be added later."
+                return
+            }
+
+            if (200..<300).contains(http.statusCode) {
+                routine = try decoder.decode(RoutineUserResponse.self, from: data)
+                message = nil
+            } else if http.statusCode == 404 {
+                message = nil
+            } else {
+                message = "Routine is ready. Exercise descriptions will be added later."
+            }
+        } catch {
+            message = "Routine is ready. Exercise descriptions will be added later."
+        }
+    }
+
+    private func isMissingDescription(_ value: String?) -> Bool {
+        guard let text = value?.trimmingCharacters(in: .whitespacesAndNewlines) else {
+            return true
+        }
+
+        return text.isEmpty || text == "0"
     }
 
     private func sendRoutineRequest(

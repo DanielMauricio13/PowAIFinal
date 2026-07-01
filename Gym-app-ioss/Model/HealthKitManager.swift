@@ -4,9 +4,11 @@
 import Foundation
 import HealthKit
 import Combine
+import ActivityKit
 
 @MainActor
 final class HealthKitManager: ObservableObject {
+    static let shared = HealthKitManager()
 
     // MARK: - Published state
     @Published var latestBPM: Int?          // nil until first sample arrives
@@ -40,6 +42,12 @@ final class HealthKitManager: ObservableObject {
         } catch {
             authError = error.localizedDescription
         }
+    }
+
+    func resumeBackgroundMonitoringIfNeeded() {
+        guard HKHealthStore.isHealthDataAvailable(),
+              hasActiveWorkoutLiveActivity else { return }
+        startMonitoring()
     }
 
     // ─── Start / Stop Monitoring ──────────────────────────────────────────────
@@ -84,7 +92,8 @@ final class HealthKitManager: ObservableObject {
         store.execute(anchoredQuery!)
     }
 
-    func stopMonitoring() {
+    func stopMonitoring(force: Bool = false) {
+        guard force || !hasActiveWorkoutLiveActivity else { return }
         if let oq = observerQuery { store.stop(oq) }
         if let aq = anchoredQuery { store.stop(aq) }
         observerQuery  = nil
@@ -104,7 +113,9 @@ final class HealthKitManager: ObservableObject {
             limit: 1,
             sortDescriptors: [sort]
         ) { [weak self] _, samples, _ in
-            self?.process(samples: samples)
+            Task { @MainActor [weak self] in
+                self?.process(samples: samples)
+            }
         }
         store.execute(query)
     }
@@ -113,6 +124,29 @@ final class HealthKitManager: ObservableObject {
         guard let samples = samples as? [HKQuantitySample],
               let last = samples.last else { return }
         let bpm = Int(last.quantity.doubleValue(for: bpmUnit).rounded())
-        Task { @MainActor in self.latestBPM = bpm }
+        latestBPM = bpm
+        Task { await updateWorkoutLiveActivities(bpm: bpm) }
+    }
+
+    private var hasActiveWorkoutLiveActivity: Bool {
+        Activity<TimeTrackingAttributes>.activities.contains { activity in
+            activity.content.state.dayPlanTitle == nil
+        }
+    }
+
+    private func updateWorkoutLiveActivities(bpm: Int) async {
+        for activity in Activity<TimeTrackingAttributes>.activities where activity.content.state.dayPlanTitle == nil {
+            let state = TimeTrackingAttributes.ContentState(
+                startTime: activity.content.state.startTime,
+                set: activity.content.state.set,
+                heartRate: bpm
+            )
+            let content = ActivityContent(
+                state: state,
+                staleDate: nil,
+                relevanceScore: LiveActivityRelevance.workout
+            )
+            await activity.update(content)
+        }
     }
 }

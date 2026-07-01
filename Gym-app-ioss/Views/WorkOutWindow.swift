@@ -5,7 +5,6 @@
 //  Created by Daniel Pinilla on 5/30/24.
 //
 import SwiftUI
-import GoogleGenerativeAI
 
 struct WorkOutWindow: View {
     var mainUser: User?

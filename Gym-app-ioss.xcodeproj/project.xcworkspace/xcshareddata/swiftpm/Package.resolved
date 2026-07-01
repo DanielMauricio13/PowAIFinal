@@ -1,15 +1,6 @@
 {
-  "originHash" : "e4e0f227a841df7f52a19763b06643ff1be05a8692d2878fbbec01bb391df6eb",
+  "originHash" : "272172211271647b0c6c84b3a88c4931ccd76517ab3c5d8fcbf10ebb40603eaa",
   "pins" : [
-    {
-      "identity" : "generative-ai-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/google/generative-ai-swift",
-      "state" : {
-        "revision" : "44b8ce120425f9cf53ca756f3434ca2c2696f8bd",
-        "version" : "0.5.6"
-      }
-    },
     {
       "identity" : "keychainaccess",
       "kind" : "remoteSourceControl",
@@ -17,24 +8,6 @@
       "state" : {
         "branch" : "master",
         "revision" : "e0c7eebc5a4465a3c4680764f26b7a61f567cdaf"
-      }
-    },
-    {
-      "identity" : "openaikit",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/MarcoDotIO/OpenAIKit",
-      "state" : {
-        "revision" : "9e718bc33f10bc0c0524ae140be6a89651c4ea3d",
-        "version" : "1.2.0"
-      }
-    },
-    {
-      "identity" : "openaiswift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/adamrushy/OpenAISwift",
-      "state" : {
-        "revision" : "ca66fb720d6ebb657601db5a0852b830ae310a4c",
-        "version" : "1.4.1"
       }
     },
     {
